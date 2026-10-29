@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Game Arcade</title>
+  <meta name="description" content="AIが企画・制作した小さなブラウザゲーム集">
+  <link rel="stylesheet" href="/assets/arcade.css">
+</head>
+<body>
+  <main class="arcade">
+    <h1>Game Arcade</h1>
+    <p class="lead">AIが企画・制作し、人が遊んで確かめたブラウザゲーム。</p>
+    <ul id="game-list" class="game-list" aria-live="polite"></ul>
+    <p id="empty" class="empty" hidden>まだ公開中のゲームはありません。準備中です。</p>
+  </main>
+  <script>
+    fetch('/games/games.json')
+      .then((r) => r.json())
+      .then((games) => {
+        const list = document.getElementById('game-list');
+        const shown = games.filter((g) => g.listed !== false);
+        if (shown.length === 0) {
+          document.getElementById('empty').hidden = false;
+          return;
+        }
+        for (const g of shown) {
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.href = `/games/${g.slug}/`;
+          const title = document.createElement('strong');
+          title.textContent = g.title;
+          const desc = document.createElement('span');
+          desc.textContent = g.description;
+          a.append(title, desc);
+          li.append(a);
+          list.append(li);
+        }
+      })
+      .catch(() => {
+        document.getElementById('empty').hidden = false;
+      });
+  </script>
+</body>
+</html>
