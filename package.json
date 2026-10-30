@@ -7,7 +7,8 @@
     "test:static": "node --test tests/static.test.js",
     "serve": "node scripts/serve.js",
     "new-game": "node scripts/new-game.js",
-    "og": "node scripts/make-og.js"
+    "og": "node scripts/make-og.js",
+    "screenshot": "node scripts/screenshot.js"
   },
   "devDependencies": {
     "playwright": "1.63.0"
