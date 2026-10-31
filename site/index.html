@@ -28,6 +28,12 @@
           const li = document.createElement('li');
           const a = document.createElement('a');
           a.href = `/games/${g.slug}/`;
+          const img = document.createElement('img');
+          img.src = `/games/${g.slug}/og.png`;
+          img.alt = `${g.title}のゲーム画面`;
+          img.loading = 'lazy';
+          img.width = 1200; img.height = 630;
+          a.append(img);
           const title = document.createElement('strong');
           title.textContent = g.title;
           const desc = document.createElement('span');
