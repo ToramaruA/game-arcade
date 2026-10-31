@@ -66,6 +66,15 @@ function drawSilhouette(c, k) {
   }
   c.putImageData(img, 0, 0);
 }
+// 未遭遇の生物が出る場所（いちばん早い航路の最初の深度）。未解放の航路なら鍵を付ける。
+function whereText(k) {
+  const r = ROUTES.find((rt) => rt.encounters.some((e) => e.species === k));
+  if (!r) return '';
+  const depth = r.encounters.find((e) => e.species === k).depth;
+  return isUnlocked(unlocked, r.id)
+    ? `出現：${'★'.repeat(r.level)} ${r.name}の ${depth}m 付近`
+    : `出現：🔒 ${'★'.repeat(r.level)} ${r.name}（未解放）の ${depth}m 付近`;
+}
 function renderLibrary() {
   const ul = $('libSpecies'); ul.textContent = '';
   for (const k of Object.keys(SPECIES)) {
@@ -83,7 +92,7 @@ function renderLibrary() {
       cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', 'まだ出会っていない生物の影');
       drawSilhouette(cv.getContext('2d'), k);
       const tx = document.createElement('div');
-      tx.innerHTML = '<b>？？？</b><br><small>まだ出会っていない生物。潜ると記録されます。</small>';
+      tx.innerHTML = `<b>？？？</b><br><small>まだ出会っていない生物。出会うと記録されます。</small><br><small class="where">${whereText(k)}</small>`;
       li.className = 'known unk'; li.append(cv, tx);
     }
     ul.appendChild(li);
