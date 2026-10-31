@@ -32,7 +32,7 @@ const css = `
 .gone-E .drift{transform:translate(${DRIFT.E}) rotate(${ROT.E})}.gone-H .drift{transform:translate(${DRIFT.H}) rotate(${ROT.H})}
 .gone-P .drift{transform:translate(${DRIFT.P}) rotate(${ROT.P})}.gone-C .drift{transform:translate(${DRIFT.C}) rotate(${ROT.C})}
 .part{cursor:pointer}
-.part.sel .hull{stroke:#74DFAC;stroke-width:5}
+.part.sel .hull,.part.sel .glass{stroke:#74DFAC;stroke-width:9}
 .part.gone{cursor:default;pointer-events:none}
 .edge{cursor:pointer}.band{fill:#FFC35A;stroke:#7a5a14;stroke-width:2}
 .edge.gone,.edge.sevd{display:none}
@@ -116,7 +116,7 @@ export function shipSvg() {
   const parts = COMPS.map((c) => {
     const [lx, ly] = LABEL[c];
     const [cx, cy] = CENTER[c];
-    return `<g id="part-${c}" class="part" data-comp="${c}">${partShape(c)}
+    return `<g id="part-${c}" class="part" data-comp="${c}" tabindex="0" role="button" aria-label="${NAMES[c]}を選ぶ">${partShape(c)}
       <path class="prev" d="${OUTLINE[c]}"/>
       <g class="fire"><path class="fglow" d="${OUTLINE[c]}"/><path class="crack" d="${CRACK[c]}"/>
         <polygon class="flame" points="${cx - 18},${cy + 14} ${cx - 8},${cy - 18} ${cx},${cy + 6} ${cx + 10},${cy - 24} ${cx + 20},${cy + 14}"/>
@@ -128,7 +128,7 @@ export function shipSvg() {
     return `<g id="edge-${c}" class="edge" data-edge="${c}"><rect x="${x - 6}" y="${y - 6}" width="${w + 12}" height="${h + 12}" fill="transparent"/><rect class="band" x="${x}" y="${y}" width="${w}" height="${h}"/>
       <path d="M${x + 2} ${y + h} L${x + w - 2} ${y}" stroke="#7a5a14" stroke-width="3"/><g class="spark" id="spark-${c}"><circle cx="${x + w / 2}" cy="${y + h / 2}" r="6"/><circle cx="${x + w / 2 + 12}" cy="${y + h / 2 - 10}" r="4"/></g></g>`;
   }).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" class="sp" id="ship" viewBox="0 0 960 560" width="960" height="560" role="img" aria-label="燃える宇宙船の断面図">
+  return `<svg xmlns="http://www.w3.org/2000/svg" class="sp" id="ship" viewBox="0 0 960 560" width="960" height="560" role="group" aria-label="燃える宇宙船の断面図（区画をタップで選択）">
   <style>${css}</style>
   <defs>
     <pattern id="hatch" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="14" height="14" fill="rgba(241,107,80,.18)"/><rect width="6" height="14" fill="#FFC35A" opacity=".75"/></pattern>

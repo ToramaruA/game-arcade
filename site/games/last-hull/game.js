@@ -1,6 +1,6 @@
 import {
   COMPS, NAMES, PARENT, SCENARIOS, TOTAL, scenarioById, newGame, connected, preview, apply, remaining, hasEngine, hasPod,
-  currentIncident, incidentsLeft, projectedReturn, edgeLabel, shareText, emptyProgress, sanitizeProgress, isUnlocked, unlockCondition, recordResult, tutorialStep,
+  currentIncident, incidentsLeft, projectedReturn, shareText, emptyProgress, sanitizeProgress, isUnlocked, unlockCondition, recordResult, tutorialStep,
 } from './logic.js';
 import { shipSvg, CENTER } from './ship.js';
 
@@ -17,7 +17,7 @@ try { progress = sanitizeProgress(JSON.parse(localStorage.getItem(KEY))); } catc
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(progress)); return true; } catch { return false; } };
 
 let state = newGame(1);
-const ui = { sel: null, pending: null, lock: false, msg: '', bad: false, note: '', recorded: false, saveFailed: false };
+const ui = { sel: currentIncident(state).at, pending: null, lock: false, msg: '', bad: false, note: '', recorded: false, saveFailed: false };
 let armTimer = null;
 
 $('stage').innerHTML = shipSvg();
@@ -39,8 +39,8 @@ const cutsOf = (s, c) => {
 function initialGuide() { return '🔥 居住環が燃えている。人を逃がすか、切り離せ。'; }
 const tut = () => (OG ? null : tutorialStep(state, ui.sel));
 const TUT_TEXT = {
-  pick: '▶ まず、光っている🔥区画をタップ。',
-  act: '▶ 「→」で隣へ8人逃がす（猶予を1つ使う）。',
+  pick: '▶ 船の光っている🔥区画をタップ。',
+  act: () => `▶ まず「👥 逃がす」で${NAMES[currentIncident(state).at]}から8人を隣へ。`,
   cut: () => `▶ 猶予あと1手。✂ で${NAMES[currentIncident(state).at]}を切り離せ。残る${state.people[currentIncident(state).at]}人は助からない。`,
 };
 
@@ -65,7 +65,8 @@ function renderShip() {
     g.classList.toggle('burn', !!inc && inc.at === c);
     g.classList.toggle('hint', tut() === 'pick' && !!inc && inc.at === c);
     g.classList.toggle('pv', !!pv && pv.valid && pv.severed.includes(c));
-    $(`lab-${c}`).textContent = gone ? '' : `${NAMES[c]} ${state.people[c]}`;
+    const podBack = c === 'P' && result && result.means === 'pod' && result.returned > 0;
+    $(`lab-${c}`).textContent = gone ? '' : `${NAMES[c]} ${podBack ? result.returned : state.people[c]}`;
   }
   svg.classList.toggle('e-hot', !!inc && inc.at === 'E');
   for (const c of Object.keys(PARENT)) {
@@ -118,36 +119,36 @@ function scenarioButtons() {
 
 function renderPanel() {
   const p = $('panel');
-  if (state.phase === 'done') { p.innerHTML = resultHtml(); return; }
+  if (state.phase === 'done') { p.innerHTML = resultHtml(); p.classList.remove('tutdim'); return; }
   const inc = currentIncident(state);
   const conn = connected(state);
-  let h = '<div class="row comps">';
-  for (const c of ['C', 'H', 'E', 'L', 'G', 'P']) {
-    const off = !conn.has(c);
-    const hintC = !!inc && inc.at === c && (tut() === 'pick' || (tut() === 'cut' && !(ui.sel && connected(state).has(ui.sel) && cutsOf(state, ui.sel).includes(c))));
-    h += btn(`comp ${ui.sel === c ? 'sel' : ''} ${inc && inc.at === c ? 'burning' : ''} ${hintC ? 'hint' : ''}`, `${inc && inc.at === c ? '🔥' : ''}${NAMES[c]} ${off ? '—' : state.people[c]}`,
-      `data-comp="${c}" aria-label="${NAMES[c]} ${off ? '切り離し済み' : `${state.people[c]}人`}${inc && inc.at === c ? ' 燃えている' : ''}" aria-pressed="${ui.sel === c}" ${off || ui.lock ? 'disabled' : ''}`);
-  }
-  h += '</div>';
+  const t = tut();
+  const c = ui.sel && conn.has(ui.sel) ? ui.sel : null;
   const pv = pendingPreview();
+  let h = '';
   if (pv) {
     h += pendingHtml(pv);
-  } else if (ui.sel && conn.has(ui.sel)) {
-    const c = ui.sel;
-    h += '<div class="row">';
-    for (const t of evacTargets(state, c)) {
-      const pr = preview(state, { type: 'evac', from: c, to: t });
-      h += btn(`go ${tut() === 'act' && c === inc.at ? 'hint' : ''}`, `→${NAMES[t]}へ ${pr.valid ? pr.moved : 0}人`, `data-evac="${c}:${t}" title="1手使う" ${!pr.valid || ui.lock ? 'disabled' : ''}`);
+  } else {
+    const burning = c && inc && inc.at === c;
+    h += `<div class="selhead"><span class="sh-name ${burning ? 'bad' : ''}">${burning ? '🔥' : '▸'} ${c ? NAMES[c] : '区画を選ぶ'}</span>${c ? `<span class="sh-n">${state.people[c]}人</span>` : ''}<span class="sh-tip">👆 船の絵の区画をタップで切り替え</span></div>`;
+    h += '<div class="acts">';
+    if (c) {
+      for (const to of evacTargets(state, c)) {
+        const pr = preview(state, { type: 'evac', from: c, to });
+        h += btn(`act evac ${t === 'act' ? 'hint' : ''}`, `👥 ${NAMES[to]}へ逃がす<small>${pr.valid ? pr.moved : 0}人・猶予1</small>`, `data-evac="${c}:${to}" ${!pr.valid || ui.lock ? 'disabled' : ''}`);
+      }
+      if (cutsOf(state, c).includes(c)) {
+        const sv = preview(state, { type: 'cut', child: c });
+        const also = sv.severed.filter((x) => x !== c).map((x) => NAMES[x]);
+        h += btn(`act cutbtn ${t === 'cut' ? 'hint' : ''}`, `✂ ${NAMES[c]}を切り離す<small>${also.length ? `${also.join('・')}ごと・` : ''}${sv.severedPeople}人を失う</small>`, `data-cut="${c}" ${ui.lock ? 'disabled' : ''}`);
+      }
     }
-    for (const k of cutsOf(state, c)) h += btn(`cutbtn ${tut() === 'cut' && k === inc.at ? 'hint' : ''}`, `✂ ${edgeLabel(k)}`, `data-cut="${k}" title="切断（1手）" ${ui.lock ? 'disabled' : ''}`);
+    h += btn('act cool', `❄ ${NAMES[inc.at]}を冷やす<small>残り${state.coolant}回・猶予を使わない</small>`, `data-cool="1" ${state.coolant <= 0 || ui.lock ? 'disabled' : ''}`);
     h += '</div>';
   }
-  if (!pv) {
-    h += `<div class="row">${btn('cool', `❄ ${NAMES[inc.at]}を冷却（残${state.coolant}）`, `data-cool="1" title="手数を使わずに火を消す。全体で1回だけ" ${state.coolant <= 0 || ui.lock ? 'disabled' : ''}`)}</div>`;
-  }
-  h += `<div class="row noog sub">${scenarioButtons()}${btn('small', '↺ やり直す', 'data-restart="1"')}</div>`;
+  h += `<div class="menu noog">${scenarioButtons()}${btn('small', '↺ やり直す', 'data-restart="1"')}</div>`;
   p.innerHTML = h;
-  p.classList.toggle('tutdim', !!tut() && !pv);
+  p.classList.toggle('tutdim', !!t && !pv);
 }
 
 function pendingHtml(pv) {
@@ -156,7 +157,7 @@ function pendingHtml(pv) {
   let h = '';
   if (op.type === 'cut') {
     const names = pv.severed.map((c) => NAMES[c]).join('・');
-    h += `<div class="warnbox ${pv.fatal ? 'bad' : ''}">✂ ${edgeLabel(op.child)} を切断：<b>${names}</b>が切り離され、<b>計${pv.severedPeople}人</b>を失います（戻りません）。${pv.resolves ? '<br>火元も離れるので事故は解消します。' : '<br>火元は残ります（手数を1つ使います）。'}`;
+    h += `<div class="warnbox ${pv.fatal ? 'bad' : ''}">✂ <b>${names}</b>を切り離す：<b>${pv.severedPeople}人</b>を失う（戻らない）。${pv.resolves ? '<br>火も一緒に離れる。' : '<br>火は残る（猶予を1つ使う）。'}`;
   } else {
     h += `<div class="warnbox bad">${NAMES[op.from]}から${NAMES[op.to]}へ${pv.moved}人避難：この事故は解消しません。`;
   }
@@ -176,7 +177,7 @@ function resultHtml() {
   const means = lost ? '帰還手段なし（猶予0で火元が残った）' : r.means === 'engine' ? '機関が残り、接続された船体ごと帰還' : r.means === 'pod' ? `機関なし。脱出艇（定員${sc.pod}人）で帰還` : '機関も脱出艇も失った';
   let h = `<div class="result ${lost || r.returned === 0 ? 'ng' : 'ok'}"><h2>${head}</h2>
     <div class="note">${sc.name}／${means}</div>
-    <div class="stats"><div class="cell"><b>帰還</b><span>${r.returned}／${TOTAL}</span></div><div class="cell"><b>切断で失った</b><span>${r.cutLost}人</span></div><div class="cell"><b>定員超過等で戻れなかった</b><span>${r.stranded}人</span></div></div>`;
+    <div class="stats"><div class="cell"><b>帰還</b><span>${r.returned}／${TOTAL}</span></div><div class="cell"><b>切断で失った</b><span>${r.cutLost}人</span></div><div class="cell"><b>${r.means === 'pod' ? '脱出艇に乗れなかった' : '戻れなかった'}</b><span>${r.stranded}人</span></div></div>`;
   if (ui.note) h += `<div class="warnbox">${ui.note}</div>`;
   h += `<textarea id="shareBox" class="share" readonly aria-label="共有文">${shareText(state)}</textarea>`;
   if (ui.msg && ui.msgIsAction) h += `<div class="note">${ui.msg}</div>`;
@@ -237,7 +238,7 @@ async function doOp(op) {
   ui.bad = false;
   if (op.type === 'cut') {
     const sp = $(`spark-${op.child}`); sp.classList.add('on'); setTimeout(() => sp.classList.remove('on'), 1000);
-    ui.msg = `${edgeLabel(op.child)}を切断。${pv.severed.map((c) => NAMES[c]).join('・')}の${pv.severedPeople}人を失った。`;
+    ui.msg = `${pv.severed.map((c) => NAMES[c]).join('・')}を切り離した。${pv.severedPeople}人を失った。`;
   } else if (op.type === 'evac') ui.msg = `${NAMES[op.from]}から${NAMES[op.to]}へ${pv.moved}人避難。`;
   else ui.msg = '冷却剤を使った。火は消えた。';
   const inc = currentIncident(state);
@@ -247,7 +248,7 @@ async function doOp(op) {
     ui.msg += pv.resolves ? ` 次は${NAMES[inc.at]}の事故（猶予${state.turns}手）。` : ` 猶予あと${state.turns}手。`;
   }
   if (ui.sel && !connected(state).has(ui.sel)) ui.sel = null;
-  if (op.type === 'evac') ui.sel = op.to;
+  if (inc && (pv.resolves || !ui.sel)) ui.sel = inc.at;
   if (state.phase === 'done') finishGame();
   render();
   await new Promise((res) => setTimeout(res, reduce ? 0 : op.type === 'cut' ? 900 : 150));
@@ -267,7 +268,7 @@ function finishGame() {
 function restart(sc) {
   cancelPending();
   state = newGame(sc || state.scenario);
-  Object.assign(ui, { sel: null, lock: false, msg: '', bad: false, note: '', msgIsAction: false });
+  Object.assign(ui, { sel: currentIncident(state).at, lock: false, msg: '', bad: false, note: '', msgIsAction: false });
   $('dots').innerHTML = '';
   render();
 }
@@ -275,7 +276,6 @@ function restart(sc) {
 function select(c) {
   if (ui.lock || state.phase !== 'play' || !connected(state).has(c)) return;
   cancelPending(); ui.sel = c; ui.bad = false;
-  ui.msg = state.log.length ? ui.msg : `${NAMES[c]}を選択。避難先か切断を選ぶ。`;
   render();
 }
 function pickCut(child) {
@@ -345,6 +345,13 @@ $('panel').addEventListener('click', (e) => {
   else if (d.restart) restart();
   else if (d.png) savePng();
   else if (d.copy) copyText();
+});
+svg.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const pt = e.target.closest('[data-comp]'); const ed = e.target.closest('[data-edge]');
+  if (!pt && !ed) return;
+  e.preventDefault();
+  if (ed) pickCut(ed.dataset.edge); else select(pt.dataset.comp);
 });
 svg.addEventListener('click', (e) => {
   const ed = e.target.closest('[data-edge]');
