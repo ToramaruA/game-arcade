@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ROUTES, SPECIES, MAX_HULL, MAX_STIMULI, newGame, preview, stimulate, shoot, advance,
-  quality, summarize, shareText, updateBest, explore, clampDist, encounterOf, encountersOf, maxQualityOf, routeById,
+  quality, summarize, routeCleared, applyClear, isUnlocked, sanitizeUnlocked, unlockCondition, shareText, updateBest, explore, clampDist, encounterOf, encountersOf, maxQualityOf, routeById,
 } from '../../site/games/abyssal-signal/logic.js';
 
 const ok = (r) => { assert.ok(r.ok, `rejected: ${r.reason}`); return r.state; };
@@ -247,4 +247,43 @@ test('全列挙：各航路で帰還可能、満点は到達不能、無傷で�
     assert.ok(e.maxTotalNoDamage < e.maxTotal, '危険な接近を含めた方が高品質');
     assert.equal(e.maxTotalNoDamage, expectedNoDamage[r.id], r.id);
   }
+});
+
+// 全遭遇を撮影して最終で帰還した状態 / 途中帰還 / ロスト を作る
+const finish = (route, how) => {
+  let s = newGame(route);
+  const n = encountersOf(s).length;
+  if (how === 'mid') return ok(shoot(s, 'return'));
+  for (let i = 0; i < n - 1; i++) { s = ok(shoot(s, 'next')); s = ok(advance(s)); }
+  if (how === 'lost') { s = { ...s, hull: 1, dist: 1 }; return ok(stimulate(s, 'sound', true)); }
+  return ok(shoot(s, 'return'));
+};
+
+test('クリア判定：最終遭遇を撮影して生還のみ。途中帰還・ロストは不可', () => {
+  for (const r of ROUTES) {
+    assert.equal(routeCleared(finish(r.id, 'full')), true, r.id);
+    assert.equal(routeCleared(finish(r.id, 'mid')), false, r.id);
+  }
+  const lost = finish('standard', 'lost');
+  assert.equal(lost.over, 'lost'); assert.equal(routeCleared(lost), false);
+  assert.equal(summarize(finish('standard', 'mid')).returned, true); // 途中帰還は成功のまま
+});
+
+test('初回は第1航路のみ。保存値が不正でも1に戻る', () => {
+  assert.deepEqual(ROUTES.map((r) => isUnlocked(1, r.id)), [true, false, false]);
+  for (const bad of [0, -1, 4, 1.5, NaN, null, undefined, '2']) assert.equal(sanitizeUnlocked(bad), 1);
+  assert.equal(sanitizeUnlocked(3), 3);
+  assert.equal(unlockCondition('standard'), null);
+  assert.match(unlockCondition('shell'), /標準/);
+});
+
+test('クリアで次の航路が1つずつ解放され、再クリア・未解放航路では増えない', () => {
+  let n = 1;
+  let r = applyClear(n, 'standard'); assert.deepEqual(r, { unlocked: 2, newRoute: 'shell' }); n = r.unlocked;
+  assert.deepEqual(applyClear(n, 'standard'), { unlocked: 2, newRoute: null }); // 再クリア
+  assert.deepEqual(applyClear(n, 'glow'), { unlocked: 2, newRoute: null }); // 未解放
+  r = applyClear(n, 'shell'); assert.deepEqual(r, { unlocked: 3, newRoute: 'glow' }); n = r.unlocked;
+  assert.deepEqual(applyClear(n, 'shell'), { unlocked: 3, newRoute: null });
+  assert.deepEqual(applyClear(n, 'glow'), { unlocked: 3, newRoute: null });
+  assert.deepEqual(applyClear(99, 'standard'), { unlocked: 2, newRoute: 'shell' }); // 不正値は1扱い
 });

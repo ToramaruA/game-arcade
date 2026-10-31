@@ -2,6 +2,7 @@ import {
   ROUTES, SPECIES, MAX_HULL, MAX_STIMULI, DIST_LABEL, STIMULUS_LABEL, CUE_LABEL, maxQualityOf,
   newGame, preview, stimulate, shoot, advance, summarize, shareText, updateBest, cueOf, encounterOf, encountersOf,
   isLastEncounter, snapshot, routeById, canStimulate,
+  routeCleared, sanitizeUnlocked, isUnlocked, unlockCondition, applyClear,
 } from './logic.js';
 import { SW, SH, CARD_W, CARD_H, drawScene, drawSonar, drawCard } from './art.js';
 
@@ -15,6 +16,7 @@ const winC = $('win').getContext('2d');
 const sonarC = $('sonar').getContext('2d');
 const sampleC = $('sample').getContext('2d');
 
+let unlocked = loadUnlocked(); // 保存できなくてもこの変数でセッション中は進行できる
 let state = newGame(readLast());
 let busy = false;
 let fx = null; // { type, t0, dur }
@@ -26,10 +28,14 @@ let frameSel = 0;
 let frames = [];
 
 function readLast() {
-  try { const r = localStorage.getItem('abyssal-signal:route'); if (ROUTES.some((x) => x.id === r)) return r; } catch (e) { /* 保存不可でも遊べる */ }
+  try { const r = localStorage.getItem('abyssal-signal:route'); if (ROUTES.some((x) => x.id === r) && isUnlocked(unlocked, r)) return r; } catch (e) { /* 保存不可でも遊べる */ }
   return 'standard';
 }
 function saveRoute(id) { try { localStorage.setItem('abyssal-signal:route', id); } catch (e) { /* noop */ } }
+function loadUnlocked() {
+  try { const v = localStorage.getItem('abyssal-signal:unlocked'); return v == null ? 1 : sanitizeUnlocked(Number(v)); } catch (e) { return 1; }
+}
+function saveUnlocked(n) { try { localStorage.setItem('abyssal-signal:unlocked', String(n)); } catch (e) { /* noop */ } }
 function loadBest(route) {
   try { const v = localStorage.getItem(`abyssal-signal:best:${route}`); return v == null ? null : Number(v); } catch (e) { return null; }
 }
@@ -59,9 +65,9 @@ function buildRoutes() {
   const box = $('routes'); box.textContent = '';
   for (const r of ROUTES) {
     const b = document.createElement('button');
-    b.type = 'button'; b.textContent = `${'★'.repeat(r.level)} ${r.name}`; b.dataset.id = r.id;
+    b.type = 'button'; b.dataset.id = r.id;
     b.addEventListener('click', () => {
-      if (b.getAttribute('aria-disabled') === 'true') return;
+      if (b.getAttribute('aria-disabled') === 'true' || !isUnlocked(unlocked, r.id)) return;
       saveRoute(r.id); restart(r.id);
     });
     box.appendChild(b);
@@ -70,11 +76,18 @@ function buildRoutes() {
 function renderRoutes() {
   const fresh = state.index === 0 && state.used === 0 && !state.shotTaken && !state.over;
   for (const b of $('routes').children) {
+    const open = isUnlocked(unlocked, b.dataset.id);
+    const r = routeById(b.dataset.id);
+    b.textContent = `${open ? '' : '🔒 '}${'★'.repeat(r.level)} ${r.name}`;
+    b.title = open ? '' : `未解放：${unlockCondition(r.id)}で解放`;
+    b.classList.toggle('locked', !open);
     b.setAttribute('aria-pressed', String(b.dataset.id === state.route));
-    b.setAttribute('aria-disabled', String(!fresh));
+    b.setAttribute('aria-disabled', String(!fresh || !open));
   }
   const route = routeById(state.route);
   $('routeInfo').innerHTML = `<b>難しさ：${'★'.repeat(route.level)}${'☆'.repeat(3 - route.level)} ${route.levelText}${route.level === 1 ? '（最初はここ）' : ''}</b>　${route.adds}<br>${route.learn}`;
+  const next = ROUTES.find((r) => !isUnlocked(unlocked, r.id));
+  if (next) $('routeInfo').innerHTML += `<br><span class="lock">🔒 ${next.name}：${unlockCondition(next.id)}で解放</span>`;
   const ol = $('alerts'); ol.textContent = '';
   route.encounters.forEach((e, i) => {
     const li = document.createElement('li');
@@ -230,6 +243,18 @@ const metaOf = (f, sum) => ({
 function showResult() {
   const sum = summarize(state);
   let note = '';
+  let unlockMsg = '';
+  if (routeCleared(state)) {
+    const u = applyClear(unlocked, state.route);
+    if (u.newRoute) {
+      unlocked = u.unlocked; saveUnlocked(unlocked);
+      unlockMsg = `🔓 新しい航路「${routeById(u.newRoute).name}」が解放されました。下のボタンから挑めます`;
+    } else if (unlocked < ROUTES.length) unlockMsg = '航路クリア。（まだ先の航路は、いまの最先端の航路をクリアすると解放されます）';
+  } else if (sum.returned && unlocked < ROUTES.length) {
+    const front = ROUTES[unlocked - 1];
+    unlockMsg = `途中帰還は成功ですが航路クリアではありません。「${front.name}」を最終深度まで撮影して帰還すると次の航路が解放されます`;
+  }
+  $('unlockNote').textContent = unlockMsg; $('unlockNote').hidden = !unlockMsg;
   if (sum.returned) {
     const u = updateBest(loadBest(state.route), sum);
     if (u.isNew) { saveBest(state.route, u.best); note = u.best === sum.total ? '（この航路のベスト更新）' : ''; }
@@ -250,7 +275,13 @@ function showResult() {
   renderSheet(sum); renderCard(sum);
   const retry = $('retry'); retry.textContent = '';
   for (const r of ROUTES) {
+    const open = isUnlocked(unlocked, r.id);
     const b = document.createElement('button');
+    if (!open) {
+      b.type = 'button'; b.className = 'shot locked'; b.setAttribute('aria-disabled', 'true');
+      b.textContent = `🔒 ${'★'.repeat(r.level)} ${r.name}`; b.title = `${unlockCondition(r.id)}で解放`;
+      retry.appendChild(b); continue;
+    }
     b.type = 'button'; b.className = 'shot';
     b.textContent = r.id === state.route ? `同じ航路で（${'★'.repeat(r.level)} ${r.name}）` : `${'★'.repeat(r.level)} ${r.name}の航路へ`;
     b.title = `${r.levelText}：${r.adds}`;

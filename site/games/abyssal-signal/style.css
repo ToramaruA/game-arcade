@@ -143,3 +143,7 @@ body.og .log { height: 96px; }
 @keyframes nudge { 50% { box-shadow: 0 3px 0 #000, 0 0 0 3px var(--sonar); } }
 button.nudge { animation: nudge 1.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { button.nudge { animation: none; box-shadow: 0 3px 0 #000, 0 0 0 3px var(--sonar); } }
+
+.routes button.locked, .retry button.locked { opacity: .55; border-style: dashed; cursor: not-allowed; }
+.route-info .lock { color: var(--amber); }
+.unlock-note { margin: 6px 0; padding: 6px 10px; border: 1px solid var(--brass); border-radius: 4px; background: var(--inst); color: var(--brass-l); font-size: .9rem; line-height: 1.5; }

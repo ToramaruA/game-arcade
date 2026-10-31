@@ -242,3 +242,24 @@ export function explore(routeId) {
     perfectNoDamage: maxTotalNoDamage === maxQualityOf(routeId),
   };
 }
+
+// ---------- 航路のアンロック ----------
+// 解放数 n は「先頭から n 本の航路が選べる」。初回は 1。
+// クリア = 最終遭遇まで進んで撮影し、生還したこと（途中帰還・ロストは含まない）。
+export const routeIndex = (id) => Math.max(0, ROUTES.findIndex((r) => r.id === id));
+export const routeCleared = (s) => s.over === 'returned' && isLastEncounter(s);
+export const sanitizeUnlocked = (n) => (Number.isInteger(n) && n >= 1 && n <= ROUTES.length ? n : 1);
+export const isUnlocked = (unlocked, id) => routeIndex(id) < sanitizeUnlocked(unlocked);
+export const unlockCondition = (id) => {
+  const i = routeIndex(id);
+  return i === 0 ? null : `${ROUTES[i - 1].name}をクリア（最終深度を撮影して帰還）`;
+};
+
+// クリア時の解放。未解放の航路は遊べないので、解放済みの範囲外のクリアは無視する。
+// 次の航路が未解放のときだけ1つ進める（クリア済み航路の再クリアでは増えない）。
+export function applyClear(unlocked, id) {
+  const n = sanitizeUnlocked(unlocked);
+  const i = routeIndex(id);
+  if (i >= n || n >= ROUTES.length || i !== n - 1) return { unlocked: n, newRoute: null };
+  return { unlocked: n + 1, newRoute: ROUTES[n].id };
+}
