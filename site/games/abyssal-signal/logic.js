@@ -1,7 +1,7 @@
 // 画面に依存しないゲームのルール。Node のテストからも import できるよう DOM を触らない。
 // 距離は 0=遠 / 1=中 / 2=近。すべて決定的で、隠れた乱数は使わない。
 
-export const MAX_HULL = 7;
+export const MAX_HULL = 7; // ★ の耐久。航路ごとの耐久は hullOf()
 export const MAX_STIMULI = 3;
 export const DIST_LABEL = ['遠', '中', '近'];
 export const STIMULI = ['light', 'sound', 'wait', 'hold'];
@@ -27,7 +27,7 @@ const MID = [1, 4, 2]; // 中距離が最高（全身・姿勢・群れ）
 const NEAR = [1, 2, 4]; // 近距離が最高（器官・模様・ボスの部位）
 export const ROUTES = [
   {
-    id: 'standard', name: '標準', level: 1, levelText: 'はじめて', border: 10,
+    id: 'standard', name: '標準', level: 1, levelText: 'はじめて', border: 10, hull: 7,
     stimuli: ['light', 'sound'],
     encounters: [
       enc(600, 'A', '全身', MID),
@@ -37,10 +37,10 @@ export const ROUTES = [
     ],
     boss: 'C',
     learn: '光と音で生物を動かし、距離と見本を見て撮る。生物ごとに反応が違う。最後に巨大な「海底の王」。',
-    adds: '4深度／道中の生物2種（リボンレイ・鎧クラゲ）／操作は光と音だけ／ボス：海底の王',
+    adds: '4深度／道中の生物2種（リボンレイ・鎧クラゲ）／操作は光と音だけ／耐久7／ボス：海底の王',
   },
   {
-    id: 'shell', name: '殻の共鳴', level: 2, levelText: 'ふつう', border: 14,
+    id: 'shell', name: '殻の共鳴', level: 2, levelText: 'ふつう', border: 14, hull: 8,
     stimuli: ['light', 'sound', 'wait'],
     encounters: [
       enc(800, 'A', '捕食姿勢', MID),
@@ -51,10 +51,10 @@ export const ROUTES = [
     ],
     boss: 'E',
     learn: '「静かに待つ」で生物を待つ。灯籠イカは光から逃げ、待つと寄ってくる。最後に「深淵の鯨骨」。',
-    adds: '5深度／新しい生物「灯籠イカ」／新操作「静かに待つ」／ボス：深淵の鯨骨',
+    adds: '5深度／新しい生物「灯籠イカ」／新操作「静かに待つ」／耐久8／ボス：深淵の鯨骨',
   },
   {
-    id: 'glow', name: '発光の潮', level: 3, levelText: 'むずかしい',
+    id: 'glow', name: '発光の潮', level: 3, levelText: 'むずかしい', hull: 9,
     stimuli: ['light', 'sound', 'wait', 'hold'],
     encounters: [
       enc(600, 'A', '全身', MID),
@@ -66,13 +66,15 @@ export const ROUTES = [
     ],
     boss: 'G',
     learn: '生物を読んで、ピントを取るか損傷を避けるかを選ぶ。群れ光魚は音で散る。最後に「海溝の母」。',
-    adds: '6深度／新しい生物「群れ光魚」／新操作「艇を止める」（どの生物でも距離を保ってピント）／ボス：海溝の母',
+    adds: '6深度／新しい生物「群れ光魚」／新操作「艇を止める」（どの生物でも距離を保ってピント）／耐久9／ボス：海溝の母',
   },
 ];
 
 export const maxQualityOf = (routeId) =>
   routeById(routeId).encounters.reduce((a, e) => a + Math.max(...e.base) + 1, 0);
 
+// 航路が進むと深度とボスが増えるので、耐久も1ずつ増える（7 / 8 / 9）
+export const hullOf = (routeId) => routeById(routeId).hull ?? MAX_HULL;
 export const clampDist = (d) => Math.max(0, Math.min(2, d));
 export const routeById = (id) => ROUTES.find((r) => r.id === id) ?? ROUTES[0];
 export const cueOf = (delta) => (delta > 0 ? 'approach' : delta < 0 ? 'retreat' : 'hold');
@@ -86,7 +88,7 @@ export function newGame(routeId = 'standard') {
     dist: 0,
     focus: 0,
     used: 0,
-    hull: MAX_HULL,
+    hull: hullOf(route.id),
     photos: [], // 撮影済み（1深度1枚）
     shotTaken: false, // 撮影を選んだ瞬間にロック
     over: null, // null | 'returned' | 'lost'
@@ -209,7 +211,7 @@ export function shareText(s, photo) {
   const name = SPECIES[photo?.species]?.name;
   if (sum.lost) return `${sum.depth}mで探査艇ロスト。写真は未回収。深海、未確認反応`;
   if (!photo) return '深海、未確認反応';
-  return `${photo.depth}mで${name}を撮影。耐久${sum.hull}で帰還。深海、未確認反応`;
+  return `${photo.depth}mで${name}を撮影。耐久${sum.hull}/${hullOf(s.route)}で帰還。深海、未確認反応`;
 }
 
 // 航路別ベスト（帰還時のみ更新）

@@ -56,7 +56,7 @@ h1 { margin: 0; font-size: 1.05rem; letter-spacing: .12em; color: var(--brass-l)
 .dist li.on { background: var(--sonar); color: #04140c; font-weight: 800; border-color: var(--sonar); }
 .dist li.on::before { content: "▶"; font-size: .6rem; margin-right: 1px; }
 .hull { display: inline-flex; gap: 2px; vertical-align: middle; }
-.hull i { width: 7px; height: 14px; border-radius: 1px; border: 1px solid #44585a; background: transparent; }
+.hull i { width: 7px; height: 14px; border-radius: 1px; border: 1px solid #7d9598; background: rgba(125,149,152,.15); }
 .hull i.f { background: var(--sonar); border-color: var(--sonar); }
 .hull.amber i.f { background: var(--amber); border-color: var(--amber); }
 .hull.red i.f { background: var(--red); border-color: var(--red); }

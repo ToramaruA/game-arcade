@@ -610,7 +610,7 @@ export function drawCard(c, photo, meta) {
   c.fillText(`観測対象：${meta.target}`, 50, 718);
   c.fillText(`深度：${photo.depth} m`, 50, 760);
   c.fillStyle = meta.returned ? '#e9cfa6' : '#E56755';
-  c.fillText(meta.returned ? `帰還時の耐久：${meta.hull} / 7` : '記録未回収（探査艇ロスト）', 50, 802);
+  c.fillText(meta.returned ? `帰還時の耐久：${meta.hull} / ${meta.maxHull ?? 7}` : '記録未回収（探査艇ロスト）', 50, 802);
   c.fillStyle = '#F2B84B'; c.font = '700 30px system-ui, "Hiragino Sans", "Noto Sans JP", sans-serif';
   c.fillText('深海、未確認反応', 50, 864);
 }

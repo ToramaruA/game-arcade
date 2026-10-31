@@ -1,5 +1,5 @@
 import {
-  ROUTES, SPECIES, MAX_HULL, MAX_STIMULI, DIST_LABEL, STIMULUS_LABEL, CUE_LABEL, maxQualityOf,
+  ROUTES, SPECIES, hullOf, MAX_STIMULI, DIST_LABEL, STIMULUS_LABEL, CUE_LABEL, maxQualityOf,
   newGame, preview, stimulate, shoot, advance, summarize, shareText, updateBest, cueOf, encounterOf, encountersOf,
   isLastEncounter, snapshot, routeById, canStimulate, isBoss,
   routeCleared, meetsBorder, borderOf, routeIndex, sanitizeUnlocked, isUnlocked, unlockCondition, applyClear,
@@ -178,9 +178,9 @@ function render() {
   [...$('rDist').children].forEach((li, i) => li.classList.toggle('on', i === state.dist));
   $('rDist').setAttribute('aria-label', `距離 ${DIST_LABEL[state.dist]}`);
   const hb = $('hullBar'); hb.textContent = '';
-  for (let i = 0; i < MAX_HULL; i++) { const e = document.createElement('i'); if (i < state.hull) e.className = 'f'; hb.appendChild(e); }
+  for (let i = 0; i < hullOf(state.route); i++) { const e = document.createElement('i'); if (i < state.hull) e.className = 'f'; hb.appendChild(e); }
   const tone = state.hull <= 2 ? 'red' : state.hull <= 4 ? 'amber' : '';
-  hb.className = `hull ${tone}`; $('rHull').className = tone; $('rHull').textContent = state.hull;
+  hb.className = `hull ${tone}`; $('rHull').className = tone; $('rHull').textContent = state.hull; $('rHullMax').textContent = hullOf(state.route);
   $('hullState').textContent = tone === 'red' ? '危険' : tone === 'amber' ? '警戒' : '良好';
   const left = MAX_STIMULI - state.used;
   $('rLeft').textContent = left;
@@ -316,7 +316,7 @@ function makeFrames() {
   });
 }
 const metaOf = (f, sum) => ({
-  speciesName: SPECIES[f.photo.species].name, target: f.photo.target, hull: sum.hull,
+  speciesName: SPECIES[f.photo.species].name, target: f.photo.target, hull: sum.hull, maxHull: hullOf(state.route),
   returned: sum.returned, qualityText: f.kind === 'window' ? '最後の窓' : `観測品質 ${f.photo.quality}/5`,
 });
 
@@ -357,7 +357,7 @@ function showResult() {
   const best = loadBest(state.route);
   $('stats').innerHTML = sum.lost
     ? `最後の窓：<b>${sum.depth}</b> m　撮影履歴 ${sum.photos.length} 枚（未回収・成功記録には入りません）`
-    : `写真の合計 <b>${sum.total}</b> 点${lineText(sum)}${note}<br>写真 <b>${sum.count}</b> 枚　到達 <b>${sum.depth}</b> m　残耐久 <b>${sum.hull}</b>${best != null ? `　この航路のベスト ${best}` : ''}`;
+    : `写真の合計 <b>${sum.total}</b> 点${lineText(sum)}${note}<br>写真 <b>${sum.count}</b> 枚　到達 <b>${sum.depth}</b> m　残耐久 <b>${sum.hull}</b>/${hullOf(state.route)}${best != null ? `　この航路のベスト ${best}` : ''}`;
   makeFrames();
   frameSel = frames.map((f, i) => (f ? i : -1)).filter((i) => i >= 0).slice(-1)[0] ?? 0;
   // 帰還時は最高品質の写真を初期選択

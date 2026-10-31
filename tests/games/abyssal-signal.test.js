@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ROUTES, SPECIES, MAX_HULL, MAX_STIMULI, newGame, preview, stimulate, shoot, advance,
+  ROUTES, SPECIES, MAX_HULL, hullOf, MAX_STIMULI, newGame, preview, stimulate, shoot, advance,
   quality, isBoss, summarize, routeCleared, meetsBorder, borderOf, applyClear, isUnlocked, sanitizeUnlocked, unlockCondition, shareText, updateBest, explore, clampDist, encounterOf, encountersOf, maxQualityOf, routeById,
 } from '../../site/games/abyssal-signal/logic.js';
 
@@ -24,7 +24,7 @@ const glowEnc = () => routeById('glow').encounters;
 
 test('各遭遇は遠・ピント0から始まる。最難航路は全6遭遇の表が固定', () => {
   const s = newGame('glow');
-  assert.equal(s.dist, 0); assert.equal(s.focus, 0); assert.equal(s.hull, MAX_HULL);
+  assert.equal(s.dist, 0); assert.equal(s.focus, 0); assert.equal(s.hull, hullOf('glow'));
   assert.deepEqual(glowEnc().map((e) => e.depth), [600, 1200, 1800, 2400, 3000, 3800]);
   assert.deepEqual(glowEnc().map((e) => e.species), ['A', 'B', 'D', 'F', 'B', 'G']);
   assert.deepEqual(glowEnc().map((e) => e.target), ['全身', '捕食姿勢', '灯り', '群れ', '殻の模様', '発光脈']);
@@ -227,27 +227,27 @@ test('途中帰還も成功。写真の合計・枚数・深度・耐久を返�
   assert.equal(sum.depth, 1000); assert.equal(sum.hull, 7);
   assert.deepEqual(updateBest(null, sum), { best: 6, isNew: true });
   assert.deepEqual(updateBest(8, sum), { best: 8, isNew: false });
-  assert.equal(shareText(s, sum.photos[1]), '1000mでリボンレイを撮影。耐久7で帰還。深海、未確認反応');
+  assert.equal(shareText(s, sum.photos[1]), '1000mでリボンレイを撮影。耐久7/7で帰還。深海、未確認反応');
 });
 
 test('最終帰還の共有文は実際の状態から作られ、未訪問の生物を書かない', () => {
   let s = at(3, { dist: 1, focus: 0, hull: 1 }, 'standard');
   s = ok(shoot(s, 'return'));
   const text = shareText(s, s.photos[0]);
-  assert.equal(text, '2000mで海底の王を撮影。耐久1で帰還。深海、未確認反応');
+  assert.equal(text, '2000mで海底の王を撮影。耐久1/7で帰還。深海、未確認反応');
   assert.doesNotMatch(text, /リボンレイ|鎧クラゲ/);
 });
 
 test('リトライ：newGame は完全に初期化される（航路は選べる）', () => {
   const a = newGame('glow');
-  assert.equal(a.route, 'glow'); assert.equal(a.index, 0); assert.equal(a.hull, MAX_HULL);
+  assert.equal(a.route, 'glow'); assert.equal(a.index, 0); assert.equal(a.hull, hullOf('glow'));
   assert.deepEqual(a.photos, []); assert.equal(a.over, null); assert.equal(a.used, 0);
   assert.equal(newGame('nope').route, 'standard');
   assert.equal(encounterOf(a).depth, 600);
 });
 
 test('全列挙：各航路で帰還可能、満点は到達不能、無傷では高品質を揃えられない', () => {
-  const expectedMax = { standard: 16, shell: 22, glow: 27 };
+  const expectedMax = { standard: 16, shell: 22, glow: 28 };
   const expectedNoDamage = { standard: 11, shell: 19, glow: 24 };
   for (const r of ROUTES) {
     const e = explore(r.id);
@@ -314,4 +314,10 @@ test('解放ライン：最終深度で帰還しても合計がボーダー未�
   }
   assert.ok(explore('standard').maxTotalNoDamage >= borderOf('standard'), '標準は無傷でもボーダーに届く');
   assert.equal(meetsBorder(finish('standard', 'mid')), false); // 途中帰還は不可
+});
+
+test('耐久は航路が進むごとに1ずつ増える（7 / 8 / 9）', () => {
+  assert.deepEqual(ROUTES.map((r) => hullOf(r.id)), [7, 8, 9]);
+  assert.equal(MAX_HULL, 7);
+  for (const r of ROUTES) assert.equal(newGame(r.id).hull, hullOf(r.id));
 });
