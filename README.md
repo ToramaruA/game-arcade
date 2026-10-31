@@ -1,5 +1,7 @@
 # game-arcade
 
+使い方と運用は [docs/operations.md](docs/operations.md) を参照。
+
 AI が企画・制作し、人が遊んで承認したブラウザゲームを公開するリポジトリ。
 
 ```
@@ -18,7 +20,7 @@ ChatGPT が企画・選定 → [GAME] Issue
 | `templates/game/` | 新しいゲームのひな形 |
 | `tests/` | 自動テスト（構成チェック、PC/スマホでの表示確認、各ゲームのロジック） |
 | `scripts/` | ひな形作成、共有画像生成、ローカル配信 |
-| `docs/` | Claude Code / ChatGPT の自動実行に貼るプロンプト |
+| `docs/` | 運用ガイド（`operations.md`）、好みメモ（`taste.md`）、自動実行に貼るプロンプト |
 | `CLAUDE.md` | Claude Code が守るルールと制作手順 |
 
 ## ローカルで動かす
