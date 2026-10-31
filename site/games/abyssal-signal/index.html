@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>深海、未確認反応</title>
+  <meta name="description" content="その光に、近づいていいのか。古い潜水艇で未知の巨大生物を誘い、あなただけの一枚を持ち帰る深海探査。">
+  <link rel="canonical" href="https://game-arcade-bdt.pages.dev/games/abyssal-signal/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="深海、未確認反応">
+  <meta property="og:description" content="その光に、近づいていいのか。古い潜水艇で未知の巨大生物を誘い、あなただけの一枚を持ち帰る深海探査。">
+  <meta property="og:url" content="https://game-arcade-bdt.pages.dev/games/abyssal-signal/">
+  <meta property="og:image" content="https://game-arcade-bdt.pages.dev/games/abyssal-signal/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="game" class="game">
+    <header class="top">
+      <h1>深海、未確認反応</h1>
+      <div id="routes" class="routes" role="group" aria-label="航路"></div>
+      <ol id="alerts" class="alerts" aria-label="航路表：深度ごとの警戒補正（近距離の損傷に加算）"></ol>
+    </header>
+
+    <section id="play" class="play" aria-label="潜航">
+      <div class="win-area">
+        <div class="porthole">
+          <i class="bolt b1"></i><i class="bolt b2"></i><i class="bolt b3"></i><i class="bolt b4"></i>
+          <i class="bolt b5"></i><i class="bolt b6"></i><i class="bolt b7"></i><i class="bolt b8"></i>
+          <div class="glass">
+            <canvas id="win" width="600" height="440" role="img" aria-label="潜水窓。生物が見える"></canvas>
+            <div class="gloss" aria-hidden="true"></div>
+            <div id="shutter" class="shutter" aria-hidden="true"></div>
+            <div class="hud" aria-hidden="true"><b id="hudDepth">600</b> m</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel sonar-box">
+        <span class="lbl">ソナー</span>
+        <canvas id="sonar" width="200" height="200" aria-hidden="true"></canvas>
+      </div>
+
+      <div class="panel read">
+        <dl class="rows">
+          <div><dt>深度</dt><dd><b id="rDepth">600</b> m</dd></div>
+          <div><dt>観測対象</dt><dd id="rTarget">全身</dd></div>
+          <div><dt>距離</dt><dd><ol id="rDist" class="dist"><li>遠</li><li>中</li><li>近</li></ol></dd></div>
+          <div><dt>耐久</dt><dd><span id="hullBar" class="hull" aria-hidden="true"></span> <b id="rHull">7</b>/7 <small id="hullState"></small></dd></div>
+          <div><dt>刺激残</dt><dd><span id="pips" class="pips" aria-hidden="true"></span> <b id="rLeft">3</b>回</dd></div>
+        </dl>
+        <div class="sample">
+          <canvas id="sample" width="120" height="88" aria-hidden="true"></canvas>
+          <span>見本<br><small id="sampleText"></small></span>
+        </div>
+      </div>
+
+      <div class="panel logbox">
+        <span class="lbl">ログ</span>
+        <ol id="log" class="log"></ol>
+      </div>
+
+      <section class="console" aria-label="操作卓">
+        <p id="hint" class="hint"></p>
+        <div class="row stims" role="group" aria-label="刺激">
+          <button type="button" class="stim" data-k="light"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4M8 7l9-4v18L8 17z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><b>照らす</b><span class="pv"></span></button>
+          <button type="button" class="stim" data-k="sound"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9a8 8 0 0 1 0 6M9 6a12 12 0 0 1 0 12M13 3a16 16 0 0 1 0 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><b>音を鳴らす</b><span class="pv"></span></button>
+          <button type="button" class="stim" data-k="wait"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg><b>静かに待つ</b><span class="pv"></span></button>
+        </div>
+        <div class="row shots" role="group" aria-label="撮影">
+          <button type="button" id="shootNext" class="shot">📷 撮影して次へ</button>
+          <button type="button" id="shootReturn" class="shot ret">📷 撮影して帰還</button>
+        </div>
+        <div id="confirm" class="confirm" role="alertdialog" aria-labelledby="confirmT" hidden>
+          <p id="confirmT"><b>⚠ 耐久0・帰還不能</b><br><span id="confirmD"></span></p>
+          <div class="row">
+            <button type="button" id="confirmNo" class="shot">やめる</button>
+            <button type="button" id="confirmYes" class="shot danger" aria-disabled="true">それでも実行</button>
+          </div>
+        </div>
+        <p id="msg" class="msg" role="status" aria-live="polite"></p>
+      </section>
+    </section>
+
+    <section id="result" class="result" hidden aria-label="結果">
+      <h2 id="resTitle" tabindex="-1"></h2>
+      <div class="res-grid">
+        <div class="card-wrap"><canvas id="card" width="720" height="900" role="img"></canvas></div>
+        <div class="res-side">
+          <p class="stats" id="stats"></p>
+          <div id="sheet" class="sheet" role="group" aria-label="コンタクトシート（写真を選ぶ）"></div>
+          <p class="lbl">共有文</p>
+          <p id="share" class="share"></p>
+          <div class="row">
+            <button type="button" id="savePng" class="shot">画像を保存</button>
+            <button type="button" id="copyText" class="shot">共有文をコピー</button>
+          </div>
+          <p id="resMsg" class="msg" role="status" aria-live="polite"></p>
+          <p class="lbl">もう一度潜る（航路の警戒補正は上の表で確認）</p>
+          <div id="retry" class="row retry"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class="arcade-link"><a href="/">Game Arcade</a></footer>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
