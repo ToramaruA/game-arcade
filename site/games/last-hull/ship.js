@@ -140,7 +140,7 @@ export function shipSvg() {
   <g id="shipbody"><g class="wake"><polygon points="900,205 960,215 900,235"/><polygon points="900,325 960,335 900,355"/></g>
   ${edges}${parts}</g>
   <g id="dots"></g>
-  <g transform="translate(0,0)"><path d="M820 520 A60 60 0 0 1 940 520" fill="none" stroke="#2A3A50" stroke-width="8"/><path d="M820 520 A60 60 0 0 1 880 460" fill="none" stroke="#FFC35A" stroke-width="4" opacity=".6"/><text x="880" y="548" fill="#93A3B0" font-size="16" text-anchor="middle">猶予</text><line id="needle" class="needle" x1="880" y1="520" x2="880" y2="470" stroke="#74DFAC" stroke-width="4"/><circle cx="880" cy="520" r="6" fill="#74DFAC"/></g>
+  <g transform="translate(0,0)"><path d="M820 520 A60 60 0 0 1 940 520" fill="none" stroke="#2A3A50" stroke-width="8"/><path d="M820 520 A60 60 0 0 1 880 460" fill="none" stroke="#FFC35A" stroke-width="4" opacity=".6"/><text x="880" y="552" fill="#93A3B0" font-size="22" text-anchor="middle">猶予</text><line id="needle" class="needle" x1="880" y1="520" x2="880" y2="470" stroke="#74DFAC" stroke-width="4"/><circle cx="880" cy="520" r="6" fill="#74DFAC"/></g>
 </svg>`;
 }
 export { OUTLINE, EDGE, NAMES };
