@@ -169,3 +169,4 @@ body.og .lib-btn { display: none; }
 .lib-list li.known { display: grid; grid-template-columns: 150px 1fr; gap: 10px; align-items: center; }
 .dex-img { width: 100%; height: auto; aspect-ratio: 600 / 440; border: 2px solid var(--brass); border-radius: 6px; background: #020912; display: block; }
 @media (max-width: 480px) { .lib-list li.known { grid-template-columns: 1fr; } }
+.dex-img.dex-unk { filter: blur(1px); border-color: #3a4a4c; }

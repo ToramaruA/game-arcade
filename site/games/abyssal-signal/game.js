@@ -55,6 +55,17 @@ const DEX = {
   B: { target: '殻の模様', depth: 1400, look: '半透明の鎧のような殻をまとったクラゲ。殻に模様が走る。', shots: '殻の模様・捕食姿勢' },
   C: { target: '頭部', depth: 3000, look: '窓の大半を占める巨大な眼と、骨質の弧を持つ主。', shots: '頭部' },
 };
+// 生物の明るい部分だけを残し、暗い影の形にする
+function drawSilhouette(c, k) {
+  drawScene(c, { species: k, target: DEX[k].target, depth: DEX[k].depth, dist: 1, focus: 1, t: 2, still: 1, light: .5 });
+  const img = c.getImageData(0, 0, SW, SH), d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const l = 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2];
+    const a = Math.max(0, Math.min(1, (l - 40) / 50));
+    d[i] = 2 + 40 * a; d[i + 1] = 9 + 70 * a; d[i + 2] = 18 + 78 * a;
+  }
+  c.putImageData(img, 0, 0);
+}
 function renderLibrary() {
   const ul = $('libSpecies'); ul.textContent = '';
   for (const k of Object.keys(SPECIES)) {
@@ -66,7 +77,15 @@ function renderLibrary() {
       const tx = document.createElement('div');
       tx.innerHTML = `<b>${SPECIES[k].name}</b><br>${DEX[k].look}<br><small>撮れる対象：${DEX[k].shots}／近距離の損傷 ${SPECIES[k].damage}</small>`;
       li.className = 'known'; li.append(cv, tx);
-    } else li.innerHTML = '<b>？？？</b><br><small>まだ出会っていない生物。潜ると記録されます。</small>', li.className = 'unk';
+    } else {
+      // 未遭遇は影（シルエット）だけ見せる
+      const cv = document.createElement('canvas'); cv.width = SW; cv.height = SH; cv.className = 'dex-img dex-unk';
+      cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', 'まだ出会っていない生物の影');
+      drawSilhouette(cv.getContext('2d'), k);
+      const tx = document.createElement('div');
+      tx.innerHTML = '<b>？？？</b><br><small>まだ出会っていない生物。潜ると記録されます。</small>';
+      li.className = 'known unk'; li.append(cv, tx);
+    }
     ul.appendChild(li);
   }
 }
