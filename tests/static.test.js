@@ -53,3 +53,12 @@ for (const slug of gameDirs()) {
     }
   });
 }
+
+test('検索向け：sitemap.xml とトップの静的な一覧が games.json と一致し、robots.txt がサイトマップを指す', async () => {
+  const { buildSitemap, buildList, listBlock, SITEMAP, INDEX } = await import('../scripts/site-index.js');
+  const hint = '（npm run site-index で更新する）';
+  assert.equal(fs.readFileSync(SITEMAP, 'utf8'), buildSitemap(), `sitemap.xml が古い${hint}`);
+  assert.equal(listBlock(fs.readFileSync(INDEX, 'utf8')), buildList(), `トップの一覧が古い${hint}`);
+  const robots = fs.readFileSync(path.join(ROOT, 'site', 'robots.txt'), 'utf8');
+  assert.match(robots, /Sitemap: https:\/\/\S+\/sitemap\.xml/);
+});

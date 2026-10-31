@@ -4,18 +4,29 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Game Arcade</title>
-  <meta name="description" content="AIが企画・制作した小さなブラウザゲーム集">
+  <meta name="description" content="AIが企画・制作し、人が遊んで確かめたブラウザゲーム集。">
+  <link rel="canonical" href="https://game-arcade-bdt.pages.dev/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Game Arcade">
+  <meta property="og:description" content="AIが企画・制作し、人が遊んで確かめたブラウザゲーム集。">
+  <meta property="og:url" content="https://game-arcade-bdt.pages.dev/">
+  <meta name="twitter:card" content="summary">
   <link rel="stylesheet" href="/assets/arcade.css">
 </head>
 <body>
   <main class="arcade">
     <h1>Game Arcade</h1>
     <p class="lead">AIが企画・制作し、人が遊んで確かめたブラウザゲーム。</p>
-    <ul id="game-list" class="game-list" aria-live="polite"></ul>
+    <ul id="game-list" class="game-list" aria-live="polite">
+      <!-- games:start（npm run site-index で自動生成） -->
+      <li><a href="/games/abyssal-signal/"><img src="/games/abyssal-signal/og.png" alt="深海、未確認反応のゲーム画面" loading="lazy" width="1200" height="630"><strong>深海、未確認反応</strong><span>その光に、近づいていいのか。古い潜水艇で未知の巨大生物を誘い、あなただけの一枚を持ち帰る深海探査。</span></a></li>
+      <!-- games:end -->
+    </ul>
     <p id="empty" class="empty" hidden>まだ公開中のゲームはありません。準備中です。</p>
   </main>
   <script>
-    fetch('/games/games.json')
+    // 一覧は npm run site-index で HTML に書き込み済み（検索エンジン向け）。空のときだけ games.json から作る。
+    if (!document.querySelector('#game-list li')) fetch('/games/games.json')
       .then((r) => r.json())
       .then((games) => {
         const list = document.getElementById('game-list');

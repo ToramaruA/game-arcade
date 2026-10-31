@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SITE_URL, SLUG_PATTERN } from './config.js';
+import { writeAll as writeSiteIndex } from './site-index.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const [slug, title, description] = process.argv.slice(2);
@@ -29,4 +30,5 @@ const manifestPath = path.join(ROOT, 'site', 'games', 'games.json');
 const games = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 games.push({ slug, title, description, listed: true, added: new Date().toISOString().slice(0, 10) });
 fs.writeFileSync(manifestPath, JSON.stringify(games, null, 2) + '\n');
+writeSiteIndex(); // sitemap.xml とトップの一覧も更新
 console.log(`created site/games/${slug}/ — 次に npm run og -- ${slug} で共有画像を作る`);
