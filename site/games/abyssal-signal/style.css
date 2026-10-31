@@ -115,7 +115,7 @@ button.danger { border-color: var(--red); color: #ffd0c8; background: linear-gra
   .bolt { width: 8px; height: 8px; } .hud { left: 14px; top: 10px; }
   .panel { padding: 6px; } .sonar-box canvas { max-width: 96px; }
   .rows { gap: 3px; } .rows > div { grid-template-columns: 3.4em 1fr; } .rows dd { font-size: .78rem; } .rows dd b { font-size: .9rem; }
-  .sample { display: none; }
+  .sample { margin-top: 5px; gap: 6px; font-size: .68rem; } .sample canvas { width: 72px; height: 53px; } .sample small { font-size: .7rem; }
   .log { height: 3.7em; }
   .logbox .lbl { display: none; }
   .console { padding: 6px 8px 4px; } .hint { font-size: .82rem; margin-bottom: 4px; }

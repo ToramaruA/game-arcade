@@ -103,7 +103,7 @@ function render() {
   let coach = '';
   if (first && !state.shotTaken && !busy) {
     if (state.used === 0) coach = '① まず3つのどれかを押して、生物の反応を見よう（刺激は3回まで）';
-    else coach = `② 距離は「${DIST_LABEL[state.dist]}」。右の見本に近い見え方なら 📷 で撮影。別の刺激でさらに探ってもOK（残り${MAX_STIMULI - state.used}回）`;
+    else coach = `② 距離は「${DIST_LABEL[state.dist]}」。「見本」欄の絵に近い見え方なら 📷 で撮影。別の刺激でさらに探ってもOK（残り${MAX_STIMULI - state.used}回）`;
   }
   $('hint').textContent = coach || goal;
   $('hint').classList.toggle('coach', !!coach);
