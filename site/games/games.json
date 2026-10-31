@@ -1,19 +1,5 @@
 [
   {
-    "slug": "half-please",
-    "title": "半分ください",
-    "description": "そのケーキ、ぴったり半分に切れますか？ 一筆で切って、目分量の限界に挑む5問。",
-    "listed": true,
-    "added": "2026-10-30"
-  },
-  {
-    "slug": "one-more-group",
-    "title": "あと1人、乗れます",
-    "description": "定員10人、運べるのは5便。先頭3組からお客さんを選んで、できるだけ満員で出発しよう！",
-    "listed": true,
-    "added": "2026-10-30"
-  },
-  {
     "slug": "abyssal-signal",
     "title": "深海、未確認反応",
     "description": "その光に、近づいていいのか。古い潜水艇で未知の巨大生物を誘い、あなただけの一枚を持ち帰る深海探査。",
