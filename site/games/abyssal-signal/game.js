@@ -41,6 +41,37 @@ function loadBest(route) {
 }
 function saveBest(route, v) { try { localStorage.setItem(`abyssal-signal:best:${route}`, String(v)); } catch (e) { /* noop */ } }
 
+function loadSeen() {
+  try { const v = JSON.parse(localStorage.getItem('abyssal-signal:seen') || '[]'); return new Set(Array.isArray(v) ? v.filter((k) => k in SPECIES) : []); } catch (e) { return new Set(); }
+}
+const seen = loadSeen();
+function markSeen(k) {
+  if (seen.has(k)) return;
+  seen.add(k);
+  try { localStorage.setItem('abyssal-signal:seen', JSON.stringify([...seen])); } catch (e) { /* noop */ }
+}
+const DEX = {
+  A: { look: '長いリボン状の体に、青白い発光器官が並ぶ。', shots: '全身・発光器官・捕食姿勢' },
+  B: { look: '半透明の鎧のような殻をまとったクラゲ。殻に模様が走る。', shots: '殻の模様・捕食姿勢' },
+  C: { look: '窓の大半を占める巨大な眼と、骨質の弧を持つ主。', shots: '頭部' },
+};
+function renderLibrary() {
+  const ul = $('libSpecies'); ul.textContent = '';
+  for (const k of Object.keys(SPECIES)) {
+    const li = document.createElement('li');
+    if (seen.has(k)) li.innerHTML = `<b>${SPECIES[k].name}</b><br>${DEX[k].look}<br><small>撮れる対象：${DEX[k].shots}／近距離の損傷 ${SPECIES[k].damage}</small>`;
+    else li.innerHTML = '<b>？？？</b><br><small>まだ出会っていない生物。潜ると記録されます。</small>', li.className = 'unk';
+    ul.appendChild(li);
+  }
+}
+let libOpener = null;
+function openLib() { renderLibrary(); renderRoutes(); libOpener = document.activeElement; $('lib').hidden = false; $('libClose').focus(); }
+function closeLib() { $('lib').hidden = true; if (libOpener && libOpener.focus) libOpener.focus(); }
+$('libBtn').addEventListener('click', openLib);
+$('libClose').addEventListener('click', closeLib);
+$('lib').addEventListener('click', (e) => { if (e.target === $('lib')) closeLib(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('lib').hidden) closeLib(); });
+
 const now = () => performance.now();
 const say = (t) => { $('msg').textContent = t; };
 
@@ -100,6 +131,8 @@ function renderRoutes() {
 function render() {
   const enc = encounterOf(state);
   $('hudDepth').textContent = enc.depth;
+  $('hudAlert').textContent = `警戒+${enc.alert}`;
+  $('hudAlert').classList.toggle('warn', enc.alert > 0);
   $('rDepth').textContent = enc.depth;
   $('rTarget').textContent = enc.target;
   [...$('rDist').children].forEach((li, i) => li.classList.toggle('on', i === state.dist));
@@ -118,8 +151,8 @@ function render() {
   const nStim = routeById(state.route).stimuli.length;
   let coach = '';
   if (first && !state.shotTaken && !busy) {
-    if (state.used === 0) coach = '① まず光か音を押して、生物の反応を見よう（刺激は3回まで）';
-    else coach = `② 距離は「${DIST_LABEL[state.dist]}」。「見本」欄の絵に近い見え方なら 📷 で撮影。別の刺激でさらに探ってもOK（残り${MAX_STIMULI - state.used}回）`;
+    if (state.used === 0) coach = '① 光か音を押して生物の反応を見よう（3回まで）';
+    else coach = `② 距離は「${DIST_LABEL[state.dist]}」。見本に近ければ 📷 で撮影（残り${MAX_STIMULI - state.used}回）`;
   }
   $('hint').textContent = coach || goal;
   $('hint').classList.toggle('coach', !!coach);
@@ -162,6 +195,7 @@ function drawSample(enc) {
 function introEncounter() {
   const enc = encounterOf(state);
   const sp = SPECIES[enc.species];
+  markSeen(enc.species);
   const cue = cueOf(sp.react.light);
   addLog(`${enc.depth}m 試験光（弱）→ ${CUE_LABEL[cue]}（回数・耐久は減らない）`, 'demo');
   if (enc.species === 'C') addLog('ソナーに窓幅を超える反応', 'demo');

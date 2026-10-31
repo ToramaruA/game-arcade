@@ -20,8 +20,7 @@
     <header class="top">
       <h1>深海、未確認反応</h1>
       <div id="routes" class="routes" role="group" aria-label="航路"></div>
-      <p id="routeInfo" class="route-info"></p>
-      <ol id="alerts" class="alerts" aria-label="航路表：深度ごとの警戒補正（近距離の損傷に加算）"></ol>
+      <button type="button" id="libBtn" class="lib-btn" aria-haspopup="dialog">📖 図鑑</button>
     </header>
 
     <section id="play" class="play" aria-label="潜航">
@@ -33,8 +32,12 @@
             <canvas id="win" width="600" height="440" role="img" aria-label="潜水窓。生物が見える"></canvas>
             <div class="gloss" aria-hidden="true"></div>
             <div id="shutter" class="shutter" aria-hidden="true"></div>
-            <div id="mission" class="mission"><b>目的</b>深海の生物を、いちばん写る距離で撮って生還する。<br><small>下の<span id="missionN">2つ</span>のボタンで生物を刺激 → 距離と反応を見る → 📷で撮影</small></div>
-            <div class="hud" aria-hidden="true"><b id="hudDepth">600</b> m</div>
+            <div id="mission" class="mission"><b>目的</b>いちばん写る距離で撮って生還<span id="missionN" hidden></span></div>
+            <div class="hud" aria-hidden="true"><b id="hudDepth">600</b> m <span id="hudAlert" class="hud-alert"></span></div>
+            <div class="sample">
+              <canvas id="sample" width="120" height="88" aria-hidden="true"></canvas>
+              <span>見本<br><small id="sampleText"></small></span>
+            </div>
           </div>
         </div>
       </div>
@@ -46,16 +49,12 @@
 
       <div class="panel read">
         <dl class="rows">
-          <div><dt>深度</dt><dd><b id="rDepth">600</b> m</dd></div>
+          <div class="r-depth"><dt>深度</dt><dd><b id="rDepth">600</b> m</dd></div>
           <div><dt>観測対象</dt><dd id="rTarget">全身</dd></div>
           <div><dt>距離</dt><dd><ol id="rDist" class="dist"><li>遠</li><li>中</li><li>近</li></ol></dd></div>
           <div><dt>耐久</dt><dd><span id="hullBar" class="hull" aria-hidden="true"></span> <b id="rHull">7</b>/7 <small id="hullState"></small></dd></div>
           <div><dt>刺激残</dt><dd><span id="pips" class="pips" aria-hidden="true"></span> <b id="rLeft">3</b>回</dd></div>
         </dl>
-        <div class="sample">
-          <canvas id="sample" width="120" height="88" aria-hidden="true"></canvas>
-          <span>見本<br><small id="sampleText"></small></span>
-        </div>
       </div>
 
       <div class="panel logbox">
@@ -107,6 +106,17 @@
       </div>
     </section>
   </main>
+  <section id="lib" class="lib" hidden role="dialog" aria-modal="true" aria-labelledby="libT">
+    <div class="lib-card">
+      <div class="lib-head"><h2 id="libT">図鑑・航路</h2><button type="button" id="libClose" class="lib-close">閉じて潜水へ戻る</button></div>
+      <p class="lib-note">潜水中の状態はそのまま。出会った生物だけが載ります。</p>
+      <h3>生物</h3>
+      <ul id="libSpecies" class="lib-list"></ul>
+      <h3>航路</h3>
+      <p id="routeInfo" class="route-info"></p>
+      <ol id="alerts" class="alerts" aria-label="航路表：深度ごとの警戒補正（近距離の損傷に加算）"></ol>
+    </div>
+  </section>
   <footer class="arcade-link"><a href="/">Game Arcade</a></footer>
   <script type="module" src="game.js"></script>
 </body>

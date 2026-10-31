@@ -64,8 +64,8 @@ h1 { margin: 0; font-size: 1.05rem; letter-spacing: .12em; color: var(--brass-l)
 #hullState { font-size: .7rem; color: var(--dim); white-space: nowrap; }
 .pips { display: inline-flex; gap: 3px; vertical-align: middle; }
 .pips i { width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--glow); } .pips i.f { background: var(--glow); }
-.sample { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: .75rem; color: var(--dim); }
-.sample canvas { width: 96px; height: 70px; border: 2px solid var(--brass); border-radius: 3px; background: #04101a; flex: none; }
+.sample { position: absolute; right: 12px; top: 10px; display: flex; align-items: center; gap: 6px; padding: 4px 6px; background: #030912cc; border: 1px solid var(--brass); border-radius: 6px; font-size: .7rem; color: var(--dim); line-height: 1.25; z-index: 2; }
+.sample canvas { width: 84px; height: 62px; border: 2px solid var(--brass); border-radius: 3px; background: #04101a; flex: none; }
 .sample small { color: var(--fg); font-size: .8rem; }
 
 .logbox { min-height: 0; } .log { list-style: none; margin: 0; padding: 0; height: 150px; overflow-y: auto; font-size: .76rem; display: grid; align-content: start; gap: 3px; }
@@ -112,14 +112,18 @@ button.danger { border-color: var(--red); color: #ffd0c8; background: linear-gra
   .game { padding: 6px 8px 2px; }
   .top { gap: 4px 8px; margin-bottom: 6px; } h1 { font-size: .9rem; width: 100%; }
   .routes button { padding: 3px 7px; font-size: .74rem; }
-  .play { grid-template-columns: 112px minmax(0, 1fr); grid-template-areas: "win win" "sonar read" "log log" "console console"; gap: 6px; }
+  .play { grid-template-columns: 112px minmax(0, 1fr); grid-template-areas: "win win" "read read" "console console" "sonar log"; gap: 6px; }
+  .rows { grid-template-columns: 1fr 1fr; column-gap: 10px; } .r-depth { display: none !important; }
+  .rows > div { grid-template-columns: 3.6em 1fr; } .read.panel { padding: 4px 8px; }
+  .dist li { padding: 0; font-size: .72rem; } #hullState { display: none; }
+  .mission { left: 6px; right: 6px; bottom: 6px; padding: 3px 8px; font-size: .74rem; }
+  .sample { right: 6px; top: 6px; padding: 3px; gap: 4px; font-size: .6rem; } .sample small { font-size: .62rem; }
   .porthole { padding: 9px; border-radius: 30px; } .glass { border-radius: 22px; box-shadow: 0 0 0 3px #3a2810, 0 0 0 4px #b88a4a, inset 0 0 24px #000c; }
   .bolt { width: 8px; height: 8px; } .hud { left: 14px; top: 10px; }
   .panel { padding: 6px; } .sonar-box canvas { max-width: 96px; }
   .rows { gap: 3px; } .rows > div { grid-template-columns: 3.4em 1fr; } .rows dd { font-size: .78rem; } .rows dd b { font-size: .9rem; }
-  .sample { margin-top: 5px; gap: 6px; font-size: .68rem; } .sample canvas { width: 72px; height: 53px; } .sample small { font-size: .7rem; }
-  .log { height: 3.7em; }
-  .logbox .lbl { display: none; }
+  .sample canvas { width: 56px !important; height: 41px !important; }
+  .log { height: 5.2em; }
   .console { padding: 6px 8px 4px; } .hint { font-size: .82rem; margin-bottom: 4px; }
   .stims { gap: 5px; margin-bottom: 6px; }
   button.stim { grid-template-columns: 1fr; grid-template-rows: auto auto auto; justify-items: center; text-align: center; padding: 4px 2px; min-height: 58px; row-gap: 0; }
@@ -136,8 +140,8 @@ body.og .log { height: 96px; }
   * { scroll-behavior: auto !important; }
 }
 
-.mission { position: absolute; left: 10px; right: 10px; bottom: 10px; padding: 8px 10px; border: 1px solid var(--brass); border-radius: 6px; background: #030912d9; color: var(--fg); font-size: .85rem; line-height: 1.45; pointer-events: none; }
-.mission b { color: var(--amber); margin-right: 8px; letter-spacing: .15em; } .mission small { color: var(--sonar); font-size: .75rem; }
+.mission { position: absolute; left: 10px; right: 10px; bottom: 10px; padding: 5px 10px; border: 1px solid var(--brass); border-radius: 6px; background: #030912d9; color: var(--fg); font-size: .85rem; line-height: 1.45; pointer-events: none; }
+.mission b { color: var(--amber); margin-right: 8px; font-size: .8rem; letter-spacing: .15em; } .mission small { color: var(--sonar); font-size: .75rem; }
 .mission[hidden], body.og .mission { display: none; }
 .hint.coach { color: #04140c; background: var(--sonar); border-radius: 4px; padding: 4px 8px; }
 @keyframes nudge { 50% { box-shadow: 0 3px 0 #000, 0 0 0 3px var(--sonar); } }
@@ -147,3 +151,17 @@ button.nudge { animation: nudge 1.4s ease-in-out infinite; }
 .routes button.locked, .retry button.locked { opacity: .55; border-style: dashed; cursor: not-allowed; }
 .route-info .lock { color: var(--amber); }
 .unlock-note { margin: 6px 0; padding: 6px 10px; border: 1px solid var(--brass); border-radius: 4px; background: var(--inst); color: var(--brass-l); font-size: .9rem; line-height: 1.5; }
+
+.hud-alert { font-size: .7rem; color: var(--dim); margin-left: 6px; } .hud-alert.warn { color: var(--amber); }
+.lib-btn { font: inherit; font-size: .8rem; padding: 4px 10px; min-height: 36px; border-radius: 4px; border: 1px solid var(--glow); background: var(--inst); color: var(--glow); cursor: pointer; touch-action: manipulation; margin-left: auto; }
+.top .routes button { min-height: 36px; }
+.lib { position: fixed; inset: 0; z-index: 50; background: #030912e6; overflow-y: auto; padding: 12px; }
+.lib-card { max-width: 640px; margin: 0 auto; background: var(--inst); border: 2px solid var(--brass); border-radius: 8px; padding: 12px; }
+.lib-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; position: sticky; top: 0; background: var(--inst); padding-bottom: 6px; }
+.lib h2 { margin: 0; font-size: 1.05rem; color: var(--brass-l); } .lib h3 { margin: 14px 0 6px; font-size: .85rem; letter-spacing: .15em; color: var(--brass-l); }
+.lib-close { font: inherit; min-height: 44px; padding: 6px 12px; border-radius: 6px; border: 2px solid var(--brass); background: linear-gradient(#2a3b3e, #121c1e); color: var(--fg); cursor: pointer; font-weight: 700; touch-action: manipulation; }
+.lib-note { margin: 0; font-size: .75rem; color: var(--dim); }
+.lib-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.lib-list li { border-left: 3px solid var(--glow); padding: 4px 8px; font-size: .84rem; } .lib-list li.unk { border-color: #2b3d40; color: var(--dim); }
+.lib .route-info { font-size: .8rem; margin-bottom: 6px; }
+body.og .lib-btn { display: none; }
