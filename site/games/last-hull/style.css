@@ -1,0 +1,82 @@
+:root {
+  --space: #080E1B; --hull: #6D8190; --bridge: #C6F0F2; --crt: #74DFAC; --green: #7EAA6B;
+  --amber: #FFC35A; --fire: #F16B50; --text: #E3E8EC; --dim: #93A3B0; --panel: #0E1828; --line: #2A3A50;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--space); color: var(--text);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Hiragino Sans", "Noto Sans JP", "Yu Gothic", monospace;
+  line-height: 1.45;
+}
+body::after { /* 薄い走査線 */
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 5;
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,.14) 0 1px, transparent 1px 3px);
+}
+.game { max-width: 980px; margin: 0 auto; padding: 8px 10px 4px; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+h1 { font-size: 1rem; margin: 0; color: var(--bridge); letter-spacing: .08em; }
+.tag { font-size: .75rem; color: var(--crt); border: 1px solid var(--crt); padding: 1px 8px; border-radius: 3px; white-space: nowrap; }
+
+.status { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin: 6px 0 4px; }
+.cell { background: var(--panel); border: 1px solid var(--line); padding: 3px 6px; min-width: 0; }
+.cell b { display: block; font-size: .64rem; color: var(--dim); font-weight: 400; }
+.cell span { font-size: .95rem; color: var(--crt); }
+.cell.warn span { color: var(--amber); }
+.cell.bad span { color: var(--fire); }
+.chain { grid-column: 1 / -1; display: flex; gap: 4px; flex-wrap: wrap; font-size: .72rem; }
+.chip { border: 1px solid var(--line); padding: 1px 8px; color: var(--dim); background: var(--panel); }
+.chip.now { border-color: var(--amber); color: var(--amber); }
+.chip.done { border-color: var(--crt); color: var(--crt); }
+.chip.skip { text-decoration: line-through; }
+.proj { grid-column: 1 / -1; font-size: .72rem; color: var(--dim); }
+.proj strong { color: var(--crt); }
+
+.guide { margin: 4px 0; padding: 4px 8px; border-left: 4px solid var(--amber); background: rgba(255,195,90,.08); font-size: .9rem; min-height: 2.1em; }
+.guide.bad { border-color: var(--fire); background: rgba(241,107,80,.1); }
+
+.stage { position: relative; }
+.stage svg { display: block; width: 100%; height: auto; max-height: 46vh; border: 1px solid var(--line); background: #080E1B; }
+
+.panel { margin: 6px 0; padding: 6px; background: var(--panel); border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.lab { font-size: .72rem; color: var(--dim); margin: 2px 0; }
+button {
+  font: inherit; font-size: .95rem; min-height: 44px; padding: 6px 12px; cursor: pointer; touch-action: manipulation;
+  color: var(--text); background: #16243A; border: 2px solid #4A6076; border-radius: 4px;
+}
+button:hover { border-color: var(--bridge); }
+button:focus-visible, .part:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+button[disabled] { opacity: .4; cursor: not-allowed; }
+button.sel { border-color: var(--crt); background: #12352c; }
+button.comp { flex: 1 1 28%; min-width: 0; text-align: left; }
+button.comp small { display: block; color: var(--crt); font-size: .8rem; }
+button.go { border-color: var(--crt); }
+button.cutbtn { border-color: var(--amber); color: var(--amber); }
+button.danger { border-color: var(--fire); background: #3a1511; color: #ffd9d0; }
+button.cool { border-color: #7fd6ff; color: #bfeaff; }
+.warnbox { border: 2px solid var(--amber); padding: 6px 8px; margin: 4px 0; background: rgba(255,195,90,.08); font-size: .9rem; }
+.warnbox.bad { border-color: var(--fire); background: rgba(241,107,80,.12); }
+
+.result { text-align: center; }
+.result h2 { margin: 4px 0; font-size: 1.3rem; }
+.result.ok h2 { color: var(--crt); }
+.result.ng h2 { color: var(--fire); }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 6px 0; }
+.stats .cell span { font-size: 1.2rem; }
+.share { width: 100%; background: var(--space); color: var(--text); border: 1px solid var(--line); padding: 6px; font: inherit; font-size: .85rem; min-height: 3.2em; }
+.note { font-size: .8rem; color: var(--dim); margin: 2px 0; }
+
+.arcade-link { text-align: center; padding: 6px; font-size: .7rem; opacity: .5; }
+.arcade-link a { color: inherit; }
+.og .arcade-link, .og .panel .row.noog { display: none; }
+
+@media (max-width: 640px) {
+  .status { grid-template-columns: repeat(3, 1fr); }
+  .cell span { font-size: .85rem; }
+  .guide { font-size: .82rem; }
+  .stage svg { max-height: 34vh; }
+  button { font-size: .88rem; padding: 4px 8px; }
+  button.comp { flex: 1 1 30%; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
