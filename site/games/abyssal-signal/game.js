@@ -98,7 +98,20 @@ function render() {
   $('rLeft').textContent = left;
   const pips = $('pips'); pips.textContent = '';
   for (let i = 0; i < MAX_STIMULI; i++) { const e = document.createElement('i'); if (i < left) e.className = 'f'; pips.appendChild(e); }
-  $('hint').textContent = enc.target === '全身' ? '全身をフレームに収めよう' : `「${enc.target}」が写る距離を探そう`;
+  const goal = enc.target === '全身' ? '全身をフレームに収めよう' : `「${enc.target}」が写る距離を探そう`;
+  const first = state.index === 0 && !state.over;
+  let coach = '';
+  if (first && !state.shotTaken && !busy) {
+    if (state.used === 0) coach = '① まず3つのどれかを押して、生物の反応を見よう（刺激は3回まで）';
+    else coach = `② 距離は「${DIST_LABEL[state.dist]}」。右の見本に近い見え方なら 📷 で撮影。別の刺激でさらに探ってもOK（残り${MAX_STIMULI - state.used}回）`;
+  }
+  $('hint').textContent = coach || goal;
+  $('hint').classList.toggle('coach', !!coach);
+  $('mission').hidden = state.index > 0 || state.used > 0 || state.shotTaken || state.over;
+  const nudgeStim = first && state.used === 0 && !busy;
+  const nudgeShot = first && state.used > 0 && !state.shotTaken && !busy;
+  for (const b of document.querySelectorAll('.stim')) b.classList.toggle('nudge', nudgeStim);
+  $('shootNext').classList.toggle('nudge', nudgeShot);
   $('sampleText').textContent = `${SPECIES[enc.species].name}／${enc.target}`;
   drawSample(enc);
 
@@ -170,7 +183,7 @@ function doShoot(mode) {
   state = r.state;
   const ph = state.photos[state.photos.length - 1];
   addLog(`${ph.depth}m 撮影：観測品質 ${ph.quality}（${SPECIES[ph.species].name}／${ph.target}）`, 'shot');
-  say(`撮影しました。観測品質 ${ph.quality}`);
+  say(`撮影しました。観測品質 ${ph.quality}${state.photos.length === 1 ? '（見本に近いほど高品質）。次の生物は反応が違うかも。まず試験光の反応を見よう' : ''}`);
   $('shutter').classList.remove('fire'); void $('shutter').offsetWidth; $('shutter').classList.add('fire');
   fx = reduce ? null : { type: 'shutter', t0: now(), dur: 600 };
   render();
