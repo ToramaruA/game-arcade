@@ -1,7 +1,7 @@
 import {
-  ENCOUNTERS, ROUTES, SPECIES, MAX_HULL, MAX_STIMULI, DIST_LABEL, STIMULI, STIMULUS_LABEL, CUE_LABEL, MAX_QUALITY,
-  newGame, preview, stimulate, shoot, advance, summarize, shareText, updateBest, cueOf, encounterOf, isLastEncounter,
-  snapshot, routeById, alertOf, canStimulate,
+  ROUTES, SPECIES, MAX_HULL, MAX_STIMULI, DIST_LABEL, STIMULUS_LABEL, CUE_LABEL, maxQualityOf,
+  newGame, preview, stimulate, shoot, advance, summarize, shareText, updateBest, cueOf, encounterOf, encountersOf,
+  isLastEncounter, snapshot, routeById, canStimulate,
 } from './logic.js';
 import { SW, SH, CARD_W, CARD_H, drawScene, drawSonar, drawCard } from './art.js';
 
@@ -59,7 +59,7 @@ function buildRoutes() {
   const box = $('routes'); box.textContent = '';
   for (const r of ROUTES) {
     const b = document.createElement('button');
-    b.type = 'button'; b.textContent = r.name; b.dataset.id = r.id;
+    b.type = 'button'; b.textContent = `${'★'.repeat(r.level)} ${r.name}`; b.dataset.id = r.id;
     b.addEventListener('click', () => {
       if (b.getAttribute('aria-disabled') === 'true') return;
       saveRoute(r.id); restart(r.id);
@@ -73,11 +73,13 @@ function renderRoutes() {
     b.setAttribute('aria-pressed', String(b.dataset.id === state.route));
     b.setAttribute('aria-disabled', String(!fresh));
   }
+  const route = routeById(state.route);
+  $('routeInfo').innerHTML = `<b>難しさ：${'★'.repeat(route.level)}${'☆'.repeat(3 - route.level)} ${route.levelText}${route.level === 1 ? '（最初はここ）' : ''}</b>　${route.adds}<br>${route.learn}`;
   const ol = $('alerts'); ol.textContent = '';
-  routeById(state.route).alert.forEach((a, i) => {
+  route.encounters.forEach((e, i) => {
     const li = document.createElement('li');
-    li.className = (i === state.index && $('result').hidden ? 'on ' : '') + (a ? 'warn' : '');
-    li.innerHTML = `${ENCOUNTERS[i].depth}m<br><b>警戒+${a}</b>`;
+    li.className = (i === state.index && $('result').hidden ? 'on ' : '') + (e.alert ? 'warn' : '');
+    li.innerHTML = `${e.depth}m<br><b>警戒+${e.alert}</b>`;
     ol.appendChild(li);
   });
 }
@@ -99,15 +101,17 @@ function render() {
   const pips = $('pips'); pips.textContent = '';
   for (let i = 0; i < MAX_STIMULI; i++) { const e = document.createElement('i'); if (i < left) e.className = 'f'; pips.appendChild(e); }
   const goal = enc.target === '全身' ? '全身をフレームに収めよう' : `「${enc.target}」が写る距離を探そう`;
-  const first = state.index === 0 && !state.over;
+  const first = state.route === 'standard' && state.index === 0 && !state.over;
+  const nStim = routeById(state.route).stimuli.length;
   let coach = '';
   if (first && !state.shotTaken && !busy) {
-    if (state.used === 0) coach = '① まず3つのどれかを押して、生物の反応を見よう（刺激は3回まで）';
+    if (state.used === 0) coach = '① まず光か音を押して、生物の反応を見よう（刺激は3回まで）';
     else coach = `② 距離は「${DIST_LABEL[state.dist]}」。「見本」欄の絵に近い見え方なら 📷 で撮影。別の刺激でさらに探ってもOK（残り${MAX_STIMULI - state.used}回）`;
   }
   $('hint').textContent = coach || goal;
   $('hint').classList.toggle('coach', !!coach);
-  $('mission').hidden = state.index > 0 || state.used > 0 || state.shotTaken || state.over;
+  $('mission').hidden = !first || state.used > 0 || state.shotTaken;
+  $('missionN').textContent = nStim === 2 ? '2つ' : `${nStim}つ`;
   const nudgeStim = first && state.used === 0 && !busy;
   const nudgeShot = first && state.used > 0 && !state.shotTaken && !busy;
   for (const b of document.querySelectorAll('.stim')) b.classList.toggle('nudge', nudgeStim);
@@ -119,6 +123,7 @@ function render() {
   for (const b of document.querySelectorAll('.stim')) {
     const k = b.dataset.k; const p = preview(state, k);
     const pv = b.querySelector('.pv');
+    b.hidden = !routeById(state.route).stimuli.includes(k);
     b.setAttribute('aria-disabled', String(!can || !!confirmKind));
     pv.className = 'pv';
     if (!canStimulate(state)) pv.textContent = state.shotTaken ? '撮影済み' : '使い切り';
@@ -147,6 +152,10 @@ function introEncounter() {
   const cue = cueOf(sp.react.light);
   addLog(`${enc.depth}m 試験光（弱）→ ${CUE_LABEL[cue]}（回数・耐久は減らない）`, 'demo');
   if (enc.species === 'C') addLog('ソナーに窓幅を超える反応', 'demo');
+  const route = routeById(state.route);
+  if (state.index === 0 && route.level === 2) addLog('新操作「静かに待つ」：動かず見守る。リボンレイは動かないのでピントが合う。鎧クラゲは離れる', 'demo');
+  if (state.index === 0 && route.level === 3) addLog('新操作「艇を止める」：どの生物でも距離を保ってピントを合わせる（近距離だと損傷は出る）', 'demo');
+  if (enc.species === 'B' && route.level === 1 && state.index === 2) addLog('鎧クラゲ：リボンレイとは反応が違う。試験光の反応をよく見よう', 'demo');
   anim.demo = sp.react.light;
   setFx('demo', 1100);
   say('');
@@ -206,7 +215,7 @@ function closeConfirm() { confirmKind = null; clearTimeout(confirmTimer); $('con
 
 // ---------- 結果 ----------
 function makeFrames() {
-  frames = ENCOUNTERS.map((enc, i) => {
+  frames = encountersOf(state).map((enc, i) => {
     const p = state.photos.find((x) => x.index === i);
     if (p) return { photo: p, kind: 'photo' };
     if (state.over === 'lost' && i === state.index) return { photo: { ...snapshot(state), index: i }, kind: 'window' };
@@ -231,7 +240,7 @@ function showResult() {
   const best = loadBest(state.route);
   $('stats').innerHTML = sum.lost
     ? `最後の窓：<b>${sum.depth}</b> m　撮影履歴 ${sum.photos.length} 枚（未回収・成功記録には入りません）`
-    : `観測品質の合計 <b>${sum.total}</b> / ${MAX_QUALITY}（理論上の尺度）${note}<br>写真 <b>${sum.count}</b> 枚　到達 <b>${sum.depth}</b> m　残耐久 <b>${sum.hull}</b>${best != null ? `　この航路のベスト ${best}` : ''}`;
+    : `観測品質の合計 <b>${sum.total}</b> / ${maxQualityOf(state.route)}（この航路の理論上の尺度）${note}<br>写真 <b>${sum.count}</b> 枚　到達 <b>${sum.depth}</b> m　残耐久 <b>${sum.hull}</b>${best != null ? `　この航路のベスト ${best}` : ''}`;
   makeFrames();
   frameSel = frames.map((f, i) => (f ? i : -1)).filter((i) => i >= 0).slice(-1)[0] ?? 0;
   // 帰還時は最高品質の写真を初期選択
@@ -243,8 +252,8 @@ function showResult() {
   for (const r of ROUTES) {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'shot';
-    b.textContent = r.id === state.route ? `同じ航路で（${r.name}）` : `${r.name}の航路へ`;
-    b.title = `警戒補正 ${r.alert.join(',')}`;
+    b.textContent = r.id === state.route ? `同じ航路で（${'★'.repeat(r.level)} ${r.name}）` : `${'★'.repeat(r.level)} ${r.name}の航路へ`;
+    b.title = `${r.levelText}：${r.adds}`;
     b.addEventListener('click', () => { saveRoute(r.id); restart(r.id); window.scrollTo(0, 0); });
     retry.appendChild(b);
   }
@@ -258,7 +267,7 @@ function renderSheet(sum) {
   frames.forEach((f, i) => {
     const b = document.createElement('button'); b.type = 'button';
     if (!f) {
-      b.disabled = true; b.innerHTML = `<span class="none">未観測</span>${ENCOUNTERS[i].depth}m`;
+      b.disabled = true; b.innerHTML = `<span class="none">未観測</span>${encountersOf(state)[i].depth}m`;
     } else {
       const cv = document.createElement('canvas'); cv.width = 150; cv.height = 110;
       const c = cv.getContext('2d'); c.scale(150 / SW, 110 / SH);
@@ -362,7 +371,7 @@ function frame() {
 // ---------- 開始 ----------
 buildRoutes();
 if (OG) {
-  state = { ...newGame('standard'), index: 4, dist: 1, focus: 0, used: 1, hull: 5 };
+  state = { ...newGame('glow'), index: 4, dist: 1, focus: 0, used: 1, hull: 5 };
   anim.dist = 1;
   addLog('600m 照らす → 近づいた（距離：中）', 'act');
   addLog('2400m 音を鳴らす → 近づいた（距離：近）損傷-2', 'dmg');

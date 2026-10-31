@@ -20,6 +20,7 @@
     <header class="top">
       <h1>深海、未確認反応</h1>
       <div id="routes" class="routes" role="group" aria-label="航路"></div>
+      <p id="routeInfo" class="route-info"></p>
       <ol id="alerts" class="alerts" aria-label="航路表：深度ごとの警戒補正（近距離の損傷に加算）"></ol>
     </header>
 
@@ -32,7 +33,7 @@
             <canvas id="win" width="600" height="440" role="img" aria-label="潜水窓。生物が見える"></canvas>
             <div class="gloss" aria-hidden="true"></div>
             <div id="shutter" class="shutter" aria-hidden="true"></div>
-            <div id="mission" class="mission"><b>目的</b>深海の生物を、いちばん写る距離で撮って生還する。<br><small>下の3つのボタンで生物を刺激 → 距離と反応を見る → 📷で撮影</small></div>
+            <div id="mission" class="mission"><b>目的</b>深海の生物を、いちばん写る距離で撮って生還する。<br><small>下の<span id="missionN">2つ</span>のボタンで生物を刺激 → 距離と反応を見る → 📷で撮影</small></div>
             <div class="hud" aria-hidden="true"><b id="hudDepth">600</b> m</div>
           </div>
         </div>
@@ -68,6 +69,7 @@
           <button type="button" class="stim" data-k="light"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4M8 7l9-4v18L8 17z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><b>照らす</b><span class="pv"></span></button>
           <button type="button" class="stim" data-k="sound"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9a8 8 0 0 1 0 6M9 6a12 12 0 0 1 0 12M13 3a16 16 0 0 1 0 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><b>音を鳴らす</b><span class="pv"></span></button>
           <button type="button" class="stim" data-k="wait"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg><b>静かに待つ</b><span class="pv"></span></button>
+          <button type="button" class="stim" data-k="hold"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 9v6M9 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><b>艇を止める</b><span class="pv"></span></button>
         </div>
         <div class="row shots" role="group" aria-label="撮影">
           <button type="button" id="shootNext" class="shot">📷 撮影して次へ</button>

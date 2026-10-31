@@ -4,32 +4,60 @@
 export const MAX_HULL = 7;
 export const MAX_STIMULI = 3;
 export const DIST_LABEL = ['遠', '中', '近'];
-export const STIMULI = ['light', 'sound', 'wait'];
-export const STIMULUS_LABEL = { light: '照らす', sound: '音を鳴らす', wait: '静かに待つ' };
+export const STIMULI = ['light', 'sound', 'wait', 'hold'];
+export const STIMULUS_LABEL = { light: '照らす', sound: '音を鳴らす', wait: '静かに待つ', hold: '艇を止める' };
 
-// 刺激ごとの距離の変化（接近 +1 / 維持 0 / 後退 -1）
+// 刺激ごとの距離の変化（接近 +1 / 維持 0 / 後退 -1）。「艇を止める」は生物によらず必ず維持（0）。
 export const SPECIES = {
-  A: { name: 'リボンレイ', damage: 1, react: { light: 1, sound: -1, wait: 0 } },
-  B: { name: '鎧クラゲ', damage: 2, react: { light: 0, sound: 1, wait: -1 } },
-  C: { name: '海底の王', damage: 3, react: { light: -1, sound: 0, wait: 1 } },
+  A: { name: 'リボンレイ', damage: 1, react: { light: 1, sound: -1, wait: 0, hold: 0 } },
+  B: { name: '鎧クラゲ', damage: 2, react: { light: 0, sound: 1, wait: -1, hold: 0 } },
+  C: { name: '海底の王', damage: 3, react: { light: -1, sound: 0, wait: 1, hold: 0 } },
 };
 
-// base: 遠・中・近の基礎点。ピントで +1（最大 5）。
-export const ENCOUNTERS = [
-  { depth: 600, species: 'A', target: '全身', base: [1, 4, 2] },
-  { depth: 1200, species: 'B', target: '殻の模様', base: [1, 2, 4] },
-  { depth: 1800, species: 'A', target: '発光器官', base: [1, 2, 4] },
-  { depth: 2400, species: 'B', target: '捕食姿勢', base: [1, 4, 2] },
-  { depth: 3000, species: 'C', target: '頭部', base: [1, 2, 4] },
-];
-
+// base: 遠・中・近の基礎点。ピントで +1（最大 5〜6）。alert: その深度の近距離の損傷に加算。
+// 航路ごとに、出会う生物・使える操作・深度数が違う（損傷量だけで難しくしない）。
+const enc = (depth, species, target, base, alert = 0) => ({ depth, species, target, base, alert });
 export const ROUTES = [
-  { id: 'standard', name: '標準', alert: [0, 0, 0, 0, 0] },
-  { id: 'shell', name: '殻の共鳴', alert: [0, 1, 0, 0, 0] },
-  { id: 'glow', name: '発光の潮', alert: [0, 0, 1, 0, 0] },
+  {
+    id: 'standard', name: '標準', level: 1, levelText: 'はじめて',
+    stimuli: ['light', 'sound'],
+    encounters: [
+      enc(600, 'A', '全身', [1, 4, 2]),
+      enc(1000, 'A', '発光器官', [1, 2, 4]),
+      enc(1400, 'B', '殻の模様', [1, 2, 4]),
+    ],
+    learn: '光と音で生物を動かし、距離と見本を見て撮る。生物ごとに反応が違う。',
+    adds: '3深度／生物2種（リボンレイ・鎧クラゲ）／操作は光と音だけ',
+  },
+  {
+    id: 'shell', name: '殻の共鳴', level: 2, levelText: 'ふつう',
+    stimuli: ['light', 'sound', 'wait'],
+    encounters: [
+      enc(800, 'A', '捕食姿勢', [1, 4, 2]),
+      enc(1400, 'B', '殻の模様', [1, 2, 4], 1),
+      enc(2000, 'B', '捕食姿勢', [1, 4, 2]),
+      enc(2600, 'A', '発光器官', [1, 2, 4]),
+    ],
+    learn: '「静かに待つ」で動きを止めてピントを合わせる。鎧クラゲは待つと離れる。',
+    adds: '4深度／新操作「静かに待つ」／中距離が最高になる対象が出る',
+  },
+  {
+    id: 'glow', name: '発光の潮', level: 3, levelText: 'むずかしい',
+    stimuli: ['light', 'sound', 'wait', 'hold'],
+    encounters: [
+      enc(600, 'A', '全身', [1, 4, 2]),
+      enc(1200, 'B', '殻の模様', [1, 2, 4]),
+      enc(1800, 'A', '発光器官', [1, 2, 4], 1),
+      enc(2400, 'B', '捕食姿勢', [1, 4, 2]),
+      enc(3000, 'C', '頭部', [1, 2, 4]),
+    ],
+    learn: '生物を読んで、ピントを取るか損傷を避けるかを選ぶ。最後に巨大な「海底の王」。',
+    adds: '5深度／新生物「海底の王」／新操作「艇を止める」（どの生物でも距離を保ってピント）',
+  },
 ];
 
-export const MAX_QUALITY = 25;
+export const maxQualityOf = (routeId) =>
+  routeById(routeId).encounters.reduce((a, e) => a + Math.max(...e.base) + 1, 0);
 
 export const clampDist = (d) => Math.max(0, Math.min(2, d));
 export const routeById = (id) => ROUTES.find((r) => r.id === id) ?? ROUTES[0];
@@ -53,8 +81,10 @@ export function newGame(routeId = 'standard') {
   };
 }
 
-export const encounterOf = (s) => ENCOUNTERS[s.index];
-export const alertOf = (s) => routeById(s.route).alert[s.index];
+export const encountersOf = (s) => routeById(s.route).encounters;
+export const encounterOf = (s) => encountersOf(s)[s.index];
+export const alertOf = (s) => encounterOf(s).alert;
+export const canUse = (s, kind) => routeById(s.route).stimuli.includes(kind);
 
 // 刺激 kind を行った結果（状態は変えない）。予告表示にも実処理にも同じ関数を使う。
 export function preview(s, kind) {
@@ -75,6 +105,7 @@ export function canStimulate(s) {
 // 致死の操作は confirmLethal=true でないと通らない。
 export function stimulate(s, kind, confirmLethal = false) {
   if (!STIMULI.includes(kind)) return { ok: false, reason: 'unknown' };
+  if (!canUse(s, kind)) return { ok: false, reason: 'unavailable' };
   if (s.over) return { ok: false, reason: 'over' };
   if (s.shotTaken) return { ok: false, reason: 'locked' };
   if (s.used >= MAX_STIMULI) return { ok: false, reason: 'no-stimuli' };
@@ -100,7 +131,7 @@ export function quality(enc, dist, focus) {
 }
 
 export function isLastEncounter(s) {
-  return s.index === ENCOUNTERS.length - 1;
+  return s.index === encountersOf(s).length - 1;
 }
 
 export function snapshot(s) {
@@ -189,7 +220,7 @@ export function explore(routeId) {
         top = Math.max(top, q + best(advance(shoot(s, 'next').state).state));
       }
       if (s.used < MAX_STIMULI) {
-        for (const k of STIMULI) {
+        for (const k of routeById(routeId).stimuli) {
           const r = stimulate(s, k, true);
           if (!r.ok || r.state.over === 'lost') continue;
           if (!allowDamage && r.damage > 0) continue;
@@ -207,7 +238,7 @@ export function explore(routeId) {
     returnable: true, // 先頭で撮影して帰還すれば必ず帰還できる
     maxTotal,
     maxTotalNoDamage,
-    perfectReachable: maxTotal === MAX_QUALITY,
-    perfectNoDamage: maxTotalNoDamage === MAX_QUALITY,
+    perfectReachable: maxTotal === maxQualityOf(routeId),
+    perfectNoDamage: maxTotalNoDamage === maxQualityOf(routeId),
   };
 }
