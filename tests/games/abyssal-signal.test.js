@@ -2,38 +2,47 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ROUTES, SPECIES, MAX_HULL, MAX_STIMULI, newGame, preview, stimulate, shoot, advance,
-  quality, summarize, routeCleared, meetsBorder, borderOf, applyClear, isUnlocked, sanitizeUnlocked, unlockCondition, shareText, updateBest, explore, clampDist, encounterOf, encountersOf, maxQualityOf, routeById,
+  quality, isBoss, summarize, routeCleared, meetsBorder, borderOf, applyClear, isUnlocked, sanitizeUnlocked, unlockCondition, shareText, updateBest, explore, clampDist, encounterOf, encountersOf, maxQualityOf, routeById,
 } from '../../site/games/abyssal-signal/logic.js';
 
 const ok = (r) => { assert.ok(r.ok, `rejected: ${r.reason}`); return r.state; };
 const at = (index, over = {}, route = 'standard') => ({ ...newGame(route), index, ...over });
 
-test('反応表：A/B/C の光・音・静止', () => {
-  const dist = (sp, k) => SPECIES[sp].react[k];
-  assert.deepEqual(['light', 'sound', 'wait', 'hold'].map((k) => dist('A', k)), [1, -1, 0, 0]);
-  assert.deepEqual(['light', 'sound', 'wait', 'hold'].map((k) => dist('B', k)), [0, 1, -1, 0]);
-  assert.deepEqual(['light', 'sound', 'wait', 'hold'].map((k) => dist('C', k)), [-1, 0, 1, 0]);
+test('反応表：道中4種とボス3種の光・音・静止・停止', () => {
+  const r = (sp) => ['light', 'sound', 'wait', 'hold'].map((k) => SPECIES[sp].react[k]);
+  assert.deepEqual(r('A'), [1, -1, 0, 0]);
+  assert.deepEqual(r('B'), [0, 1, -1, 0]);
+  assert.deepEqual(r('D'), [-1, 0, 1, 0]);
+  assert.deepEqual(r('F'), [1, -1, 1, 0]);
+  assert.deepEqual(r('C'), [-1, 1, 0, 0]);
+  assert.deepEqual(r('E'), [0, -1, 1, 0]);
+  assert.deepEqual(r('G'), [-1, 1, -1, 0]);
+  assert.deepEqual(Object.keys(SPECIES).filter(isBoss), ['C', 'E', 'G']);
 });
 
 const glowEnc = () => routeById('glow').encounters;
 
-test('各遭遇は遠・ピント0から始まる。最難航路は全5遭遇の表が固定', () => {
+test('各遭遇は遠・ピント0から始まる。最難航路は全6遭遇の表が固定', () => {
   const s = newGame('glow');
   assert.equal(s.dist, 0); assert.equal(s.focus, 0); assert.equal(s.hull, MAX_HULL);
-  assert.deepEqual(glowEnc().map((e) => e.depth), [600, 1200, 1800, 2400, 3000]);
-  assert.deepEqual(glowEnc().map((e) => e.species), ['A', 'B', 'A', 'B', 'C']);
-  assert.deepEqual(glowEnc().map((e) => e.target), ['全身', '殻の模様', '発光器官', '捕食姿勢', '頭部']);
+  assert.deepEqual(glowEnc().map((e) => e.depth), [600, 1200, 1800, 2400, 3000, 3800]);
+  assert.deepEqual(glowEnc().map((e) => e.species), ['A', 'B', 'D', 'F', 'B', 'G']);
+  assert.deepEqual(glowEnc().map((e) => e.target), ['全身', '捕食姿勢', '灯り', '群れ', '殻の模様', '発光脈']);
 });
 
-test('航路が進むほど遭遇数・生物・操作が増える（損傷量以外の差）', () => {
+test('航路が進むほど道中の生物・操作・遭遇数が増え、最後のボスが変わる', () => {
   const [a, b, c] = ROUTES;
   assert.deepEqual(ROUTES.map((r) => r.level), [1, 2, 3]);
-  assert.deepEqual(ROUTES.map((r) => r.encounters.length), [3, 4, 5]);
+  assert.deepEqual(ROUTES.map((r) => r.encounters.length), [4, 5, 6]);
   assert.deepEqual(a.stimuli, ['light', 'sound']);
   assert.deepEqual(b.stimuli, ['light', 'sound', 'wait']);
   assert.deepEqual(c.stimuli, ['light', 'sound', 'wait', 'hold']);
-  const species = (r) => [...new Set(r.encounters.map((e) => e.species))].sort().join('');
-  assert.equal(species(a), 'AB'); assert.equal(species(b), 'AB'); assert.equal(species(c), 'ABC');
+  const normals = (r) => [...new Set(r.encounters.map((e) => e.species).filter((k) => !isBoss(k)))].sort().join('');
+  assert.equal(normals(a), 'AB'); assert.equal(normals(b), 'ABD'); assert.equal(normals(c), 'ABDF');
+  // 各航路の最後はその航路のボスで、ボスは航路ごとに違う。ボスは最終深度にしか出ない
+  assert.deepEqual(ROUTES.map((r) => r.encounters.at(-1).species), ['C', 'E', 'G']);
+  assert.deepEqual(ROUTES.map((r) => r.boss), ['C', 'E', 'G']);
+  for (const r of ROUTES) assert.ok(r.encounters.slice(0, -1).every((e) => !isBoss(e.species)), r.id);
   assert.ok(ROUTES.every((r) => r.learn && r.adds));
   // 最初の航路は警戒補正なし
   assert.ok(a.encounters.every((e) => e.alert === 0));
@@ -50,12 +59,12 @@ test('航路にない操作は拒否される。艇を止めるは生物によ�
   assert.equal(preview(b, 'wait').dist, 0);
   const h = preview(b, 'hold');
   assert.equal(h.dist, 1); assert.equal(h.focus, 1); assert.equal(h.damage, 0);
-  // 海底の王：待つと接近するが止めれば中距離のまま
-  const c = at(4, { dist: 1 }, 'glow');
-  assert.equal(preview(c, 'wait').damage, 3);
-  assert.equal(preview(c, 'hold').damage, 0);
+  // 海溝の母（glow 最終）：音で接近すると損傷、止めれば中距離のまま
+  const g = at(5, { dist: 1 }, 'glow');
+  assert.equal(preview(g, 'sound').damage, 3);
+  assert.equal(preview(g, 'hold').damage, 0);
   // 近距離で止めるとピントは合うが損傷は出る
-  const n = preview(at(4, { dist: 2 }, 'glow'), 'hold');
+  const n = preview(at(5, { dist: 2 }, 'glow'), 'hold');
   assert.equal(n.focus, 1); assert.equal(n.damage, 3);
 });
 
@@ -76,7 +85,9 @@ test('近距離になる操作で種別損傷、中距離までは無傷', () =>
   assert.equal(s.dist, 2); assert.equal(s.hull, 6);
   const s3 = at(2, { dist: 1 });
   assert.equal(preview(s3, 'sound').damage, 2); // B（標準の3遭遇目）
-  assert.equal(preview(at(4, { dist: 1 }, 'glow'), 'wait').damage, 3); // C
+  assert.equal(preview(at(3, { dist: 1 }), 'sound').damage, 3); // 海底の王（標準の最終）
+  assert.equal(preview(at(4, { dist: 1 }, 'shell'), 'wait').damage, 3); // 深淵の鯨骨
+  assert.equal(preview(at(2, { dist: 1 }, 'shell'), 'wait').damage, 1); // 灯籠イカ
 });
 
 test('近距離でさらに接近しても無傷にならず、離れて中距離なら無傷', () => {
@@ -101,22 +112,22 @@ test('ピント：維持で1、距離が変わると0へ、上限で止まった
   assert.equal(s.focus, 1); assert.equal(s.dist, 0);
   s = ok(stimulate(s, 'light')); // 動く
   assert.equal(s.focus, 0); assert.equal(s.dist, 1);
-  // 近で接近が止まる（Cで確認）
-  const c = at(4, { dist: 2, focus: 0 }, 'glow');
-  const p = preview(c, 'wait'); // C: +1 だが上限
+  // 近で接近が止まる（海溝の母で確認）
+  const c = at(5, { dist: 2, focus: 0 }, 'glow');
+  const p = preview(c, 'sound'); // G: +1 だが上限
   assert.equal(p.dist, 2); assert.equal(p.focus, 0);
   assert.equal(preview(newGame(), 'sound').focus, 0); // 遠で後退が止まってもピントは増えない
 });
 
-test('撮影品質：最難航路の全5対象 × 遠中近 × ピント', () => {
-  const expected = [[1, 4, 2], [1, 2, 4], [1, 2, 4], [1, 4, 2], [1, 2, 4]];
+test('撮影品質：最難航路の全6対象 × 遠中近 × ピント', () => {
+  const expected = [[1, 4, 2], [1, 4, 2], [1, 2, 4], [1, 4, 2], [1, 2, 4], [1, 2, 4]];
   glowEnc().forEach((enc, i) => {
     for (let d = 0; d < 3; d++) {
       assert.equal(quality(enc, d, 0), expected[i][d]);
       assert.equal(quality(enc, d, 1), expected[i][d] + 1);
     }
   });
-  assert.deepEqual(ROUTES.map((r) => maxQualityOf(r.id)), [15, 20, 25]);
+  assert.deepEqual(ROUTES.map((r) => maxQualityOf(r.id)), [20, 25, 30]);
 });
 
 test('航路補正は近距離の損傷だけを増やす', () => {
@@ -126,7 +137,7 @@ test('航路補正は近距離の損傷だけを増やす', () => {
   assert.equal(preview(shell, 'light').damage, 0); // 中のまま維持は無傷
   assert.equal(preview(at(2, { dist: 1 }, 'standard'), 'sound').damage, 2);
   const glow = at(2, { dist: 1 }, 'glow');
-  assert.equal(preview(glow, 'light').damage, 2); // A 1 + 1
+  assert.equal(preview(glow, 'wait').damage, 2); // D 1 + 1
   assert.equal(preview(at(0, { dist: 1 }, 'glow'), 'light').damage, 1);
 });
 
@@ -173,18 +184,18 @@ test('二重撮影・撮影後の刺激・次遭遇への入力持越しを拒�
 });
 
 test('最終深度は「撮影して帰還」のみ', () => {
-  const s = at(4, {}, 'glow');
+  const s = at(5, {}, 'glow');
   assert.equal(shoot(s, 'next').reason, 'last');
-  assert.equal(shoot(at(2), 'next').reason, 'last'); // 標準は3深度目が最終
+  assert.equal(shoot(at(3), 'next').reason, 'last'); // 標準は4深度目が最終
   const r = ok(shoot(s, 'return'));
   assert.equal(r.over, 'returned');
 });
 
 test('致死の操作は確認なしでは通らない', () => {
-  const s = at(4, { dist: 1, hull: 3 }, 'glow'); // C 静止 +1 → 近 3 損傷 → 耐久0
-  const p = preview(s, 'wait');
+  const s = at(5, { dist: 1, hull: 3 }, 'glow'); // G 音 +1 → 近 3 損傷 → 耐久0
+  const p = preview(s, 'sound');
   assert.equal(p.lethal, true); assert.equal(p.hullAfter, 0);
-  const r = stimulate(s, 'wait');
+  const r = stimulate(s, 'sound');
   assert.equal(r.ok, false); assert.equal(r.reason, 'needs-confirm');
 });
 
@@ -220,10 +231,10 @@ test('途中帰還も成功。写真の合計・枚数・深度・耐久を返�
 });
 
 test('最終帰還の共有文は実際の状態から作られ、未訪問の生物を書かない', () => {
-  let s = at(4, { dist: 1, focus: 0, hull: 1 }, 'glow');
+  let s = at(3, { dist: 1, focus: 0, hull: 1 }, 'standard');
   s = ok(shoot(s, 'return'));
   const text = shareText(s, s.photos[0]);
-  assert.equal(text, '3000mで海底の王を撮影。耐久1で帰還。深海、未確認反応');
+  assert.equal(text, '2000mで海底の王を撮影。耐久1で帰還。深海、未確認反応');
   assert.doesNotMatch(text, /リボンレイ|鎧クラゲ/);
 });
 
@@ -236,8 +247,8 @@ test('リトライ：newGame は完全に初期化される（航路は選べる
 });
 
 test('全列挙：各航路で帰還可能、満点は到達不能、無傷では高品質を揃えられない', () => {
-  const expectedMax = { standard: 13, shell: 19, glow: 22 };
-  const expectedNoDamage = { standard: 9, shell: 16, glow: 19 };
+  const expectedMax = { standard: 16, shell: 22, glow: 27 };
+  const expectedNoDamage = { standard: 11, shell: 19, glow: 24 };
   for (const r of ROUTES) {
     const e = explore(r.id);
     assert.equal(e.returnable, true);
@@ -275,8 +286,8 @@ test('初回は第1航路のみ。保存値が不正でも1に戻る', () => {
   assert.equal(sanitizeUnlocked(3), 3);
   assert.equal(unlockCondition('standard'), null);
   assert.match(unlockCondition('shell'), /標準/);
-  assert.match(unlockCondition('shell'), /8点以上/);
-  assert.match(unlockCondition('glow'), /12点以上/);
+  assert.match(unlockCondition('shell'), /10点以上/);
+  assert.match(unlockCondition('glow'), /14点以上/);
 });
 
 test('クリアで次の航路が1つずつ解放され、再クリア・未解放航路では増えない', () => {
@@ -291,7 +302,7 @@ test('クリアで次の航路が1つずつ解放され、再クリア・未解�
 });
 
 test('解放ライン：最終深度で帰還しても合計がボーダー未満なら解放しない。ボーダーは到達可能', () => {
-  assert.equal(borderOf('standard'), 8); assert.equal(borderOf('shell'), 12);
+  assert.equal(borderOf('standard'), 10); assert.equal(borderOf('shell'), 14);
   for (const id of ['standard', 'shell']) {
     const low = finish(id, 'full'); // 遠距離で撮るだけ
     assert.equal(routeCleared(low), true);

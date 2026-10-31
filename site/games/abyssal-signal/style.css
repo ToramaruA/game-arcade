@@ -169,5 +169,11 @@ body.og .lib-btn { display: none; }
 .lib-list li.known { display: grid; grid-template-columns: 150px 1fr; gap: 10px; align-items: center; }
 .dex-img { width: 100%; height: auto; aspect-ratio: 600 / 440; border: 2px solid var(--brass); border-radius: 6px; background: #020912; display: block; }
 @media (max-width: 480px) { .lib-list li.known { grid-template-columns: 1fr; } }
-.dex-img.dex-unk { filter: blur(1px); border-color: #3a4a4c; }
+.dex-img.dex-unk { filter: blur(3px); border-color: #3a4a4c; }
 .lib-list .where { color: var(--amber, #F2B84B); }
+/* ボスの深度：窓の枠が赤く脈打ち、HUD に名前が出る */
+body.boss .porthole { animation: bossGlow 1.6s ease-in-out infinite; }
+body.boss .hud-alert { color: var(--red); font-weight: 800; }
+@keyframes bossGlow { 0%, 100% { box-shadow: 0 0 0 3px #2c1e0b, inset 0 0 0 3px rgba(255,225,160,.5), 0 0 18px 2px rgba(229,103,85,.45); } 50% { box-shadow: 0 0 0 3px #2c1e0b, inset 0 0 0 3px rgba(255,225,160,.5), 0 0 34px 8px rgba(229,103,85,.75); } }
+@media (prefers-reduced-motion: reduce) { body.boss .porthole { animation: none; box-shadow: 0 0 0 3px #2c1e0b, 0 0 0 6px var(--red); } }
+.boss-tag { margin-left: 6px; padding: 0 6px; border-radius: 4px; background: var(--red); color: #1a0806; font-size: .72rem; vertical-align: 2px; }

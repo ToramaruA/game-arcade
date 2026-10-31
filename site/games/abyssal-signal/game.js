@@ -1,7 +1,7 @@
 import {
   ROUTES, SPECIES, MAX_HULL, MAX_STIMULI, DIST_LABEL, STIMULUS_LABEL, CUE_LABEL, maxQualityOf,
   newGame, preview, stimulate, shoot, advance, summarize, shareText, updateBest, cueOf, encounterOf, encountersOf,
-  isLastEncounter, snapshot, routeById, canStimulate,
+  isLastEncounter, snapshot, routeById, canStimulate, isBoss,
   routeCleared, meetsBorder, borderOf, routeIndex, sanitizeUnlocked, isUnlocked, unlockCondition, applyClear,
 } from './logic.js';
 import { SW, SH, CARD_W, CARD_H, drawScene, drawSonar, drawCard } from './art.js';
@@ -53,7 +53,11 @@ function markSeen(k) {
 const DEX = {
   A: { target: '全身', depth: 1000, look: '長いリボン状の体に、青白い発光器官が並ぶ。', shots: '全身・発光器官・捕食姿勢' },
   B: { target: '殻の模様', depth: 1400, look: '半透明の鎧のような殻をまとったクラゲ。殻に模様が走る。', shots: '殻の模様・捕食姿勢' },
-  C: { target: '頭部', depth: 3000, look: '窓の大半を占める巨大な眼と、骨質の弧を持つ主。', shots: '頭部' },
+  D: { target: '全身', depth: 2000, look: '細長い外套の中に、暖色の灯りを抱えたイカ。光から逃げ、静かにしていると寄ってくる。', shots: '全身・灯り' },
+  F: { target: '群れ', depth: 2400, look: '小さな光る魚が渦を巻く群れ。音で散り、光や静けさに集まる。', shots: '群れ' },
+  C: { target: '頭部', depth: 2000, look: '【ボス】窓の大半を占める巨大な眼と、骨質の弧を持つ主。音に引き寄せられ、光で眼を細める。', shots: '頭部' },
+  E: { target: '発光群', depth: 3200, look: '【ボス】白骨化した巨大な鯨。骨の隙間に光る群体が住みつく。静けさに寄り、音で遠ざかる。', shots: '発光群' },
+  G: { target: '発光脈', depth: 3800, look: '【ボス】海溝の壁一面に広がり、脈打つ発光体。中心の口が開閉する。音に寄り、光と静けさで離れる。', shots: '発光脈' },
 };
 // 生物の明るい部分だけを残し、暗い影の形にする
 function drawSilhouette(c, k) {
@@ -61,7 +65,7 @@ function drawSilhouette(c, k) {
   const img = c.getImageData(0, 0, SW, SH), d = img.data;
   for (let i = 0; i < d.length; i += 4) {
     const l = 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2];
-    const a = Math.max(0, Math.min(1, (l - 40) / 50));
+    const a = Math.max(0, Math.min(1, (l - 55) / 90)) * .7;
     d[i] = 2 + 40 * a; d[i + 1] = 9 + 70 * a; d[i + 2] = 18 + 78 * a;
   }
   c.putImageData(img, 0, 0);
@@ -84,7 +88,7 @@ function renderLibrary() {
       cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', `${SPECIES[k].name}の姿`);
       drawScene(cv.getContext('2d'), { species: k, target: DEX[k].target, depth: DEX[k].depth, dist: 1, focus: 1, t: 2, still: 1, light: .5 });
       const tx = document.createElement('div');
-      tx.innerHTML = `<b>${SPECIES[k].name}</b><br>${DEX[k].look}<br><small>撮れる対象：${DEX[k].shots}／近距離の損傷 ${SPECIES[k].damage}</small>`;
+      tx.innerHTML = `<b>${SPECIES[k].name}${isBoss(k) ? '<span class="boss-tag">ボス</span>' : ''}</b><br>${DEX[k].look.replace('【ボス】', '')}<br><small>撮れる対象：${DEX[k].shots}／近距離の損傷 ${SPECIES[k].damage}</small>`;
       li.className = 'known'; li.append(cv, tx);
     } else {
       // 未遭遇は影（シルエット）だけ見せる
@@ -92,7 +96,7 @@ function renderLibrary() {
       cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', 'まだ出会っていない生物の影');
       drawSilhouette(cv.getContext('2d'), k);
       const tx = document.createElement('div');
-      tx.innerHTML = `<b>？？？</b><br><small>まだ出会っていない生物。出会うと記録されます。</small><br><small class="where">${whereText(k)}</small>`;
+      tx.innerHTML = `<b>？？？${isBoss(k) ? '<span class="boss-tag">ボス</span>' : ''}</b><br><small>まだ出会っていない生物。出会うと記録されます。</small><br><small class="where">${whereText(k)}</small>`;
       li.className = 'known unk'; li.append(cv, tx);
     }
     ul.appendChild(li);
@@ -165,7 +169,9 @@ function renderRoutes() {
 function render() {
   const enc = encounterOf(state);
   $('hudDepth').textContent = enc.depth;
-  $('hudAlert').textContent = `警戒+${enc.alert}`;
+  const boss = isBoss(enc.species) && !state.over;
+  $('hudAlert').textContent = `警戒+${enc.alert}${boss ? '　⚠ ボス' : ''}`;
+  document.body.classList.toggle('boss', boss);
   $('hudAlert').classList.toggle('warn', enc.alert > 0);
   $('rDepth').textContent = enc.depth;
   $('rTarget').textContent = enc.target;
@@ -236,9 +242,11 @@ function introEncounter() {
   markSeen(enc.species);
   const cue = cueOf(sp.react.light);
   addLog(`${enc.depth}m 試験光（弱）→ ${CUE_LABEL[cue]}（回数・耐久は減らない）`, 'demo');
-  if (enc.species === 'C') addLog('ソナーに窓幅を超える反応', 'demo');
+  if (isBoss(enc.species)) addLog(`ソナーに窓幅を超える反応。この航路のボス「${sp.name}」`, 'demo');
   const route = routeById(state.route);
-  if (state.index === 0 && route.level === 2) addLog('新操作「静かに待つ」：動かず見守る。リボンレイは動かないのでピントが合う。鎧クラゲは離れる', 'demo');
+  if (state.index === 0 && route.level === 2) addLog('新操作「静かに待つ」：動かず見守る。リボンレイは動かないのでピントが合う。鎧クラゲは離れる。新しい生物「灯籠イカ」は待つと寄ってくる', 'demo');
+  if (enc.species === 'D' ) addLog('灯籠イカ：光から逃げる。静かに待つと灯りを抱えて寄ってくる', 'demo');
+  if (enc.species === 'F') addLog('群れ光魚：音で散る。光や静けさで群れが寄る', 'demo');
   if (state.index === 0 && route.level === 3) addLog('新操作「艇を止める」：どの生物でも距離を保ってピントを合わせる（近距離だと損傷は出る）', 'demo');
   if (enc.species === 'B' && route.level === 1 && state.index === 2) addLog('鎧クラゲ：リボンレイとは反応が違う。試験光の反応をよく見よう', 'demo');
   anim.demo = sp.react.light;
@@ -309,7 +317,7 @@ function makeFrames() {
 }
 const metaOf = (f, sum) => ({
   speciesName: SPECIES[f.photo.species].name, target: f.photo.target, hull: sum.hull,
-  returned: sum.returned, qualityText: f.kind === 'window' ? '最後の窓' : `観測品質 ${f.photo.quality}/6`,
+  returned: sum.returned, qualityText: f.kind === 'window' ? '最後の窓' : `観測品質 ${f.photo.quality}/5`,
 });
 
 // 結果の合計の横に出す解放ライン（いま解放を狙っている航路のときだけ）
@@ -355,6 +363,9 @@ function showResult() {
   // 帰還時は最高品質の写真を初期選択
   if (sum.returned) {
     let bq = -1; frames.forEach((f, i) => { if (f && f.photo.quality >= bq) { bq = f.photo.quality; frameSel = i; } });
+    // ボスを撮って帰ったなら、ボスの写真を主役にする
+    const bi = frames.findIndex((f) => f && isBoss(f.photo.species));
+    if (bi >= 0) frameSel = bi;
   }
   renderSheet(sum); renderCard(sum);
   const retry = $('retry'); retry.textContent = '';
@@ -486,12 +497,12 @@ function frame() {
 // ---------- 開始 ----------
 buildRoutes();
 if (OG) {
-  state = { ...newGame('glow'), index: 4, dist: 1, focus: 0, used: 1, hull: 5 };
+  state = { ...newGame('glow'), index: 5, dist: 1, focus: 0, used: 1, hull: 5 };
   anim.dist = 1;
   addLog('600m 照らす → 近づいた（距離：中）', 'act');
   addLog('2400m 音を鳴らす → 近づいた（距離：近）損傷-2', 'dmg');
-  addLog('3000m 試験光（弱）→ 離れた', 'demo');
-  addLog('ソナーに窓幅を超える反応', 'demo');
+  addLog('3800m 試験光（弱）→ 離れた', 'demo');
+  addLog('ソナーに窓幅を超える反応。この航路のボス「海溝の母」', 'demo');
 } else {
   introEncounter();
 }

@@ -22,11 +22,15 @@ function getLayer() {
 function centerOf(species, target, d) {
   if (species === 'A') return target === '発光器官' ? [l3([.55, .5, .45], d), l3([.38, .5, .55], d)] : [l3([.58, .5, .5], d), l3([.36, .5, .6], d)];
   if (species === 'B') return [.5, target === '殻の模様' ? l3([.38, .42, .55], d) : l3([.36, .4, .5], d)];
+  if (species === 'D') return [l3([.56, .5, .5], d), l3([.42, .48, .5], d)];
+  if (species === 'F') return [.5, l3([.42, .5, .5], d)];
+  if (species === 'E') return [l3([.66, .86, .62], d), l3([.5, .5, .55], d)];
+  if (species === 'G') return [.5, l3([.45, .5, .5], d)];
   return [l3([.66, .55, .5], d), .5];
 }
 
 function drawSea(c, o) {
-  const f = clamp01(o.depth / 3000);
+  const f = clamp01(o.depth / 3800);
   const g = c.createLinearGradient(0, 0, 0, SH);
   const mix = (a, b) => Math.round(a + (b - a) * f);
   g.addColorStop(0, `rgb(${mix(10, 4)},${mix(52, 14)},${mix(78, 26)})`);
@@ -269,10 +273,224 @@ function drawKing(c, o, d) {
   c.fillStyle = 'rgba(255,255,255,.5)'; c.beginPath(); c.ellipse(ex - eyeR * .35, ey - eyeR * .4 * open, eyeR * .12, eyeR * .07, -.6, 0, TAU); c.fill();
 }
 
+// 灯籠イカ：細長い外套の中に暖色の灯りを抱えたイカ
+function drawSquid(c, o, d) {
+  const lamp = o.target === '灯り';
+  const k = l3(lamp ? [.55, 1.1, 2.7] : [.55, 1.0, 1.9], d);
+  const [fx, fy] = centerOf('D', o.target, d);
+  const sway = Math.sin(o.t * 1.2) * 6 * (1 - o.still);
+  const cx = fx * SW + sway; const cy = fy * SH + (lamp ? SH * .1 * Math.min(1, d) : 0);
+  const L = SH * .52 * k; const W = SH * .13 * k;
+  const ang = -0.5; const ca = Math.cos(ang); const sa = Math.sin(ang);
+  const P = (u, v) => [cx + u * ca - v * sa, cy + u * sa + v * ca]; // u: 頭→尾（-:腕側 +:ひれ側）
+  // 腕と触腕
+  c.lineCap = 'round';
+  for (let j = 0; j < 8; j++) {
+    const v = (j - 3.5) / 3.5 * W * .7;
+    const [x0, y0] = P(-L * .42, v);
+    const len = L * (.42 + (j % 3) * .06);
+    const [x1, y1] = P(-L * .42 - len * .5, v * 1.4 + Math.sin(o.t * 2 + j) * W * .2 * (1 - o.still));
+    const [x2, y2] = P(-L * .42 - len, v * 1.9 + Math.sin(o.t * 1.6 + j) * W * .35 * (1 - o.still));
+    c.strokeStyle = 'rgba(200,120,110,.55)'; c.lineWidth = Math.max(2, W * .16);
+    c.beginPath(); c.moveTo(x0, y0); c.quadraticCurveTo(x1, y1, x2, y2); c.stroke();
+  }
+  for (const sgn of [-1, 1]) { // 長い触腕2本
+    const [x0, y0] = P(-L * .42, sgn * W * .2);
+    const [x1, y1] = P(-L * 1.0, sgn * W * 1.2 + Math.sin(o.t * 1.3) * W * .4 * (1 - o.still));
+    const [x2, y2] = P(-L * 1.45, sgn * W * .6);
+    c.strokeStyle = 'rgba(220,140,120,.45)'; c.lineWidth = Math.max(1.5, W * .08);
+    c.beginPath(); c.moveTo(x0, y0); c.quadraticCurveTo(x1, y1, x2, y2); c.stroke();
+    c.fillStyle = 'rgba(242,184,75,.8)'; c.beginPath(); c.arc(x2, y2, Math.max(2, W * .12), 0, TAU); c.fill();
+  }
+  // 外套（半透明の胴）
+  const mantle = () => {
+    c.beginPath();
+    const [hx, hy] = P(-L * .42, 0);
+    c.moveTo(...P(-L * .42, -W));
+    c.bezierCurveTo(...P(-L * .05, -W * 1.15), ...P(L * .35, -W * .7), ...P(L * .58, 0));
+    c.bezierCurveTo(...P(L * .35, W * .7), ...P(-L * .05, W * 1.15), ...P(-L * .42, W));
+    c.quadraticCurveTo(...P(-L * .5, 0), ...P(-L * .42, -W)); c.closePath();
+    return [hx, hy];
+  };
+  // ひれ
+  c.fillStyle = 'rgba(210,130,120,.35)';
+  for (const sgn of [-1, 1]) {
+    c.beginPath(); c.moveTo(...P(L * .2, sgn * W * .8)); c.quadraticCurveTo(...P(L * .45, sgn * W * 2.0), ...P(L * .62, sgn * W * .2)); c.closePath(); c.fill();
+  }
+  const g = c.createLinearGradient(...P(-L * .4, 0), ...P(L * .6, 0));
+  g.addColorStop(0, 'rgba(150,70,70,.85)'); g.addColorStop(1, 'rgba(90,40,50,.8)');
+  c.fillStyle = g; mantle(); c.fill();
+  // 内側の灯り
+  const [lx, ly] = P(L * .02, 0);
+  const lr = W * (lamp ? 1.1 : .9) * (o.detail ? 1 : 1.3);
+  const pulse = .85 + .15 * Math.sin(o.t * 2.2) * (1 - o.still);
+  c.save(); mantle(); c.clip();
+  const lg = c.createRadialGradient(lx, ly, 0, lx, ly, lr * 2.2);
+  lg.addColorStop(0, `rgba(255,215,140,${.95 * pulse})`); lg.addColorStop(.35, `rgba(242,160,75,${.6 * pulse})`); lg.addColorStop(1, 'rgba(242,120,75,0)');
+  c.fillStyle = lg; c.fillRect(lx - lr * 3, ly - lr * 3, lr * 6, lr * 6);
+  if (o.detail) { // 外套の色素斑と灯りの芯
+    c.fillStyle = 'rgba(60,20,30,.35)';
+    for (let i = 0; i < 26; i++) { const [px, py] = P((rnd(i) - .45) * L, (rnd(i + 40) - .5) * W * 1.6); c.beginPath(); c.arc(px, py, Math.max(1.5, W * .07), 0, TAU); c.fill(); }
+    c.strokeStyle = `rgba(255,236,190,${.8 * pulse})`; c.lineWidth = Math.max(1.5, W * .05);
+    for (let i = 0; i < 6; i++) { const a2 = i * TAU / 6 + o.t * .2 * (1 - o.still); c.beginPath(); c.moveTo(lx, ly); c.lineTo(lx + Math.cos(a2) * lr * .7, ly + Math.sin(a2) * lr * .7); c.stroke(); }
+    c.fillStyle = '#fff2d0'; c.beginPath(); c.arc(lx, ly, lr * .22, 0, TAU); c.fill();
+  }
+  c.restore();
+  c.strokeStyle = '#2a0c12'; c.lineWidth = Math.max(2, W * .08); mantle(); c.stroke();
+  // 眼
+  for (const sgn of [-1, 1]) {
+    const [ex, ey] = P(-L * .34, sgn * W * .55);
+    c.fillStyle = '#10161a'; c.beginPath(); c.arc(ex, ey, W * .26, 0, TAU); c.fill();
+    c.fillStyle = '#5CDDE7'; c.beginPath(); c.arc(ex - W * .06, ey - W * .06, W * .08, 0, TAU); c.fill();
+  }
+}
+
+// 群れ光魚：小さな光る魚が渦を巻く群れ
+function drawSchool(c, o, d) {
+  const k = l3([.5, 1.0, 2.1], d);
+  const [fx, fy] = centerOf('F', o.target, d);
+  const cx = fx * SW; const cy = fy * SH;
+  const R = SH * .34 * k;
+  const N = 90;
+  const sp = o.t * .5 * (1 - o.still * .9);
+  for (let i = 0; i < N; i++) {
+    const ring = .35 + .65 * rnd(i);
+    const a = rnd(i + 200) * TAU + sp * (1.4 - ring);
+    const x = cx + Math.cos(a) * R * ring * 1.35;
+    const y = cy + Math.sin(a) * R * ring * .75 + Math.sin(a * 3 + i) * R * .05;
+    const dir = a + Math.PI / 2;
+    const fl = SH * .028 * k * (.8 + rnd(i + 7) * .5);
+    c.save(); c.translate(x, y); c.rotate(dir);
+    c.fillStyle = 'rgba(150,215,235,.85)';
+    c.beginPath(); c.ellipse(0, 0, fl, fl * .38, 0, 0, TAU); c.fill();
+    c.beginPath(); c.moveTo(-fl * .9, 0); c.lineTo(-fl * 1.6, -fl * .45); c.lineTo(-fl * 1.6, fl * .45); c.closePath(); c.fill();
+    const gr = fl * (o.detail ? 1.6 : 2.4);
+    const g = c.createRadialGradient(fl * .3, 0, 0, fl * .3, 0, gr);
+    g.addColorStop(0, i % 5 ? 'rgba(92,221,231,.7)' : 'rgba(242,184,75,.75)'); g.addColorStop(1, 'rgba(92,221,231,0)');
+    c.fillStyle = g; c.beginPath(); c.arc(fl * .3, 0, gr, 0, TAU); c.fill();
+    if (o.detail) { c.fillStyle = '#071820'; c.beginPath(); c.arc(fl * .55, -fl * .08, fl * .12, 0, TAU); c.fill(); }
+    c.restore();
+  }
+}
+
+// 深淵の鯨骨：白骨化した巨大な鯨。骨の隙間に発光群が住みつく
+function drawWhale(c, o, d) {
+  const k = l3([.85, 1.15, 2.0], d);
+  const [fx, fy] = centerOf('E', o.target, d);
+  const cx = fx * SW; const cy = fy * SH;
+  const L = SW * 1.1 * k; const H = SH * .42 * k;
+  const bone = '#c9bfa6'; const boneDark = '#6e6550';
+  // 背骨
+  c.lineCap = 'round';
+  const spineY = (u) => cy - H * .55 + Math.sin(u * 3.2) * H * .06;
+  c.strokeStyle = boneDark; c.lineWidth = Math.max(4, H * .09);
+  c.beginPath(); for (let i = 0; i <= 30; i++) { const u = i / 30; const x = cx - L * .5 + u * L; i ? c.lineTo(x, spineY(u)) : c.moveTo(x, spineY(u)); } c.stroke();
+  for (let i = 0; i <= 22; i++) { // 椎骨
+    const u = i / 22; const x = cx - L * .5 + u * L; const y = spineY(u);
+    c.fillStyle = bone; c.strokeStyle = boneDark; c.lineWidth = Math.max(1.5, H * .015);
+    c.beginPath(); c.ellipse(x, y, H * .05, H * .07, 0, 0, TAU); c.fill(); c.stroke();
+  }
+  // 肋骨
+  for (let i = 0; i < 11; i++) {
+    const u = .18 + i * .065; const x = cx - L * .5 + u * L; const y = spineY(u);
+    const h = H * (1.05 - Math.abs(u - .5) * .9);
+    c.strokeStyle = boneDark; c.lineWidth = Math.max(5, H * .07);
+    c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + H * .25, y + h * .7, x - H * .05, y + h * 1.25); c.stroke();
+    c.strokeStyle = bone; c.lineWidth = Math.max(3, H * .04);
+    c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + H * .25, y + h * .7, x - H * .05, y + h * 1.25); c.stroke();
+  }
+  // 頭骨（左端）
+  const sx = cx - L * .5; const sy = spineY(0) + H * .2; const S = H * .62;
+  c.fillStyle = bone; c.strokeStyle = boneDark; c.lineWidth = Math.max(2, H * .03);
+  // 上あご（長いくちばし状）と下あご
+  c.beginPath(); c.moveTo(sx + S * .15, sy - S * .45); c.quadraticCurveTo(sx - S * 1.0, sy - S * .35, sx - S * 1.75, sy + S * .05);
+  c.lineTo(sx - S * 1.7, sy + S * .18); c.quadraticCurveTo(sx - S * .8, sy + S * .05, sx + S * .2, sy + S * .2); c.closePath(); c.fill(); c.stroke();
+  c.beginPath(); c.moveTo(sx + S * .1, sy + S * .35); c.quadraticCurveTo(sx - S * .8, sy + S * .45, sx - S * 1.6, sy + S * .35);
+  c.lineTo(sx - S * 1.55, sy + S * .48); c.quadraticCurveTo(sx - S * .7, sy + S * .62, sx + S * .15, sy + S * .5); c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = '#0a1418'; c.beginPath(); c.ellipse(sx - S * .15, sy - S * .1, S * .17, S * .13, -.3, 0, TAU); c.fill();
+  // ひれの骨
+  c.strokeStyle = bone; c.lineWidth = Math.max(2, H * .03);
+  for (let j = 0; j < 4; j++) { const bx = sx + L * .12; const by = spineY(.12) + H * .55; c.beginPath(); c.moveTo(bx, by); c.lineTo(bx - H * (.3 + j * .08), by + H * (.35 + j * .1)); c.stroke(); }
+  // 発光群（骨に住みつく光の粒）
+  const pulse = (i) => .7 + .3 * Math.sin(o.t * 2 + i) * (1 - o.still);
+  for (let i = 0; i < 84; i++) {
+    const cl = i % 7; // 7つの群体（塊）
+    const u = .2 + cl * .1 + (rnd(i) - .5) * .06; const x = cx - L * .5 + u * L + (rnd(i + 3) - .5) * H * .25;
+    const y = spineY(u) + H * (.35 + rnd(cl + 30) * .5) + (rnd(i + 9) - .5) * H * .3;
+    const r = Math.max(2, H * (.02 + rnd(i + 5) * .025)) * (o.detail ? 1 : 1.3);
+    const col = i % 3 ? [118, 230, 173] : [92, 221, 231];
+    const g = c.createRadialGradient(x, y, 0, x, y, r * 4);
+    g.addColorStop(0, `rgba(${col},${.8 * pulse(i)})`); g.addColorStop(1, `rgba(${col},0)`);
+    c.fillStyle = g; c.beginPath(); c.arc(x, y, r * 4, 0, TAU); c.fill();
+    c.fillStyle = `rgba(230,255,240,${pulse(i)})`; c.beginPath(); c.arc(x, y, r * .6, 0, TAU); c.fill();
+  }
+}
+
+// 海溝の母：海溝の壁一面に広がる、脈打つ発光体
+function drawMother(c, o, d) {
+  const k = l3([.55, 1.0, 1.9], d);
+  const [fx, fy] = centerOf('G', o.target, d);
+  const cx = fx * SW; const cy = fy * SH;
+  const R = SH * .55 * k;
+  const beat = .5 + .5 * Math.sin(o.t * 1.8) * (1 - o.still);
+  // 体の膜
+  // 海溝の壁そのものが生き物：遠くでも窓の幅いっぱいに広がる
+  const wall = c.createLinearGradient(0, 0, 0, SH);
+  wall.addColorStop(0, 'rgba(40,12,44,.85)'); wall.addColorStop(.5, 'rgba(58,18,58,.92)'); wall.addColorStop(1, 'rgba(30,10,36,.85)');
+  c.fillStyle = wall;
+  c.beginPath(); c.moveTo(0, cy - R * 1.1);
+  for (let i = 0; i <= 12; i++) c.lineTo(SW * i / 12, cy - R * (1.0 + .15 * Math.sin(i * 1.7 + o.t * .5 * (1 - o.still))));
+  c.lineTo(SW, cy + R * 1.2); for (let i = 12; i >= 0; i--) c.lineTo(SW * i / 12, cy + R * (1.05 + .15 * Math.sin(i * 2.1)));
+  c.closePath(); c.fill();
+  const mg = c.createRadialGradient(cx, cy, R * .1, cx, cy, R * 1.7);
+  mg.addColorStop(0, 'rgba(90,28,76,.95)'); mg.addColorStop(.6, 'rgba(52,16,52,.7)'); mg.addColorStop(1, 'rgba(20,8,26,0)');
+  c.fillStyle = mg; c.beginPath(); c.ellipse(cx, cy, R * 1.8, R * 1.3, 0, 0, TAU); c.fill();
+  // 壁全体を走る横の脈
+  c.lineCap = 'round';
+  for (let j = 0; j < 7; j++) {
+    const yy = cy + (j - 3) * R * .3;
+    c.strokeStyle = `rgba(232,120,200,${.18 + .3 * beat})`; c.lineWidth = Math.max(1.5, R * .02);
+    c.beginPath(); c.moveTo(0, yy); for (let i = 1; i <= 10; i++) c.lineTo(SW * i / 10, yy + Math.sin(i * 1.3 + j) * R * .08); c.stroke();
+  }
+  // 脈（枝分かれする光の筋）
+  const vein = (x, y, ang, len, w, depth, seed) => {
+    if (depth > 3 || len < 6) return;
+    const x2 = x + Math.cos(ang) * len; const y2 = y + Math.sin(ang) * len;
+    c.strokeStyle = `rgba(232,120,200,${.35 + .45 * beat})`; c.lineWidth = w;
+    c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo((x + x2) / 2 + Math.sin(seed) * len * .2, (y + y2) / 2, x2, y2); c.stroke();
+    vein(x2, y2, ang - .45 - rnd(seed) * .3, len * .66, w * .65, depth + 1, seed + 1.7);
+    vein(x2, y2, ang + .45 + rnd(seed + 1) * .3, len * .66, w * .65, depth + 1, seed + 3.1);
+  };
+  c.lineCap = 'round';
+  for (let i = 0; i < 10; i++) vein(cx, cy, i * TAU / 10 + .2, R * .45, Math.max(2, R * .035), 0, i * 5.3);
+  // 脈の結節（壁全体に散らばる）
+  for (let i = 0; i < 40; i++) {
+    const a = rnd(i) * TAU; const r = R * (.3 + rnd(i + 11) * 1.4);
+    const x = cx + Math.cos(a) * r * 1.8; const y = cy + Math.sin(a) * r * .8;
+    const nr = Math.max(2.5, R * .03) * (o.detail ? 1 : 1.4);
+    const g = c.createRadialGradient(x, y, 0, x, y, nr * 4);
+    g.addColorStop(0, `rgba(255,170,230,${.5 + .4 * beat})`); g.addColorStop(1, 'rgba(255,170,230,0)');
+    c.fillStyle = g; c.beginPath(); c.arc(x, y, nr * 4, 0, TAU); c.fill();
+  }
+  // 中心の口（脈動する虹彩）
+  const mr = R * (.24 + .04 * beat);
+  const og = c.createRadialGradient(cx, cy, 0, cx, cy, mr);
+  og.addColorStop(0, '#05010a'); og.addColorStop(.7, '#2a0a2e'); og.addColorStop(1, `rgba(240,140,220,${.6 + .3 * beat})`);
+  c.fillStyle = og; c.beginPath(); c.arc(cx, cy, mr, 0, TAU); c.fill();
+  if (o.detail) {
+    c.strokeStyle = 'rgba(255,200,240,.55)'; c.lineWidth = Math.max(1.5, R * .012);
+    for (let i = 0; i < 16; i++) { const a = i * TAU / 16; c.beginPath(); c.moveTo(cx + Math.cos(a) * mr * .55, cy + Math.sin(a) * mr * .55); c.lineTo(cx + Math.cos(a) * mr * .98, cy + Math.sin(a) * mr * .98); c.stroke(); }
+  }
+}
+
 function drawCreature(c, o, d) {
   c.clearRect(0, 0, SW, SH);
   if (o.species === 'A') drawRibbon(c, o, d);
   else if (o.species === 'B') drawJelly(c, o, d);
+  else if (o.species === 'D') drawSquid(c, o, d);
+  else if (o.species === 'F') drawSchool(c, o, d);
+  else if (o.species === 'E') drawWhale(c, o, d);
+  else if (o.species === 'G') drawMother(c, o, d);
   else drawKing(c, o, d);
 }
 
@@ -337,6 +555,11 @@ export function drawSonar(c, size, o) {
   } else if (o.species === 'B') {
     c.beginPath(); c.arc(px, py, R * .1, Math.PI, TAU); c.stroke();
     for (let i = -1; i <= 1; i++) { c.beginPath(); c.moveTo(px + i * R * .06, py); c.lineTo(px + i * R * .06, py + R * .12); c.stroke(); }
+  } else if (o.species === 'D') {
+    c.beginPath(); c.ellipse(px, py, R * .05, R * .1, -.5, 0, TAU); c.stroke();
+    c.beginPath(); c.arc(px, py, 3, 0, TAU); c.fill();
+  } else if (o.species === 'F') {
+    for (let i = 0; i < 14; i++) { const a = i * TAU / 14; c.beginPath(); c.arc(px + Math.cos(a) * R * .09, py + Math.sin(a) * R * .06, 1.8, 0, TAU); c.fill(); }
   } else { // 窓幅を超える巨大な反応
     c.lineWidth = 5; c.globalAlpha = .9;
     c.beginPath(); c.arc(cx, cy, Math.max(R * .18, r), Math.PI * 1.05, Math.PI * 1.95); c.stroke();

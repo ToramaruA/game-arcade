@@ -8,51 +8,65 @@ export const STIMULI = ['light', 'sound', 'wait', 'hold'];
 export const STIMULUS_LABEL = { light: '照らす', sound: '音を鳴らす', wait: '静かに待つ', hold: '艇を止める' };
 
 // 刺激ごとの距離の変化（接近 +1 / 維持 0 / 後退 -1）。「艇を止める」は生物によらず必ず維持（0）。
+// boss: 航路の最終深度に出る巨大な生物。航路ごとに違うボスが出る。
 export const SPECIES = {
   A: { name: 'リボンレイ', damage: 1, react: { light: 1, sound: -1, wait: 0, hold: 0 } },
   B: { name: '鎧クラゲ', damage: 2, react: { light: 0, sound: 1, wait: -1, hold: 0 } },
-  C: { name: '海底の王', damage: 3, react: { light: -1, sound: 0, wait: 1, hold: 0 } },
+  D: { name: '灯籠イカ', damage: 1, react: { light: -1, sound: 0, wait: 1, hold: 0 } },
+  F: { name: '群れ光魚', damage: 1, react: { light: 1, sound: -1, wait: 1, hold: 0 } },
+  C: { name: '海底の王', damage: 3, boss: true, react: { light: -1, sound: 1, wait: 0, hold: 0 } },
+  E: { name: '深淵の鯨骨', damage: 3, boss: true, react: { light: 0, sound: -1, wait: 1, hold: 0 } },
+  G: { name: '海溝の母', damage: 3, boss: true, react: { light: -1, sound: 1, wait: -1, hold: 0 } },
 };
+export const isBoss = (k) => !!SPECIES[k]?.boss;
 
-// base: 遠・中・近の基礎点。ピントで +1（最大 5〜6）。alert: その深度の近距離の損傷に加算。
-// 航路ごとに、出会う生物・使える操作・深度数が違う（損傷量だけで難しくしない）。
+// base: 遠・中・近の基礎点。ピントで +1（最大 5）。alert: その深度の近距離の損傷に加算。
+// 航路が進むと、道中の生物が1種ずつ増え、使える操作が増え、最後のボスが変わる。
 const enc = (depth, species, target, base, alert = 0) => ({ depth, species, target, base, alert });
+const MID = [1, 4, 2]; // 中距離が最高（全身・姿勢・群れ）
+const NEAR = [1, 2, 4]; // 近距離が最高（器官・模様・ボスの部位）
 export const ROUTES = [
   {
-    id: 'standard', name: '標準', level: 1, levelText: 'はじめて', border: 8,
+    id: 'standard', name: '標準', level: 1, levelText: 'はじめて', border: 10,
     stimuli: ['light', 'sound'],
     encounters: [
-      enc(600, 'A', '全身', [1, 4, 2]),
-      enc(1000, 'A', '発光器官', [1, 2, 4]),
-      enc(1400, 'B', '殻の模様', [1, 2, 4]),
+      enc(600, 'A', '全身', MID),
+      enc(1000, 'A', '発光器官', NEAR),
+      enc(1400, 'B', '殻の模様', NEAR),
+      enc(2000, 'C', '頭部', NEAR),
     ],
-    learn: '光と音で生物を動かし、距離と見本を見て撮る。生物ごとに反応が違う。',
-    adds: '3深度／生物2種（リボンレイ・鎧クラゲ）／操作は光と音だけ',
+    boss: 'C',
+    learn: '光と音で生物を動かし、距離と見本を見て撮る。生物ごとに反応が違う。最後に巨大な「海底の王」。',
+    adds: '4深度／道中の生物2種（リボンレイ・鎧クラゲ）／操作は光と音だけ／ボス：海底の王',
   },
   {
-    id: 'shell', name: '殻の共鳴', level: 2, levelText: 'ふつう', border: 12,
+    id: 'shell', name: '殻の共鳴', level: 2, levelText: 'ふつう', border: 14,
     stimuli: ['light', 'sound', 'wait'],
     encounters: [
-      enc(800, 'A', '捕食姿勢', [1, 4, 2]),
-      enc(1400, 'B', '殻の模様', [1, 2, 4], 1),
-      enc(2000, 'B', '捕食姿勢', [1, 4, 2]),
-      enc(2600, 'A', '発光器官', [1, 2, 4]),
+      enc(800, 'A', '捕食姿勢', MID),
+      enc(1400, 'B', '殻の模様', NEAR, 1),
+      enc(2000, 'D', '全身', MID),
+      enc(2600, 'D', '灯り', NEAR),
+      enc(3200, 'E', '発光群', NEAR),
     ],
-    learn: '「静かに待つ」で動きを止めてピントを合わせる。鎧クラゲは待つと離れる。',
-    adds: '4深度／新操作「静かに待つ」／中距離が最高になる対象が出る',
+    boss: 'E',
+    learn: '「静かに待つ」で生物を待つ。灯籠イカは光から逃げ、待つと寄ってくる。最後に「深淵の鯨骨」。',
+    adds: '5深度／新しい生物「灯籠イカ」／新操作「静かに待つ」／ボス：深淵の鯨骨',
   },
   {
     id: 'glow', name: '発光の潮', level: 3, levelText: 'むずかしい',
     stimuli: ['light', 'sound', 'wait', 'hold'],
     encounters: [
-      enc(600, 'A', '全身', [1, 4, 2]),
-      enc(1200, 'B', '殻の模様', [1, 2, 4]),
-      enc(1800, 'A', '発光器官', [1, 2, 4], 1),
-      enc(2400, 'B', '捕食姿勢', [1, 4, 2]),
-      enc(3000, 'C', '頭部', [1, 2, 4]),
+      enc(600, 'A', '全身', MID),
+      enc(1200, 'B', '捕食姿勢', MID),
+      enc(1800, 'D', '灯り', NEAR, 1),
+      enc(2400, 'F', '群れ', MID),
+      enc(3000, 'B', '殻の模様', NEAR),
+      enc(3800, 'G', '発光脈', NEAR),
     ],
-    learn: '生物を読んで、ピントを取るか損傷を避けるかを選ぶ。最後に巨大な「海底の王」。',
-    adds: '5深度／新生物「海底の王」／新操作「艇を止める」（どの生物でも距離を保ってピント）',
+    boss: 'G',
+    learn: '生物を読んで、ピントを取るか損傷を避けるかを選ぶ。群れ光魚は音で散る。最後に「海溝の母」。',
+    adds: '6深度／新しい生物「群れ光魚」／新操作「艇を止める」（どの生物でも距離を保ってピント）／ボス：海溝の母',
   },
 ];
 
