@@ -7,6 +7,7 @@ AIが企画したゲームを Claude Code が作り、人が遊んで承認（Me
 - 1つの PR で作るゲームは1本だけ。対象の Issue 以外のゲームを変更しない。
 - 既存ゲームや共通ファイル（`site/index.html`, `scripts/`, `tests/`, `.github/`）は、Issue が求めない限り触らない。
 - 外部の CDN・API・解析タグ・広告・有料サービスを使わない。すべてリポジトリ内のファイルで完結させる。
+  - 例外：Cloudflare Web Analytics。Cloudflare Pages 側の設定で自動的に挿入されるので、ゲームのコードに解析タグを書く必要はない（書かない）。
 - テストを消したり緩めたりして合格させない。
 
 ## [GAME] Issue を受けたときの手順
@@ -17,6 +18,7 @@ AIが企画したゲームを Claude Code が作り、人が遊んで承認（Me
    - まず `docs/taste.md`（好みメモ）を読む。見た目は Issue の「見た目・雰囲気」と好みメモの両方に従う。
    - `npm ci`
    - `npm run new-game -- <slug> "<タイトル>" "<ひとこと説明>"` でひな形を作る（slug は Issue の指定に従う）。
+     （`site/games/games.json`・`site/sitemap.xml`・トップの一覧も自動で更新される。これらの変更は PR に含めてよい）
    - `site/games/<slug>/` の中だけでゲームを実装する。ルールは `logic.js`（DOM を触らない ES module）、描画と操作は `game.js`。
    - ルールのテストを `tests/games/<slug>.test.js` に書く（`import { ... } from '../../site/games/<slug>/logic.js'`）。
    - `npm run og -- <slug>` で共有画像 `og.png` を作る。ゲーム画面が映えるように `?og=1` のときの見せ方を用意してよい。
@@ -66,3 +68,4 @@ AIが企画したゲームを Claude Code が作り、人が遊んで承認（Me
 - `npm test` … 構成チェック＋実ブラウザでの表示確認（PC/スマホ）＋各ゲームのロジックテスト
 - `npm run serve` … http://127.0.0.1:8080 で `site/` を確認
 - `npm run new-game -- <slug> "<タイトル>" "<説明>"` / `npm run og -- <slug>` / `npm run screenshot -- <slug>`
+- `npm run site-index` … `games.json` から `sitemap.xml` とトップの一覧を作り直す（タイトル・説明を変えたとき）

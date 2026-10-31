@@ -39,6 +39,7 @@
 | 好みを伝える | `docs/taste.md` の「遊んだ感想の記録」に追記（ChatGPT か Claude に頼む） |
 | 動きを確認する | GitHub の Issues／Pull requests、https://claude.ai/code/routines の実行履歴 |
 | 費用を確認する | https://claude.ai/settings/usage（追加使用量はオフ） |
+| アクセス数を見る | Cloudflare → Workers & Pages → game-arcade → Metrics（Web Analytics） |
 
 ## 修正の進め方
 - **Merge 前のゲーム**：修正は、そのゲームの `[GAME]` PR に直接追加される（新しい PR は増えない）。同じプレビュー URL で確認し、最後に1回 Merge する。
@@ -67,5 +68,28 @@
 | Merge しようとしたらエラー | GitHub の一時的な不調、またはテスト未完了 | 少し待って再読み込み。続く場合は Claude に頼む |
 | `games.json` で競合 | 2つの PR が同時にゲーム一覧を変えた | Claude に解消を頼む |
 
-## 未決のこと
-- BGM：オーナーの自作曲を使う案。曲の置き場（例：`site/music/`）と雰囲気メモを作り、企画で曲を選ぶ方式が候補。mp3 推奨。公開リポジトリなので曲ファイルは誰でもダウンロードできる点に注意。
+## 検索に出すための設定
+- サイト側（済）：`site/robots.txt`、`site/sitemap.xml`、トップの静的なゲーム一覧、各ページのタイトル・説明・正式URL・共有画像。新しいゲームを `npm run new-game` で作ると sitemap とトップの一覧も自動更新される（テストで更新漏れを検出）。
+- **オーナーの手順（Google Search Console・無料）**
+  1. https://search.google.com/search-console を開き、Google アカウントでログイン。
+  2. 「プロパティを追加」→ **URL プレフィックス** を選び、`https://game-arcade-bdt.pages.dev/` を入力。
+  3. 所有権の確認方法で **HTML ファイル** を選ぶ。`google○○○○.html` という名前のファイルが渡されるので、**ファイル名（と中身の1行）を Claude に伝える**。Claude がサイトに置く PR を出すので、Merge する。
+  4. 公開されたら（数分）、Search Console で「確認」を押す。
+  5. 左のメニュー「サイトマップ」で `sitemap.xml` と入力して送信。
+  6. 数日〜数週間で検索に出始める。「検索パフォーマンス」でどんな言葉で見つけられたか、「ページ」で登録済みかを確認できる。
+  - 注意：独自ドメインに移したら、Search Console の登録と `scripts/config.js`・`site/robots.txt` の URL をやり直す。
+
+## 今後やりたいこと
+### BGM（オーナーの自作曲）
+- 曲の置き場（例：`site/music/`）を作り、曲ごとに雰囲気メモ（例：「静か・不穏・深海向き」）を付ける → 企画で ChatGPT が合う曲を選ぶ → Claude Code が組み込む。
+- ブラウザの制限で自動再生はできないので、最初のタップで再生開始＋消音ボタン。
+- 決めること：曲数と雰囲気、mp3 で用意できるか、公開リポジトリに置いてよいか（曲ファイルは誰でもダウンロードできる）。
+- 曲がそろえば着手できる。
+
+### 収益化（広告など）
+順番は「測る → 人が来たら手段を選ぶ」。
+1. **アクセス数を測る（無料）**：✅ 2026-10-31 に Cloudflare Web Analytics を有効化（Cloudflare → Workers & Pages → game-arcade → Metrics）。スクリプトは Cloudflare が自動挿入するのでコードの変更なし。`CLAUDE.md` に例外として記載済み。ページごとの訪問数・流入元・端末をここで見る。
+2. **収益の手段**：
+   - 広告（Google AdSense など）：審査あり。`pages.dev` のままでは通りにくく、独自ドメイン（年1,000〜2,000円程度）が実質必要。
+   - 投げ銭（Ko-fi、Buy Me a Coffee など）：審査なし、リンクを置くだけ。遊びの邪魔になりにくい。
+3. **注意**：広告はゲームの見た目・遊び心地を損ないやすいので置き場所（結果画面だけ等）を決める。独自ドメインは「追加料金なし」の方針と合わせて、そのとき判断する。
