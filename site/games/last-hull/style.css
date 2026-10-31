@@ -149,3 +149,10 @@ button.act.cool { border-color: #7fd6ff; color: #d8f3ff; background: linear-grad
 button.act.cutbtn { border-color: #c4553f; color: #ffd2c8; background: linear-gradient(#3a1814, #26100c); }
 .sh-tip { margin-left: 0; font-size: .8rem; color: var(--crt); opacity: .8; }
 @media (max-width: 640px) { .sh-tip { font-size: .74rem; } }
+
+/* 猶予：操作盤の見出しにも大きく */
+.tpill { margin-left: auto; padding: 2px 10px; border: 2px solid var(--amber); border-radius: 999px; color: var(--amber); font-size: .9rem; white-space: nowrap; }
+.tpill b { font-size: 1.25rem; margin: 0 2px; }
+.tpill.last { border-color: var(--fire); color: #ffd2c8; background: rgba(241,107,80,.18); animation: blink 1s steps(2) infinite; }
+.selhead { align-items: center; }
+.og #timer { display: none; }

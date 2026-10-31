@@ -64,7 +64,12 @@ const css = `
 .part.hint .hull{stroke:#FFC35A;stroke-width:7;animation:hint 1.1s ease-in-out infinite}
 .edge.hint .band{fill:#fff2b8;stroke:#FFC35A;stroke-width:5;animation:hint 1.1s ease-in-out infinite}
 @keyframes hint{0%,100%{stroke-opacity:.35}50%{stroke-opacity:1}}
-.needle{transform-origin:880px 520px;transition:transform .5s}
+.tbox{fill:#0B1424;stroke:#2A3A50;stroke-width:3}
+.tlab{fill:#93A3B0;font-size:22px}
+.lamp3{fill:#1b2636;stroke:#2A3A50;stroke-width:2}.lamp3.on{fill:#FFC35A;stroke:#ffe2a8}.lamp3.off{display:none}
+.timer.last .lamp3.on{fill:#F16B50;stroke:#ffd2c8;animation:flick .8s ease-in-out infinite}
+.ttxt{fill:#FFC35A;font-size:36px;font-weight:700;text-anchor:middle;paint-order:stroke;stroke:#080E1B;stroke-width:5px}
+.timer.last .ttxt{fill:#F16B50}.timer.idle .ttxt{fill:#74DFAC;font-size:28px}
 `;
 
 function stars() {
@@ -143,7 +148,10 @@ export function shipSvg() {
   <g id="shipbody"><g class="wake"><polygon points="900,205 960,215 900,235"/><polygon points="900,325 960,335 900,355"/></g>
   ${edges}${parts}</g>
   <g id="dots"></g>
-  <g transform="translate(0,0)"><path d="M820 520 A60 60 0 0 1 940 520" fill="none" stroke="#2A3A50" stroke-width="8"/><path d="M820 520 A60 60 0 0 1 880 460" fill="none" stroke="#FFC35A" stroke-width="4" opacity=".6"/><text x="880" y="552" fill="#93A3B0" font-size="22" text-anchor="middle">猶予</text><line id="needle" class="needle" x1="880" y1="520" x2="880" y2="470" stroke="#74DFAC" stroke-width="4"/><circle cx="880" cy="520" r="6" fill="#74DFAC"/></g>
+  <g id="timer" class="timer"><rect class="tbox" x="742" y="448" width="206" height="102" rx="6"/>
+    <text class="tlab" x="756" y="476">猶予</text>
+    <rect id="lamp0" class="lamp3" x="812" y="458" width="38" height="22" rx="3"/><rect id="lamp1" class="lamp3" x="856" y="458" width="38" height="22" rx="3"/><rect id="lamp2" class="lamp3" x="900" y="458" width="38" height="22" rx="3"/>
+    <text id="timerText" class="ttxt" x="845" y="532">あと2手</text></g>
 </svg>`;
 }
 export { OUTLINE, EDGE, NAMES };

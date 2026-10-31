@@ -80,17 +80,22 @@ function renderShip() {
   const pod = $('part-P');
   if (result && result.outcome === 'return' && result.means === 'pod' && result.returned > 0) pod.style.transform = 'translate(-30px,-8px)';
   else pod.style.transform = '';
-  const maxT = inc ? inc.turns : 3;
-  const ang = inc ? -60 + (state.turns / maxT) * 120 : -60;
-  $('needle').style.transform = `rotate(${Math.max(-60, Math.min(60, ang))}deg)`;
+  const maxT = inc ? inc.turns : 0;
+  for (let i = 0; i < 3; i += 1) {
+    const l = $(`lamp${i}`);
+    l.classList.toggle('off', i >= maxT);
+    l.classList.toggle('on', !!inc && i < state.turns);
+  }
+  $('timer').classList.toggle('last', !!inc && state.turns <= 1);
+  $('timer').classList.toggle('idle', !inc);
+  $('timerText').textContent = inc ? `あと${state.turns}手` : (result && result.outcome === 'lost' ? '尽きた' : '鎮火');
 }
 
 function renderStatus() {
   const sc = scenarioById(state.scenario);
   const inc = currentIncident(state);
-  const turns = inc ? '●'.repeat(state.turns) + '○'.repeat(Math.max(0, inc.turns - state.turns)) : '';
   const items = [
-    inc ? `<span class="it bad" title="現在の事故と猶予">🔥 ${NAMES[inc.at]}　猶予<em class="${state.turns <= 1 ? 'bad' : 'warn'}">${turns}</em></span>`
+    inc ? `<span class="it bad" title="燃えている区画">🔥 ${NAMES[inc.at]}</span>`
       : `<span class="it">${state.result?.outcome === 'lost' ? '船喪失' : '事故解消'}</span>`,
     `<span class="it" title="船内人数">👥 ${remaining(state)}</span>`,
     `<span class="it ${state.coolant ? '' : 'warn'}" title="冷却剤の残り">❄ ${state.coolant}</span>`,
@@ -130,17 +135,17 @@ function renderPanel() {
     h += pendingHtml(pv);
   } else {
     const burning = c && inc && inc.at === c;
-    h += `<div class="selhead"><span class="sh-name ${burning ? 'bad' : ''}">${burning ? '🔥' : '▸'} ${c ? NAMES[c] : '区画を選ぶ'}</span>${c ? `<span class="sh-n">${state.people[c]}人</span>` : ''}<span class="sh-tip">👆 船の絵の区画をタップで切り替え</span></div>`;
+    h += `<div class="selhead"><span class="sh-name ${burning ? 'bad' : ''}">${burning ? '🔥' : '▸'} ${c ? NAMES[c] : '区画を選ぶ'}</span>${c ? `<span class="sh-n">${state.people[c]}人</span>` : ''}<span class="tpill ${state.turns <= 1 ? 'last' : ''}">⏳ 猶予 あと<b>${state.turns}</b>手</span><span class="sh-tip">👆 船の絵の区画を押して切り替え</span></div>`;
     h += '<div class="acts">';
     if (c) {
       for (const to of evacTargets(state, c)) {
         const pr = preview(state, { type: 'evac', from: c, to });
-        h += btn(`act evac ${t === 'act' ? 'hint' : ''}`, `👥 ${NAMES[to]}へ逃がす<small>${pr.valid ? pr.moved : 0}人・猶予1</small>`, `data-evac="${c}:${to}" ${!pr.valid || ui.lock ? 'disabled' : ''}`);
+        h += btn(`act evac ${t === 'act' ? 'hint' : ''}`, `👥 ${NAMES[to]}へ逃がす<small>${pr.valid ? pr.moved : 0}人・猶予を1使う</small>`, `data-evac="${c}:${to}" ${!pr.valid || ui.lock ? 'disabled' : ''}`);
       }
       if (cutsOf(state, c).includes(c)) {
         const sv = preview(state, { type: 'cut', child: c });
         const also = sv.severed.filter((x) => x !== c).map((x) => NAMES[x]);
-        h += btn(`act cutbtn ${t === 'cut' ? 'hint' : ''}`, `✂ ${NAMES[c]}を切り離す<small>${also.length ? `${also.join('・')}ごと・` : ''}${sv.severedPeople}人を失う</small>`, `data-cut="${c}" ${ui.lock ? 'disabled' : ''}`);
+        h += btn(`act cutbtn ${t === 'cut' ? 'hint' : ''}`, `✂ ${NAMES[c]}を切り離す<small>${also.length ? `${also.join('・')}ごと・` : ''}${sv.severedPeople}人を失う・${sv.resolves ? '火も消える' : '猶予を1使う'}</small>`, `data-cut="${c}" ${ui.lock ? 'disabled' : ''}`);
       }
     }
     h += btn('act cool', `❄ ${NAMES[inc.at]}を冷やす<small>残り${state.coolant}回・猶予を使わない</small>`, `data-cool="1" ${state.coolant <= 0 || ui.lock ? 'disabled' : ''}`);
