@@ -19,7 +19,7 @@ export const SPECIES = {
 const enc = (depth, species, target, base, alert = 0) => ({ depth, species, target, base, alert });
 export const ROUTES = [
   {
-    id: 'standard', name: '標準', level: 1, levelText: 'はじめて',
+    id: 'standard', name: '標準', level: 1, levelText: 'はじめて', border: 8,
     stimuli: ['light', 'sound'],
     encounters: [
       enc(600, 'A', '全身', [1, 4, 2]),
@@ -30,7 +30,7 @@ export const ROUTES = [
     adds: '3深度／生物2種（リボンレイ・鎧クラゲ）／操作は光と音だけ',
   },
   {
-    id: 'shell', name: '殻の共鳴', level: 2, levelText: 'ふつう',
+    id: 'shell', name: '殻の共鳴', level: 2, levelText: 'ふつう', border: 12,
     stimuli: ['light', 'sound', 'wait'],
     encounters: [
       enc(800, 'A', '捕食姿勢', [1, 4, 2]),
@@ -252,8 +252,14 @@ export const sanitizeUnlocked = (n) => (Number.isInteger(n) && n >= 1 && n <= RO
 export const isUnlocked = (unlocked, id) => routeIndex(id) < sanitizeUnlocked(unlocked);
 export const unlockCondition = (id) => {
   const i = routeIndex(id);
-  return i === 0 ? null : `${ROUTES[i - 1].name}をクリア（最終深度を撮影して帰還）`;
+  if (i === 0) return null;
+  const prev = ROUTES[i - 1];
+  return `${prev.name}を最終深度まで撮影して帰還し、写真の合計${prev.border}点以上`;
 };
+// 次の航路を解放できるか：クリア（最終深度を撮影して生還）かつ写真の合計がボーダー以上。
+// ボーダーは各航路の到達可能な最高点（explore）の約6割。標準は無傷でも届く。
+export const borderOf = (id) => routeById(id).border ?? 0;
+export const meetsBorder = (s) => routeCleared(s) && summarize(s).total >= borderOf(s.route);
 
 // クリア時の解放。未解放の航路は遊べないので、解放済みの範囲外のクリアは無視する。
 // 次の航路が未解放のときだけ1つ進める（クリア済み航路の再クリアでは増えない）。

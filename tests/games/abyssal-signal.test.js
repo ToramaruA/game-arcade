@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ROUTES, SPECIES, MAX_HULL, MAX_STIMULI, newGame, preview, stimulate, shoot, advance,
-  quality, summarize, routeCleared, applyClear, isUnlocked, sanitizeUnlocked, unlockCondition, shareText, updateBest, explore, clampDist, encounterOf, encountersOf, maxQualityOf, routeById,
+  quality, summarize, routeCleared, meetsBorder, borderOf, applyClear, isUnlocked, sanitizeUnlocked, unlockCondition, shareText, updateBest, explore, clampDist, encounterOf, encountersOf, maxQualityOf, routeById,
 } from '../../site/games/abyssal-signal/logic.js';
 
 const ok = (r) => { assert.ok(r.ok, `rejected: ${r.reason}`); return r.state; };
@@ -275,6 +275,8 @@ test('初回は第1航路のみ。保存値が不正でも1に戻る', () => {
   assert.equal(sanitizeUnlocked(3), 3);
   assert.equal(unlockCondition('standard'), null);
   assert.match(unlockCondition('shell'), /標準/);
+  assert.match(unlockCondition('shell'), /8点以上/);
+  assert.match(unlockCondition('glow'), /12点以上/);
 });
 
 test('クリアで次の航路が1つずつ解放され、再クリア・未解放航路では増えない', () => {
@@ -286,4 +288,19 @@ test('クリアで次の航路が1つずつ解放され、再クリア・未解�
   assert.deepEqual(applyClear(n, 'shell'), { unlocked: 3, newRoute: null });
   assert.deepEqual(applyClear(n, 'glow'), { unlocked: 3, newRoute: null });
   assert.deepEqual(applyClear(99, 'standard'), { unlocked: 2, newRoute: 'shell' }); // 不正値は1扱い
+});
+
+test('解放ライン：最終深度で帰還しても合計がボーダー未満なら解放しない。ボーダーは到達可能', () => {
+  assert.equal(borderOf('standard'), 8); assert.equal(borderOf('shell'), 12);
+  for (const id of ['standard', 'shell']) {
+    const low = finish(id, 'full'); // 遠距離で撮るだけ
+    assert.equal(routeCleared(low), true);
+    assert.ok(summarize(low).total < borderOf(id), id);
+    assert.equal(meetsBorder(low), false, id);
+    assert.equal(meetsBorder({ ...low, photos: low.photos.map((p) => ({ ...p, quality: 6 })) }), true, id);
+    const e = explore(id);
+    assert.ok(e.maxTotal >= borderOf(id) + 3, `${id}: 最高${e.maxTotal}点はボーダーより余裕がある`);
+  }
+  assert.ok(explore('standard').maxTotalNoDamage >= borderOf('standard'), '標準は無傷でもボーダーに届く');
+  assert.equal(meetsBorder(finish('standard', 'mid')), false); // 途中帰還は不可
 });

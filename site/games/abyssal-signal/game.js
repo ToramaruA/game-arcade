@@ -2,7 +2,7 @@ import {
   ROUTES, SPECIES, MAX_HULL, MAX_STIMULI, DIST_LABEL, STIMULUS_LABEL, CUE_LABEL, maxQualityOf,
   newGame, preview, stimulate, shoot, advance, summarize, shareText, updateBest, cueOf, encounterOf, encountersOf,
   isLastEncounter, snapshot, routeById, canStimulate,
-  routeCleared, sanitizeUnlocked, isUnlocked, unlockCondition, applyClear,
+  routeCleared, meetsBorder, borderOf, routeIndex, sanitizeUnlocked, isUnlocked, unlockCondition, applyClear,
 } from './logic.js';
 import { SW, SH, CARD_W, CARD_H, drawScene, drawSonar, drawCard } from './art.js';
 
@@ -180,6 +180,10 @@ function render() {
     else coach = `② 距離は「${DIST_LABEL[state.dist]}」。見本に近ければ 📷 で撮影（残り${MAX_STIMULI - state.used}回）`;
   }
   $('hint').textContent = coach || goal;
+  const ri = routeIndex(state.route);
+  const lineNote = ri === unlocked - 1 && unlocked < ROUTES.length ? `（合計${borderOf(state.route)}点以上で「${ROUTES[unlocked].name}」解放）` : '';
+  if ($('mission').dataset.base == null) $('mission').dataset.base = $('mission').innerHTML;
+  $('mission').innerHTML = $('mission').dataset.base.replace('生還', `生還${lineNote}`);
   $('hint').classList.toggle('coach', !!coach);
   $('mission').hidden = !first || state.used > 0 || state.shotTaken;
   $('missionN').textContent = nStim === 2 ? '2つ' : `${nStim}つ`;
@@ -299,19 +303,31 @@ const metaOf = (f, sum) => ({
   returned: sum.returned, qualityText: f.kind === 'window' ? '最後の窓' : `観測品質 ${f.photo.quality}/6`,
 });
 
+// 結果の合計の横に出す解放ライン（いま解放を狙っている航路のときだけ）
+function lineText(sum) {
+  const i = routeIndex(state.route);
+  if (i !== unlocked - 1 || unlocked >= ROUTES.length || !sum.returned) return '';
+  return `　／　解放ライン <b>${borderOf(state.route)}</b> 点`;
+}
 function showResult() {
   const sum = summarize(state);
   let note = '';
   let unlockMsg = '';
-  if (routeCleared(state)) {
+  const isFront = routeIndex(state.route) === unlocked - 1 && unlocked < ROUTES.length;
+  if (routeCleared(state) && isFront && !meetsBorder(state)) {
+    const need = borderOf(state.route) - sum.total;
+    unlockMsg = `最終深度まで到達！ 次の航路「${ROUTES[unlocked].name}」の解放には、1回の潜航で写真の合計${borderOf(state.route)}点以上が必要です（今回 ${sum.total}点・あと${need}点）`;
+  } else if (meetsBorder(state)) {
     const u = applyClear(unlocked, state.route);
     if (u.newRoute) {
       unlocked = u.unlocked; saveUnlocked(unlocked);
-      unlockMsg = `🔓 新しい航路「${routeById(u.newRoute).name}」が解放されました。下のボタンから挑めます`;
+      const nr = routeById(u.newRoute);
+      unlockMsg = `🔓 新しい航路「${nr.name}」が解放されました。下のボタンから挑めます` +
+        (nr.border && u.unlocked < ROUTES.length ? `。次の目標：${nr.name}を1回の潜航で合計${nr.border}点以上 →「${ROUTES[u.unlocked].name}」解放` : '');
     } else if (unlocked < ROUTES.length) unlockMsg = '航路クリア。（まだ先の航路は、いまの最先端の航路をクリアすると解放されます）';
   } else if (sum.returned && unlocked < ROUTES.length) {
     const front = ROUTES[unlocked - 1];
-    unlockMsg = `途中帰還は成功ですが航路クリアではありません。「${front.name}」を最終深度まで撮影して帰還すると次の航路が解放されます`;
+    unlockMsg = `途中帰還は成功ですが航路クリアではありません。「${front.name}」を最終深度まで撮影して帰還し、1回の潜航で写真の合計${front.border}点以上なら次の航路が解放されます`;
   }
   $('unlockNote').textContent = unlockMsg; $('unlockNote').hidden = !unlockMsg;
   if (sum.returned) {
@@ -324,7 +340,7 @@ function showResult() {
   const best = loadBest(state.route);
   $('stats').innerHTML = sum.lost
     ? `最後の窓：<b>${sum.depth}</b> m　撮影履歴 ${sum.photos.length} 枚（未回収・成功記録には入りません）`
-    : `観測品質の合計 <b>${sum.total}</b> / ${maxQualityOf(state.route)}（この航路の理論上の尺度）${note}<br>写真 <b>${sum.count}</b> 枚　到達 <b>${sum.depth}</b> m　残耐久 <b>${sum.hull}</b>${best != null ? `　この航路のベスト ${best}` : ''}`;
+    : `写真の合計 <b>${sum.total}</b> 点${lineText(sum)}${note}<br>写真 <b>${sum.count}</b> 枚　到達 <b>${sum.depth}</b> m　残耐久 <b>${sum.hull}</b>${best != null ? `　この航路のベスト ${best}` : ''}`;
   makeFrames();
   frameSel = frames.map((f, i) => (f ? i : -1)).filter((i) => i >= 0).slice(-1)[0] ?? 0;
   // 帰還時は最高品質の写真を初期選択
