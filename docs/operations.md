@@ -39,6 +39,7 @@
 | 好みを伝える | `docs/taste.md` の「遊んだ感想の記録」に追記（ChatGPT か Claude に頼む） |
 | 動きを確認する | GitHub の Issues／Pull requests、https://claude.ai/code/routines の実行履歴 |
 | 費用を確認する | https://claude.ai/settings/usage（追加使用量はオフ） |
+| アクセス数を見る | Cloudflare → Workers & Pages → game-arcade → Metrics（Web Analytics） |
 
 ## 修正の進め方
 - **Merge 前のゲーム**：修正は、そのゲームの `[GAME]` PR に直接追加される（新しい PR は増えない）。同じプレビュー URL で確認し、最後に1回 Merge する。
@@ -76,7 +77,7 @@
 
 ### 収益化（広告など）
 順番は「測る → 人が来たら手段を選ぶ」。
-1. **アクセス数を測る（無料）**：Cloudflare Web Analytics でゲームごとの訪問数を見る。`CLAUDE.md` の「解析タグを使わない」の例外にする必要がある。
+1. **アクセス数を測る（無料）**：✅ 2026-10-31 に Cloudflare Web Analytics を有効化（Cloudflare → Workers & Pages → game-arcade → Metrics）。スクリプトは Cloudflare が自動挿入するのでコードの変更なし。`CLAUDE.md` に例外として記載済み。ページごとの訪問数・流入元・端末をここで見る。
 2. **収益の手段**：
    - 広告（Google AdSense など）：審査あり。`pages.dev` のままでは通りにくく、独自ドメイン（年1,000〜2,000円程度）が実質必要。
    - 投げ銭（Ko-fi、Buy Me a Coffee など）：審査なし、リンクを置くだけ。遊びの邪魔になりにくい。
