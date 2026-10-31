@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   TOTAL, newGame, apply, preview, connected, severedBy, remaining, projectedReturn, explore, checkTotal, legalOps,
-  emptyProgress, sanitizeProgress, isUnlocked, recordResult, shareText,
+  emptyProgress, sanitizeProgress, isUnlocked, recordResult, shareText, tutorialStep,
 } from '../../site/games/last-hull/logic.js';
 
 const run = (s, ...ops) => ops.reduce((st, op) => { const r = apply(st, op); assert.ok(r.ok, `rejected: ${r.reason}`); return r.state; }, s);
@@ -135,4 +135,17 @@ test('解放：01で1人以上帰還で02が解放。ベストも保存', () => 
 test('共有文：船喪失は必ず「帰還0人」', () => {
   const s = run(newGame(1), ev('L', 'H'), ev('H', 'C'));
   assert.match(shareText(s), /帰還0人/);
+});
+
+test('手引き：最初の事故だけ、選ぶ→動かす→切り離すの順に案内して消える', () => {
+  const s0 = newGame(1);
+  assert.equal(tutorialStep(s0, null), 'pick');
+  assert.equal(tutorialStep(s0, 'L'), 'act');
+  assert.equal(tutorialStep(s0, 'C'), 'pick');
+  const s1 = run(s0, ev('L', 'H'));
+  assert.equal(tutorialStep(s1, 'H'), 'cut');
+  const s2 = run(s1, cut('L'));
+  assert.equal(tutorialStep(s2, null), null);
+  assert.equal(tutorialStep(run(s0, cool), null), null);
+  assert.equal(tutorialStep(run(s0, ev('L', 'H'), ev('H', 'C')), null), null);
 });

@@ -212,3 +212,12 @@ export function shareText(s) {
   const by = r.means === 'engine' ? '機関で' : '脱出艇で';
   return `${head}${r.returned}人が${by}帰還。${title}`;
 }
+
+// ---- 最初の事故だけの手引き ----
+/** 次に何をすればいいか。'pick'（燃えている区画を選ぶ）/'act'（逃がす・切る・冷やす）/'cut'（逃がした後、火元を切り離す）/null */
+export function tutorialStep(s, sel) {
+  if (s.phase !== 'play' || s.incident !== 0) return null;
+  if (s.log.length === 0) return sel === scenarioById(s.scenario).incidents[0].at ? 'act' : 'pick';
+  if (s.log.length === 1 && s.log[0].type === 'evac') return 'cut';
+  return null;
+}

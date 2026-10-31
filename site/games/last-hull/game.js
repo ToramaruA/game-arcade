@@ -1,6 +1,6 @@
 import {
   COMPS, NAMES, PARENT, SCENARIOS, TOTAL, scenarioById, newGame, connected, preview, apply, remaining, hasEngine, hasPod,
-  currentIncident, incidentsLeft, projectedReturn, edgeLabel, shareText, emptyProgress, sanitizeProgress, isUnlocked, unlockCondition, recordResult,
+  currentIncident, incidentsLeft, projectedReturn, edgeLabel, shareText, emptyProgress, sanitizeProgress, isUnlocked, unlockCondition, recordResult, tutorialStep,
 } from './logic.js';
 import { shipSvg, CENTER } from './ship.js';
 
@@ -10,6 +10,7 @@ const OG = params.get('og') === '1';
 if (OG) document.documentElement.classList.add('og');
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const KEY = 'last-hull:v1';
+const SEEN = 'last-hull:brief';
 
 let progress = emptyProgress();
 try { progress = sanitizeProgress(JSON.parse(localStorage.getItem(KEY))); } catch { /* 保存できなくても遊べる */ }
@@ -36,6 +37,12 @@ const cutsOf = (s, c) => {
 };
 
 function initialGuide() { return '🔥 居住環が燃えている。人を逃がすか、切り離せ。'; }
+const tut = () => (OG ? null : tutorialStep(state, ui.sel));
+const TUT_TEXT = {
+  pick: '▶ まず、光っている🔥区画をタップ。',
+  act: '▶ 「→」で隣へ8人逃がす（猶予を1つ使う）。',
+  cut: () => `▶ 猶予あと1手。✂ で${NAMES[currentIncident(state).at]}を切り離せ。残る${state.people[currentIncident(state).at]}人は助からない。`,
+};
 
 function pendingPreview() {
   if (!ui.pending) return null;
@@ -56,6 +63,7 @@ function renderShip() {
     g.classList.toggle(`gone-${c}`, gone);
     g.classList.toggle('sel', ui.sel === c && !gone);
     g.classList.toggle('burn', !!inc && inc.at === c);
+    g.classList.toggle('hint', tut() === 'pick' && !!inc && inc.at === c);
     g.classList.toggle('pv', !!pv && pv.valid && pv.severed.includes(c));
     $(`lab-${c}`).textContent = gone ? '' : `${NAMES[c]} ${state.people[c]}`;
   }
@@ -65,6 +73,7 @@ function renderShip() {
     e.classList.toggle('gone', !!state.cut[c]);
     e.classList.toggle('sevd', !conn.has(c) && !state.cut[c]);
     e.classList.toggle('pick', !!pv && pv.op.type === 'cut' && pv.op.child === c);
+    e.classList.toggle('hint', tut() === 'cut' && !!inc && c === inc.at && !pv);
   }
   // 脱出艇で帰還：艇だけ母船から離れる
   const pod = $('part-P');
@@ -115,7 +124,8 @@ function renderPanel() {
   let h = '<div class="row comps">';
   for (const c of ['C', 'H', 'E', 'L', 'G', 'P']) {
     const off = !conn.has(c);
-    h += btn(`comp ${ui.sel === c ? 'sel' : ''} ${inc && inc.at === c ? 'burning' : ''}`, `${inc && inc.at === c ? '🔥' : ''}${NAMES[c]} ${off ? '—' : state.people[c]}`,
+    const hintC = !!inc && inc.at === c && (tut() === 'pick' || (tut() === 'cut' && !(ui.sel && connected(state).has(ui.sel) && cutsOf(state, ui.sel).includes(c))));
+    h += btn(`comp ${ui.sel === c ? 'sel' : ''} ${inc && inc.at === c ? 'burning' : ''} ${hintC ? 'hint' : ''}`, `${inc && inc.at === c ? '🔥' : ''}${NAMES[c]} ${off ? '—' : state.people[c]}`,
       `data-comp="${c}" aria-label="${NAMES[c]} ${off ? '切り離し済み' : `${state.people[c]}人`}${inc && inc.at === c ? ' 燃えている' : ''}" aria-pressed="${ui.sel === c}" ${off || ui.lock ? 'disabled' : ''}`);
   }
   h += '</div>';
@@ -127,9 +137,9 @@ function renderPanel() {
     h += '<div class="row">';
     for (const t of evacTargets(state, c)) {
       const pr = preview(state, { type: 'evac', from: c, to: t });
-      h += btn('go', `→${NAMES[t]}へ ${pr.valid ? pr.moved : 0}人`, `data-evac="${c}:${t}" title="1手使う" ${!pr.valid || ui.lock ? 'disabled' : ''}`);
+      h += btn(`go ${tut() === 'act' && c === inc.at ? 'hint' : ''}`, `→${NAMES[t]}へ ${pr.valid ? pr.moved : 0}人`, `data-evac="${c}:${t}" title="1手使う" ${!pr.valid || ui.lock ? 'disabled' : ''}`);
     }
-    for (const k of cutsOf(state, c)) h += btn('cutbtn', `✂ ${edgeLabel(k)}`, `data-cut="${k}" title="切断（1手）" ${ui.lock ? 'disabled' : ''}`);
+    for (const k of cutsOf(state, c)) h += btn(`cutbtn ${tut() === 'cut' && k === inc.at ? 'hint' : ''}`, `✂ ${edgeLabel(k)}`, `data-cut="${k}" title="切断（1手）" ${ui.lock ? 'disabled' : ''}`);
     h += '</div>';
   }
   if (!pv) {
@@ -137,6 +147,7 @@ function renderPanel() {
   }
   h += `<div class="row noog sub">${scenarioButtons()}${btn('small', '↺ やり直す', 'data-restart="1"')}</div>`;
   p.innerHTML = h;
+  p.classList.toggle('tutdim', !!tut() && !pv);
 }
 
 function pendingHtml(pv) {
@@ -182,8 +193,9 @@ function render() {
     g.textContent = state.result.outcome === 'lost' ? '船は失われた。' : '事故はすべて解消した。';
     g.className = `guide ${state.result.outcome === 'lost' ? 'bad' : ''}`;
   } else {
-    g.textContent = ui.msg || initialGuide();
-    g.className = `guide ${ui.bad ? 'bad' : ''}`;
+    const t = ui.bad ? null : tut();
+    g.textContent = t ? (typeof TUT_TEXT[t] === 'function' ? TUT_TEXT[t]() : TUT_TEXT[t]) : (ui.msg || initialGuide());
+    g.className = `guide ${ui.bad ? 'bad' : ''} ${t ? 'tut' : ''}`;
   }
 }
 
@@ -352,3 +364,18 @@ if (OG) {
   ui.sel = 'H';
 }
 render();
+
+// ---- 遊び方（初回は自動で開く）----
+const brief = $('brief');
+function openBrief() { brief.hidden = false; $('briefGo').focus(); }
+function closeBrief() {
+  brief.hidden = true;
+  try { localStorage.setItem(SEEN, '1'); } catch { /* 保存できなくても遊べる */ }
+}
+$('helpBtn').addEventListener('click', openBrief);
+$('briefGo').addEventListener('click', closeBrief);
+brief.addEventListener('click', (e) => { if (e.target === brief) closeBrief(); });
+document.addEventListener('keydown', (e) => { if (!brief.hidden && (e.key === 'Escape' || e.key === 'Enter')) { e.preventDefault(); closeBrief(); } });
+let seen = false;
+try { seen = localStorage.getItem(SEEN) === '1'; } catch { /* noop */ }
+if (!OG && !seen) openBrief();

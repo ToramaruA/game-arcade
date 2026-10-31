@@ -61,6 +61,9 @@ const css = `
 .spark.on circle{animation:sp .9s ease-out forwards}@keyframes sp{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(4)}}
 .debris{fill:#3d4a57;animation:drf 30s linear infinite}@keyframes drf{from{transform:translate(0,0)}to{transform:translate(-60px,30px)}}
 .dot{fill:#C6F0F2;stroke:#080E1B;stroke-width:2}
+.part.hint .hull{stroke:#FFC35A;stroke-width:7;animation:hint 1.1s ease-in-out infinite}
+.edge.hint .band{fill:#fff2b8;stroke:#FFC35A;stroke-width:5;animation:hint 1.1s ease-in-out infinite}
+@keyframes hint{0%,100%{stroke-opacity:.35}50%{stroke-opacity:1}}
 .needle{transform-origin:880px 520px;transition:transform .5s}
 `;
 

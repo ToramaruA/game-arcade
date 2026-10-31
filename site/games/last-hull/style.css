@@ -86,3 +86,28 @@ button.cool { border-color: #7fd6ff; color: #bfeaff; }
 .tag:empty { display: none; }
 .og .panel { display: none; }
 .og .stage svg { max-height: none; }
+
+/* 遊び方 */
+button.help { min-height: 30px; padding: 2px 10px; font-size: .78rem; border-color: var(--crt); color: var(--crt); background: transparent; margin-left: auto; }
+.brief { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 16px; background: rgba(4,8,16,.78); }
+.brief[hidden] { display: none; }
+.briefbox { width: min(560px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: #0B1424; border: 2px solid var(--crt); box-shadow: 0 0 24px rgba(116,223,172,.25), inset 0 0 40px rgba(116,223,172,.06); padding: 16px 16px 14px; text-align: center; }
+.briefk { margin: 0; color: var(--fire); font-size: .8rem; letter-spacing: .3em; animation: blink 1.4s steps(2) infinite; }
+@keyframes blink { 50% { opacity: .35; } }
+.briefbox h2 { margin: 6px 0 12px; font-size: 1.2rem; color: var(--bridge); line-height: 1.4; }
+.moves { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.moves li { border: 1px solid var(--line); background: var(--panel); padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.moves .mi { font-size: 1.7rem; line-height: 1.2; color: var(--crt); }
+.moves .mi.cutc { color: var(--amber); } .moves .mi.coolc { color: #7fd6ff; }
+.moves b { color: var(--text); font-size: .95rem; }
+.moves li > span:last-child { font-size: .74rem; color: var(--dim); line-height: 1.4; }
+.rule { font-size: .8rem; color: var(--dim); margin: 12px 0; line-height: 1.6; }
+.rule em { font-style: normal; color: var(--amber); }
+button.big { min-width: 60%; font-size: 1.05rem; background: #12352c; }
+/* 最初の手引き：次に押すものを光らせる */
+button.hint { animation: hintb 1.1s ease-in-out infinite; border-color: var(--amber) !important; border-width: 3px; background: #3a2c10 !important; color: #fff2b8 !important; }
+.panel.tutdim button:not(.hint) { opacity: .3; }
+@keyframes hintb { 0%,100% { box-shadow: 0 0 0 0 rgba(255,195,90,.0); } 50% { box-shadow: 0 0 0 4px rgba(255,195,90,.55); } }
+.guide.tut { border-color: var(--crt); background: rgba(116,223,172,.1); color: var(--bridge); font-weight: 700; }
+@media (max-width: 640px) { .briefbox h2 { font-size: 1.05rem; } .moves { gap: 5px; } .moves li > span:last-child { font-size: .7rem; } }
+.og button.help { display: none; }

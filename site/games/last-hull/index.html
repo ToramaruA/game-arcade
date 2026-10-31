@@ -20,12 +20,26 @@
     <header class="top">
       <h1>切り離せ、最後の一隻</h1>
       <div id="scenarioTag" class="tag"></div>
+      <button type="button" id="helpBtn" class="small help" aria-haspopup="dialog">？遊び方</button>
     </header>
     <section id="status" class="status" aria-label="状況"></section>
     <p id="guide" class="guide" role="status" aria-live="polite"></p>
     <div id="stage" class="stage"></div>
     <section id="panel" class="panel" aria-label="操作盤"></section>
   </main>
+  <div id="brief" class="brief" role="dialog" aria-modal="true" aria-labelledby="briefTitle" hidden>
+    <div class="briefbox">
+      <p class="briefk">緊急指令</p>
+      <h2 id="briefTitle">船が燃えている。<br>36人を1人でも多く連れて帰れ。</h2>
+      <ol class="moves">
+        <li><span class="mi">👥</span><b>逃がす</b><span>燃えている区画をタップ →<br>隣へ8人移す</span></li>
+        <li><span class="mi cutc">✂</span><b>切り離す</b><span>区画ごと捨てれば火も消える。<br>中の人は戻らない</span></li>
+        <li><span class="mi coolc">❄</span><b>冷やす</b><span>1回だけ。<br>猶予を使わず火を消す</span></li>
+      </ol>
+      <p class="rule"><em>猶予●</em>は1手ごとに減る。尽きる前に火を止めろ。</p>
+      <button type="button" id="briefGo" class="go big">出航する</button>
+    </div>
+  </div>
   <footer class="arcade-link"><a href="/">Game Arcade</a></footer>
   <script type="module" src="game.js"></script>
 </body>
