@@ -18,6 +18,8 @@ h1 { margin: 0; font-size: 1.05rem; letter-spacing: .12em; color: var(--brass-l)
 .routes button { font: inherit; font-size: .8rem; padding: 4px 10px; min-height: 32px; border-radius: 4px; border: 1px solid var(--brass); background: var(--inst); color: var(--fg); cursor: pointer; touch-action: manipulation; }
 .routes button[aria-pressed="true"] { background: var(--brass); color: #1b1206; font-weight: 700; }
 .routes button[aria-disabled="true"] { opacity: .5; cursor: default; }
+.route-info { flex: 1 0 100%; margin: 0; font-size: .74rem; line-height: 1.45; color: var(--dim); } .route-info b { color: var(--brass-l); }
+.stim[hidden] { display: none; }
 .alerts { display: flex; gap: 4px; list-style: none; margin: 0; padding: 0; flex-wrap: wrap; }
 .alerts li { font: 600 .68rem ui-monospace, Menlo, Consolas, monospace; background: var(--inst); border: 1px solid #2b3d40; padding: 1px 6px; border-radius: 3px; color: var(--dim); text-align: center; line-height: 1.25; }
 .alerts li.on { border-color: var(--amber); color: var(--fg); }
@@ -115,7 +117,7 @@ button.danger { border-color: var(--red); color: #ffd0c8; background: linear-gra
   .bolt { width: 8px; height: 8px; } .hud { left: 14px; top: 10px; }
   .panel { padding: 6px; } .sonar-box canvas { max-width: 96px; }
   .rows { gap: 3px; } .rows > div { grid-template-columns: 3.4em 1fr; } .rows dd { font-size: .78rem; } .rows dd b { font-size: .9rem; }
-  .sample { display: none; }
+  .sample { margin-top: 5px; gap: 6px; font-size: .68rem; } .sample canvas { width: 72px; height: 53px; } .sample small { font-size: .7rem; }
   .log { height: 3.7em; }
   .logbox .lbl { display: none; }
   .console { padding: 6px 8px 4px; } .hint { font-size: .82rem; margin-bottom: 4px; }
@@ -125,7 +127,7 @@ button.danger { border-color: var(--red); color: #ffd0c8; background: linear-gra
   .shots { gap: 5px; } button.shot { min-height: 46px; font-size: .88rem; }
   .res-grid { grid-template-columns: 1fr; } .card-wrap { max-width: 360px; margin: 0 auto; width: 100%; }
 }
-body.og .top .alerts, body.og .arcade-link { display: none; }
+body.og .top .alerts, body.og .route-info, body.og .arcade-link { display: none; }
 body.og .game { padding-top: 4px; } body.og .top { margin-bottom: 4px; }
 body.og .log { height: 96px; }
 
@@ -141,3 +143,7 @@ body.og .log { height: 96px; }
 @keyframes nudge { 50% { box-shadow: 0 3px 0 #000, 0 0 0 3px var(--sonar); } }
 button.nudge { animation: nudge 1.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { button.nudge { animation: none; box-shadow: 0 3px 0 #000, 0 0 0 3px var(--sonar); } }
+
+.routes button.locked, .retry button.locked { opacity: .55; border-style: dashed; cursor: not-allowed; }
+.route-info .lock { color: var(--amber); }
+.unlock-note { margin: 6px 0; padding: 6px 10px; border: 1px solid var(--brass); border-radius: 4px; background: var(--inst); color: var(--brass-l); font-size: .9rem; line-height: 1.5; }
