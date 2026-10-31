@@ -7,6 +7,7 @@ AIが企画したゲームを Claude Code が作り、人が遊んで承認（Me
 - 1つの PR で作るゲームは1本だけ。対象の Issue 以外のゲームを変更しない。
 - 既存ゲームや共通ファイル（`site/index.html`, `scripts/`, `tests/`, `.github/`）は、Issue が求めない限り触らない。
 - 外部の CDN・API・解析タグ・広告・有料サービスを使わない。すべてリポジトリ内のファイルで完結させる。
+  - 例外：Cloudflare Web Analytics。Cloudflare Pages 側の設定で自動的に挿入されるので、ゲームのコードに解析タグを書く必要はない（書かない）。
 - テストを消したり緩めたりして合格させない。
 
 ## [GAME] Issue を受けたときの手順
