@@ -165,3 +165,7 @@ button.nudge { animation: nudge 1.4s ease-in-out infinite; }
 .lib-list li { border-left: 3px solid var(--glow); padding: 4px 8px; font-size: .84rem; } .lib-list li.unk { border-color: #2b3d40; color: var(--dim); }
 .lib .route-info { font-size: .8rem; margin-bottom: 6px; }
 body.og .lib-btn { display: none; }
+
+.lib-list li.known { display: grid; grid-template-columns: 150px 1fr; gap: 10px; align-items: center; }
+.dex-img { width: 100%; height: auto; aspect-ratio: 600 / 440; border: 2px solid var(--brass); border-radius: 6px; background: #020912; display: block; }
+@media (max-width: 480px) { .lib-list li.known { grid-template-columns: 1fr; } }

@@ -51,16 +51,22 @@ function markSeen(k) {
   try { localStorage.setItem('abyssal-signal:seen', JSON.stringify([...seen])); } catch (e) { /* noop */ }
 }
 const DEX = {
-  A: { look: '長いリボン状の体に、青白い発光器官が並ぶ。', shots: '全身・発光器官・捕食姿勢' },
-  B: { look: '半透明の鎧のような殻をまとったクラゲ。殻に模様が走る。', shots: '殻の模様・捕食姿勢' },
-  C: { look: '窓の大半を占める巨大な眼と、骨質の弧を持つ主。', shots: '頭部' },
+  A: { target: '全身', depth: 1000, look: '長いリボン状の体に、青白い発光器官が並ぶ。', shots: '全身・発光器官・捕食姿勢' },
+  B: { target: '殻の模様', depth: 1400, look: '半透明の鎧のような殻をまとったクラゲ。殻に模様が走る。', shots: '殻の模様・捕食姿勢' },
+  C: { target: '頭部', depth: 3000, look: '窓の大半を占める巨大な眼と、骨質の弧を持つ主。', shots: '頭部' },
 };
 function renderLibrary() {
   const ul = $('libSpecies'); ul.textContent = '';
   for (const k of Object.keys(SPECIES)) {
     const li = document.createElement('li');
-    if (seen.has(k)) li.innerHTML = `<b>${SPECIES[k].name}</b><br>${DEX[k].look}<br><small>撮れる対象：${DEX[k].shots}／近距離の損傷 ${SPECIES[k].damage}</small>`;
-    else li.innerHTML = '<b>？？？</b><br><small>まだ出会っていない生物。潜ると記録されます。</small>', li.className = 'unk';
+    if (seen.has(k)) {
+      const cv = document.createElement('canvas'); cv.width = SW; cv.height = SH; cv.className = 'dex-img';
+      cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', `${SPECIES[k].name}の姿`);
+      drawScene(cv.getContext('2d'), { species: k, target: DEX[k].target, depth: DEX[k].depth, dist: 1, focus: 1, t: 2, still: 1, light: .5 });
+      const tx = document.createElement('div');
+      tx.innerHTML = `<b>${SPECIES[k].name}</b><br>${DEX[k].look}<br><small>撮れる対象：${DEX[k].shots}／近距離の損傷 ${SPECIES[k].damage}</small>`;
+      li.className = 'known'; li.append(cv, tx);
+    } else li.innerHTML = '<b>？？？</b><br><small>まだ出会っていない生物。潜ると記録されます。</small>', li.className = 'unk';
     ul.appendChild(li);
   }
 }
