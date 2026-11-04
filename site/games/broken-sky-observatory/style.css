@@ -80,7 +80,7 @@ h3 { margin: 12px 0 6px; font-size: 13px; color: var(--brass); letter-spacing: .
 @media (max-width: 520px) {
   button.brass.main { flex-basis: 100%; }
   button.brass.sub { padding: 10px 4px; }
-  .window { height: 300px; }
+  .window { height: 340px; }
   .gauge { display: none; }
   .opts { grid-template-columns: 1fr; }
   .opt span { padding: 6px 2px; min-height: 36px; }

@@ -168,12 +168,12 @@ function drawCard() {
   x.fillStyle = '#B98B52'; x.font = '12px sans-serif'; x.fillText('第七気象観測所', 396, 28);
   x.fillStyle = '#D7E8E1'; x.font = '700 22px sans-serif';
   x.fillText(conceal ? (d.anomaly ? '特異現象を発見' : '空を観測') : d.name, 396, 66, 196);
-  x.font = '13px sans-serif'; x.fillStyle = '#9fb4b2';
+  x.font = '15px sans-serif'; x.fillStyle = '#c4d6d3';
   x.fillText(conceal ? '条件：？／？／？' : `記録 ${idLabel(state.observed)}`, 396, 96);
   if (!conceal) { x.fillText(TIMES[d.t], 396, 120); x.fillText('風向：' + WINDS[d.w], 396, 140); x.fillText('気圧：' + PRESSURES[d.p], 396, 160); }
   x.fillStyle = '#E96A55'; x.font = '700 30px sans-serif'; x.fillText(`${countFound(state)}/${TOTAL}`, 396, 214);
-  x.fillStyle = '#B98B52'; x.font = '12px sans-serif'; x.fillText('発見', 396, 232);
-  x.fillStyle = '#7f9a98'; x.font = '14px sans-serif'; x.fillText('#空が壊れるまで', 16, 270);
+  x.fillStyle = '#B98B52'; x.font = '12px sans-serif'; x.fillText('発見', 396, 236);
+  x.fillStyle = '#aebfbd'; x.font = '16px sans-serif'; x.fillText('#空が壊れるまで', 16, 270);
   x.fillText(conceal ? '特異現象は伏せています' : d.line, 16, 296, 560);
   $('shareText').value = shareText(state);
 }
