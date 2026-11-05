@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>空が壊れるまで</title>
-  <meta name="description" content="廃墟の気象観測所で3つの古いダイヤルを回す。次に現れる空は、夕焼けか、魚の雨か、見てはいけない月か。全64の異常な空を記録せよ。">
+  <meta name="description" content="廃墟の気象観測所に、言葉カードで観測依頼を出す。「雨」と「魚」なら魚の雨。では「布団」と……？ 組み合わせ次第で空が変わる。全65の空を記録せよ。">
   <link rel="canonical" href="https://game-arcade-bdt.pages.dev/games/broken-sky-observatory/">
   <meta property="og:type" content="website">
   <meta property="og:title" content="空が壊れるまで">
-  <meta property="og:description" content="廃墟の気象観測所で3つの古いダイヤルを回す。次に現れる空は、夕焼けか、魚の雨か、見てはいけない月か。全64の異常な空を記録せよ。">
+  <meta property="og:description" content="廃墟の気象観測所に、言葉カードで観測依頼を出す。「雨」と「魚」なら魚の雨。では「布団」と……？ 組み合わせ次第で空が変わる。全65の空を記録せよ。">
   <meta property="og:url" content="https://game-arcade-bdt.pages.dev/games/broken-sky-observatory/">
   <meta property="og:image" content="https://game-arcade-bdt.pages.dev/games/broken-sky-observatory/og.png">
   <meta name="twitter:card" content="summary_large_image">
@@ -21,7 +21,7 @@
     <section class="window" aria-label="観測窓">
       <canvas id="sky" width="320" height="200" role="img" aria-label="観測窓から見える空"></canvas>
       <div class="station">第七気象観測所</div>
-      <div class="rec">記録番号 <b id="idOut">01</b></div>
+      <div class="rec">発見 <b id="idOut">0</b></div>
       <div class="alert" id="alert" hidden>異常現象を検出</div>
       <div class="plate" aria-live="polite">
         <div class="plate-name" id="pName"></div>
@@ -30,19 +30,18 @@
       </div>
     </section>
     <section class="desk" aria-label="観測卓">
-      <p class="guide">3つ選んで観測する</p>
-      <div class="dials" id="dials"></div>
+      <div class="orderbar">
+        <div class="slots" id="slots" aria-label="観測依頼（最大4枚）"></div>
+        <button type="button" id="clearBtn" class="brass sub small">消す</button>
+      </div>
       <div class="actions">
-        <button type="button" id="observe" class="brass main">観測する</button>
-        <button type="button" id="recordBtn" class="brass sub">記録する</button>
-        <button type="button" id="codexBtn" class="brass sub">図鑑 <span id="codexCount">0/64</span></button>
+        <button type="button" id="observe" class="brass main">観測依頼</button>
+        <button type="button" id="codexBtn" class="brass sub">図鑑 <span id="codexCount">0/0</span></button>
         <button type="button" id="shareBtn" class="brass sub">共有</button>
       </div>
-      <div class="meters">
-        <div class="tape" aria-label="直近の観測"><b>記録紙</b><ol id="tape"></ol></div>
-        <div class="lamp" id="lamp"><i></i><span id="lampTxt">待機</span></div>
-      </div>
       <p class="note" id="note" role="status"></p>
+      <div class="tape" aria-label="最近の観測依頼"><b>記録紙</b><ol id="tape"></ol></div>
+      <div class="tray" id="tray"></div>
     </section>
     <footer class="arcade-link"><a href="/">Game Arcade</a></footer>
   </main>
@@ -51,22 +50,21 @@
     <div class="dlg-head"><h2>観測図鑑</h2><button type="button" class="x" data-close aria-label="閉じる">×</button></div>
     <p class="stats" id="stats"></p>
     <div class="rate"><i id="rateBar"></i></div>
-    <h3>特異現象 <span id="anomCount"></span></h3>
-    <div class="anoms" id="anoms"></div>
-    <h3>未発見のヒント</h3>
+    <p class="kinds" id="kinds"></p>
+    <h3>ほかの観測員のメモ（未発見のヒント）</h3>
     <ul class="hints" id="hints"></ul>
-    <h3>全64枠</h3>
+    <h3>記録した空</h3>
     <div class="grid" id="grid"></div>
     <div class="report" id="report" hidden>
       <b>最後の観測報告書</b>
-      <p>全64件の空を記録した。装置が空を変えたのか、空を見つけただけなのか、記録簿は答えない。</p>
+      <p>すべての空を記録した。装置が空を変えたのか、空が言葉を聞いていたのか、記録簿は答えない。</p>
     </div>
   </dialog>
 
   <dialog id="share" aria-label="共有">
     <div class="dlg-head"><h2>結果カード</h2><button type="button" class="x" data-close aria-label="閉じる">×</button></div>
     <canvas id="card" width="600" height="315"></canvas>
-    <label class="conceal"><input type="checkbox" id="conceal"> 現象名を伏せる</label>
+    <label class="conceal"><input type="checkbox" id="conceal"> 依頼した言葉と現象名を伏せる</label>
     <textarea id="shareText" readonly rows="3"></textarea>
     <div class="actions">
       <button type="button" class="brass sub" id="copyBtn">共有文をコピー</button>

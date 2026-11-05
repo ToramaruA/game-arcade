@@ -1,8 +1,7 @@
 import {
-  TIMES, WINDS, PRESSURES, TOTAL, STORAGE_KEY, ANOMALIES,
-  newState, select, observe, record, canRecord, describe, idLabel, conditionText,
-  countFound, countAnomalies, isFound, isComplete, hints, codexEntry, anomalySlots,
-  serialize, parseSaved, shareText, idOf,
+  GROUPS, MAX_SLOTS, TOTAL, STORAGE_KEY, RECIPES, recipeById,
+  newState, addCard, removeAt, observe, countFound, isComplete, hints, codexEntry, kindCounts,
+  serialize, parseSaved, shareText,
 } from './logic.js';
 import { renderSky, W, H } from './sky.js';
 
@@ -13,115 +12,112 @@ if (OG) document.body.classList.add('og');
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 let saveOk = true;
-function load() {
-  try { return parseSaved(localStorage.getItem(STORAGE_KEY)); } catch { saveOk = false; return []; }
-}
-function save(s) {
-  try { localStorage.setItem(STORAGE_KEY, serialize(s)); } catch { saveOk = false; }
-}
+function load() { try { return parseSaved(localStorage.getItem(STORAGE_KEY)); } catch { saveOk = false; return []; } }
+function save(s) { try { localStorage.setItem(STORAGE_KEY, serialize(s)); } catch { saveOk = false; } }
 
 let state = newState(load());
-if (OG) { // 共有画像：最も目を引く特異現象を見せる
-  const a = ANOMALIES.find((x) => x.key === (params.get('a') || 'eye'));
-  state = { ...state, observed: a.id, sel: { t: a.t, w: a.w, p: a.p } };
-}
+let shown = null; // 窓に映っている当たり（null は何も起きていない空）
+if (OG) shown = recipeById(params.get('r') || 'cat-big');
 
-// ---- ダイヤル ----
-const AXES = [['t', '時刻', TIMES], ['w', '風向', WINDS], ['p', '気圧', PRESSURES]];
-const dials = $('dials');
-AXES.forEach(([ax, label, opts]) => {
-  const fs = document.createElement('fieldset');
-  fs.className = 'dial';
-  fs.innerHTML = `<legend>${label}</legend><div class="gauge" id="g-${ax}"><i></i></div><div class="opts"></div>`;
-  const box = fs.querySelector('.opts');
-  opts.forEach((name, i) => {
-    const l = document.createElement('label');
-    l.className = 'opt';
-    l.innerHTML = `<input type="radio" name="${ax}" value="${i}"><span>${name}</span>`;
-    l.querySelector('input').addEventListener('change', () => { state = select(state, ax, i); syncDials(); });
-    box.appendChild(l);
+// ---- カード ----
+const tray = $('tray');
+GROUPS.forEach((grp) => {
+  const row = document.createElement('div');
+  row.className = 'grp';
+  row.innerHTML = `<span class="gname">${grp.name}</span>`;
+  grp.cards.forEach((c) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'card'; b.textContent = c; b.dataset.card = c;
+    b.addEventListener('click', () => { state = { ...state, order: addCard(state.order, c) }; renderOrder(); });
+    row.appendChild(b);
   });
-  dials.appendChild(fs);
+  tray.appendChild(row);
 });
-function syncDials() {
-  AXES.forEach(([ax]) => {
-    const v = state.sel[ax];
-    dials.querySelectorAll(`input[name="${ax}"]`).forEach((r) => { r.checked = Number(r.value) === v; });
-    $('g-' + ax).style.setProperty('--rot', `${-60 + v * 40}deg`);
-  });
+function renderOrder() {
+  const box = $('slots'); box.innerHTML = '';
+  for (let i = 0; i < MAX_SLOTS; i++) {
+    const c = state.order[i];
+    const el = document.createElement(c ? 'button' : 'span');
+    el.className = 'oslot' + (c ? ' on' : '');
+    if (c) { el.type = 'button'; el.textContent = c; el.setAttribute('aria-label', `${c}（押すと外す）`); el.addEventListener('click', () => { state = { ...state, order: removeAt(state.order, i) }; renderOrder(); }); }
+    else el.textContent = i === 0 && !state.order.length ? '言葉を選ぶ' : '＋';
+    box.appendChild(el);
+  }
+  const full = state.order.length >= MAX_SLOTS;
+  tray.querySelectorAll('.card').forEach((b) => { b.disabled = full; });
+  $('clearBtn').disabled = !state.order.length;
 }
 
 // ---- 描画ループ ----
 const cv = $('sky');
 const g = cv.getContext('2d');
-let shown = state.observed, prev = null, fadeT = 1, t0 = performance.now(), shake = 0;
+let fadeT = 1, t0 = performance.now(), dirty = true, last = 0;
 const snap = document.createElement('canvas'); snap.width = W; snap.height = H;
 function frame(now) {
   const tm = reduce ? 0 : (now - t0) / 1000;
   renderSky(g, shown, tm);
-  if (fadeT < 1 && prev) {
-    g.globalAlpha = 1 - fadeT; g.drawImage(snap, 0, 0); g.globalAlpha = 1;
-    fadeT = Math.min(1, fadeT + (reduce ? 1 : 0.035));
-  }
+  if (fadeT < 1) { g.globalAlpha = 1 - fadeT; g.drawImage(snap, 0, 0); g.globalAlpha = 1; fadeT = Math.min(1, fadeT + (reduce ? 1 : 0.14)); }
 }
-let last = 0;
 function loop(now) {
   if (reduce ? fadeT < 1 || dirty : now - last > 66) { last = now; frame(now); dirty = false; }
   requestAnimationFrame(loop);
 }
-let dirty = true;
 
 // ---- 表示更新 ----
+const kindLabel = { wonder: '不思議な空', more: '重ねがけ', neta: 'まさかの空', secret: '隠し' };
 function renderPlate() {
-  const d = describe(state.observed);
-  $('idOut').textContent = idLabel(state.observed);
-  $('pName').textContent = d.name;
-  $('pLine').textContent = d.line;
-  const found = isFound(state, state.observed);
-  const ps = $('pState');
-  ps.textContent = found ? '記録済み' : '未記録';
-  ps.classList.toggle('new', !found);
-  $('alert').hidden = !d.anomaly;
-  $('lamp').classList.toggle('alarm', d.anomaly);
-  $('lampTxt').textContent = d.anomaly ? '警告' : '正常';
-  const rb = $('recordBtn');
-  rb.disabled = !canRecord(state);
-  rb.classList.toggle('rec-ready', canRecord(state));
-  rb.textContent = canRecord(state) ? '記録する' : '記録済み';
+  const L = state.last;
+  $('idOut').textContent = `${countFound(state)}/${TOTAL}`;
   $('codexCount').textContent = `${countFound(state)}/${TOTAL}`;
-  $('tape').innerHTML = '';
-  state.history.forEach((id) => {
+  const ps = $('pState');
+  if (!L) {
+    $('pName').textContent = '観測待ち';
+    $('pLine').textContent = '言葉を組み合わせて、空に観測依頼を出す。';
+    ps.textContent = ''; ps.hidden = true;
+    $('alert').hidden = true;
+  } else if (L.hit) {
+    $('pName').textContent = L.recipe.name;
+    $('pLine').textContent = L.recipe.line;
+    ps.hidden = false; ps.textContent = L.fresh ? `新発見！（${kindLabel[L.recipe.kind]}）` : '記録済み';
+    ps.classList.toggle('new', L.fresh);
+    $('alert').hidden = !L.fresh; $('alert').textContent = L.recipe.kind === 'neta' ? 'まさかの観測' : '異常現象を検出';
+  } else {
+    $('pName').textContent = L.near ? '……？' : '変化なし';
+    $('pLine').textContent = L.message;
+    ps.hidden = false; ps.textContent = L.near ? 'あと少し' : '外れ'; ps.classList.toggle('new', false);
+    $('alert').hidden = true;
+  }
+  $('tape').innerHTML = state.history.length ? '' : '<li>--</li>';
+  state.history.forEach((h) => {
     const li = document.createElement('li');
-    li.textContent = `${idLabel(id)} ${isFound(state, id) ? describe(id).name : '未記録'}`;
+    const words = h.cards.length ? h.cards.join('・') : '（なし）';
+    li.textContent = `${words} → ${h.id ? recipeById(h.id).name : '変化なし'}`;
     $('tape').appendChild(li);
   });
-  if (!state.history.length) $('tape').innerHTML = '<li>--</li>';
 }
 function note(msg) { $('note').textContent = msg; }
 
 function doObserve() {
-  const snapCtx = snap.getContext('2d'); snapCtx.drawImage(cv, 0, 0);
-  prev = true; fadeT = reduce ? 1 : 0;
+  snap.getContext('2d').drawImage(cv, 0, 0);
+  fadeT = reduce ? 1 : 0;
   state = observe(state);
-  shown = state.observed; dirty = true;
+  const L = state.last;
+  if (L.hit) shown = L.recipe;
+  else shown = null;
+  dirty = true;
+  if (L.fresh) save(state);
   renderPlate();
-  const d = describe(state.observed);
-  note(d.anomaly ? '異常現象を検出。「記録する」で図鑑に残せます。' : isFound(state, state.observed) ? 'すでに記録した空です。' : '新しい空です。「記録する」で図鑑に残せます。');
+  note(L.hit ? (L.fresh ? `図鑑に記録した。発見 ${countFound(state)}/${TOTAL}${saveOk ? '' : '（保存できないため、閉じると消えます）'}${isComplete(state) ? '。すべての空を記録した！' : ''}` : 'この空はもう記録してある。')
+    : L.near ? '近い。言葉を足すか、入れ替えてみよう。' : 'ほかの組み合わせを試そう。');
 }
 $('observe').addEventListener('click', doObserve);
-$('recordBtn').addEventListener('click', () => {
-  if (!canRecord(state)) return;
-  state = record(state); save(state);
-  renderPlate();
-  note(isComplete(state) ? '全64件を記録した。最後の観測報告書が図鑑に届いています。' : `記録した。発見 ${countFound(state)}/${TOTAL}${saveOk ? '' : '（保存できないため、この画面を閉じると消えます）'}`);
-});
+$('clearBtn').addEventListener('click', () => { state = { ...state, order: [] }; renderOrder(); });
 
 // ---- 図鑑 ----
-const thumbCache = new Map();
-function thumb(id, w = 64, h = 40) {
+function thumb(recipe, w = 80, h = 50) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const k = document.createElement('canvas'); k.width = W; k.height = H;
-  renderSky(k.getContext('2d'), id, 0, false);
+  renderSky(k.getContext('2d'), recipe, 0.6, false);
   const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(k, 0, 0, w, h);
   return c;
 }
@@ -129,26 +125,22 @@ function openCodex() {
   const n = countFound(state);
   $('stats').textContent = `収集率 ${Math.round((n / TOTAL) * 100)}%（${n}/${TOTAL}）`;
   $('rateBar').style.width = `${(n / TOTAL) * 100}%`;
-  $('anomCount').textContent = `${countAnomalies(state)}/12`;
-  const an = $('anoms'); an.innerHTML = '';
-  anomalySlots(state).forEach((s) => {
-    const d = document.createElement('div');
-    d.className = 'slot' + (s.found ? ' found' : '');
-    if (s.found) { d.appendChild(thumb(s.id, 160, 100)); d.insertAdjacentHTML('beforeend', `<span class="cap">${describe(s.id).name}</span>`); }
-    else d.innerHTML = '<span class="q">？</span>';
-    an.appendChild(d);
-  });
+  const kc = kindCounts(state);
+  $('kinds').textContent = Object.entries(kindLabel).map(([k, l]) => `${l} ${kc[k] ? kc[k][0] : 0}/${kc[k] ? kc[k][1] : 0}`).join('　');
   const hs = hints(state);
-  $('hints').innerHTML = hs.length ? hs.map((h) => `<li>${h}</li>`).join('') : '<li>未発見の特異現象はありません。</li>';
+  $('hints').innerHTML = hs.length ? hs.map((h) => `<li>${h}</li>`).join('') : '<li>メモはもう残っていない。</li>';
   const grid = $('grid'); grid.innerHTML = '';
-  for (let id = 1; id <= TOTAL; id++) {
-    const e = codexEntry(state, id);
+  RECIPES.forEach((_, i) => {
+    const e = codexEntry(state, i);
     const d = document.createElement('div');
-    d.className = 'cell' + (e.found ? ' found' : '') + (e.found && e.anomaly ? ' an' : '');
-    if (e.found) { d.title = `${e.name}（${e.cond}）`; d.appendChild(thumb(id)); d.insertAdjacentHTML('beforeend', `<em>${idLabel(id)}</em>`); }
-    else d.textContent = idLabel(id);
+    d.className = 'cell' + (e.found ? ` found ${e.kind}` : '');
+    if (e.found) {
+      d.appendChild(thumb(recipeById(e.id)));
+      d.insertAdjacentHTML('beforeend', `<span class="cap"><b>${e.name}</b><small>${e.order.length ? e.order.join('・') : '（なし）'}</small></span>`);
+      d.title = e.line;
+    } else { d.classList.add('k-' + RECIPES[i].kind); d.innerHTML = `<span class="q">${String(e.no).padStart(2, '0')}<small>${kindLabel[RECIPES[i].kind]}</small></span>`; }
     grid.appendChild(d);
-  }
+  });
   $('report').hidden = !isComplete(state);
   $('codex').showModal();
 }
@@ -158,23 +150,23 @@ $('codexBtn').addEventListener('click', openCodex);
 function drawCard() {
   const c = $('card'), x = c.getContext('2d');
   const conceal = state.concealed;
-  const d = describe(state.observed);
+  const L = state.last && state.last.hit ? state.last : null;
   x.imageSmoothingEnabled = false;
   x.fillStyle = '#0B1424'; x.fillRect(0, 0, 600, 315);
   const k = document.createElement('canvas'); k.width = W; k.height = H;
-  renderSky(k.getContext('2d'), conceal ? idOf(3, 3, 1) : state.observed, 0, true);
+  renderSky(k.getContext('2d'), L ? L.recipe : null, 0.6, true);
   x.drawImage(k, 0, 0, 380, 237);
-  if (conceal) { x.fillStyle = 'rgba(6,11,20,.9)'; x.fillRect(0, 0, 380, 237); x.fillStyle = '#B98B52'; x.font = '700 28px sans-serif'; x.textAlign = 'center'; x.fillText('？？？', 190, 128); x.textAlign = 'left'; }
-  x.fillStyle = '#B98B52'; x.font = '12px sans-serif'; x.fillText('第七気象観測所', 396, 28);
-  x.fillStyle = '#D7E8E1'; x.font = '700 22px sans-serif';
-  x.fillText(conceal ? (d.anomaly ? '特異現象を発見' : '空を観測') : d.name, 396, 66, 196);
-  x.font = '15px sans-serif'; x.fillStyle = '#c4d6d3';
-  x.fillText(conceal ? '条件：？／？／？' : `記録 ${idLabel(state.observed)}`, 396, 96);
-  if (!conceal) { x.fillText(TIMES[d.t], 396, 120); x.fillText('風向：' + WINDS[d.w], 396, 140); x.fillText('気圧：' + PRESSURES[d.p], 396, 160); }
-  x.fillStyle = '#E96A55'; x.font = '700 30px sans-serif'; x.fillText(`${countFound(state)}/${TOTAL}`, 396, 214);
-  x.fillStyle = '#B98B52'; x.font = '12px sans-serif'; x.fillText('発見', 396, 236);
-  x.fillStyle = '#aebfbd'; x.font = '16px sans-serif'; x.fillText('#空が壊れるまで', 16, 270);
-  x.fillText(conceal ? '特異現象は伏せています' : d.line, 16, 296, 560);
+  if (conceal && L) { x.fillStyle = 'rgba(6,11,20,.92)'; x.fillRect(0, 0, 380, 237); x.fillStyle = '#B98B52'; x.font = '700 28px sans-serif'; x.textAlign = 'center'; x.fillText('？？？', 190, 128); x.textAlign = 'left'; for (let i = 0; i < 900; i++) { x.fillStyle = `rgba(185,139,82,${Math.random() * 0.35})`; x.fillRect(Math.random() * 380, Math.random() * 237, 2, 2); } }
+  x.fillStyle = '#B98B52'; x.font = '12px sans-serif'; x.fillText('第七気象観測所　観測依頼', 396, 28);
+  const words = L ? (L.cards.length ? L.cards : ['（なし）']) : [];
+  x.font = '700 22px sans-serif';
+  words.forEach((w, i) => { const s = conceal ? '？' : w; x.fillStyle = '#e8e0cc'; x.fillRect(392 + (i % 2) * 102, 38 + Math.floor(i / 2) * 40, 96, 34); x.fillStyle = '#2a2418'; x.fillText(s, 400 + (i % 2) * 102, 63 + Math.floor(i / 2) * 40, 82); });
+  x.fillStyle = '#D7E8E1'; x.font = '700 26px sans-serif';
+  x.fillText(L ? (conceal ? '空が変わった' : L.recipe.name) : '観測中', 392, 150, 200);
+  x.fillStyle = '#B98B52'; x.font = '16px sans-serif'; x.fillText('発見', 392, 196);
+  x.fillStyle = '#E96A55'; x.font = '700 34px sans-serif'; x.fillText(`${countFound(state)}/${TOTAL}`, 440, 200);
+  x.fillStyle = '#aebfbd'; x.font = '700 18px sans-serif'; x.fillText('#空が壊れるまで', 16, 266);
+  x.font = '18px sans-serif'; x.fillText(L ? (conceal ? '何を頼んだかは、伏せておく。' : L.recipe.line) : '言葉を組み合わせて、空を変えよう。', 16, 296, 568);
   $('shareText').value = shareText(state);
 }
 $('shareBtn').addEventListener('click', () => { $('conceal').checked = state.concealed; $('shareNote').textContent = ''; drawCard(); $('share').showModal(); });
@@ -187,7 +179,7 @@ $('copyBtn').addEventListener('click', async () => {
 $('pngBtn').addEventListener('click', () => {
   try {
     const url = $('card').toDataURL('image/png');
-    const a = document.createElement('a'); a.href = url; a.download = `sky-${idLabel(state.observed)}.png`;
+    const a = document.createElement('a'); a.href = url; a.download = 'broken-sky.png';
     document.body.appendChild(a); a.click(); a.remove();
     $('shareNote').textContent = 'PNGを保存しました。';
   } catch { $('shareNote').textContent = 'PNGを保存できませんでした。'; }
@@ -195,6 +187,9 @@ $('pngBtn').addEventListener('click', () => {
 document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
 document.querySelectorAll('dialog').forEach((dl) => dl.addEventListener('click', (e) => { if (e.target === dl) dl.close(); }));
 
-syncDials(); renderPlate();
-if (!OG) note('ダイヤルを選んで「観測する」。同じ組合せは、いつも同じ空になります。');
+// 最初の1枚は見本として「雨」を入れておく
+if (!OG && !countFound(state)) state = { ...state, order: ['雨'] };
+renderOrder(); renderPlate();
+if (OG) { $('pName').textContent = shown ? shown.name : ''; $('pLine').textContent = shown ? shown.line : ''; $('pState').hidden = true; }
+if (!OG) note(countFound(state) ? '言葉を選んで「観測依頼」。' : 'まずは「観測依頼」を押してみよう。言葉は下から選んで最大4枚。');
 requestAnimationFrame(loop);
