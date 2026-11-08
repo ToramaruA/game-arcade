@@ -14,16 +14,17 @@ body { font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", s
 .grow { flex: 1; }
 .pill { background: var(--soft); border-radius: 999px; padding: 6px 12px; font-size: 14px; box-shadow: 0 2px 0 rgba(60,80,120,.15), 0 4px 10px rgba(60,80,120,.12); border: 0; color: var(--ink); font-family: inherit; line-height: 1.2; }
 .pill b { font-variant-numeric: tabular-nums; }
-.name { font-weight: 700; }
+.name { font-weight: 700; min-width: 0; flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pill.btn, .pill.total { white-space: nowrap; flex: none; }
 .total { font-weight: 700; }
 button { font-family: inherit; touch-action: manipulation; cursor: pointer; user-select: none; -webkit-user-select: none; }
 .btn { min-height: 34px; }
 .btn.icon { width: 38px; padding: 6px 0; font-size: 16px; }
 .btn.primary { background: #ffd24a; font-weight: 700; text-decoration: none; display: inline-block; }
 button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid #3b82f6; outline-offset: 2px; }
-.tabs { display: flex; gap: 6px; margin-top: 6px; }
-.tab { flex: 1; max-width: 120px; background: rgba(255,255,255,.6); border: 0; border-radius: 12px; padding: 4px 2px; font-size: 11px; color: var(--ink); min-height: 30px; }
-.tab[aria-current="true"] { background: #fff; font-weight: 700; box-shadow: 0 2px 0 rgba(60,80,120,.2); }
+.tabs { display: flex; gap: 4px; margin-top: 6px; }
+.tab { flex: 0 0 auto; min-width: 30px; background: rgba(255,255,255,.6); border: 0; border-radius: 12px; padding: 4px 2px; font-size: 11px; color: var(--ink); min-height: 30px; }
+.tab[aria-current="true"] { flex: 1 1 auto; max-width: 160px; padding: 4px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: #fff; font-weight: 700; box-shadow: 0 2px 0 rgba(60,80,120,.2); }
 .tab[disabled] { opacity: .45; cursor: default; }
 .stage { position: relative; flex: 1; min-height: 0; margin: 6px 0 0; }
 #cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
@@ -84,3 +85,22 @@ body.og .game { height: 100dvh; max-width: none; }
   .windbtn { min-height: 58px; } .reset { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .windbtn:not([disabled]) { animation: none; } .fade, .toast { transition: none; } }
+
+/* 着せ替え */
+#wardBtn { position: relative; }
+.wb-new { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: #ff5a7a; box-shadow: 0 0 0 2px #fff; }
+.wb-new[hidden] { display: none; }
+.ward-top { display: flex; align-items: center; gap: 12px; padding: 0 14px; }
+.ward-top canvas { width: 96px; height: 96px; border-radius: 18px; flex: none; }
+.ward-top p { margin: 0; font-size: 13px; color: #6b7c96; }
+.ward-top p b { color: #d0507a; }
+.ward-h { margin: 10px 14px 6px; font-size: 14px; }
+.ward-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; padding: 0 14px 8px; overflow-y: auto; }
+#ward .sheet { overflow-y: auto; padding-bottom: 12px; }
+.ward-item { font: inherit; background: #fff; border: 2px solid #e6eef8; border-radius: 14px; padding: 4px 2px 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; color: inherit; }
+.ward-item canvas { width: 60px; height: 60px; border-radius: 10px; }
+.ward-item .nm { font-size: 11px; font-weight: 700; }
+.ward-item.on { border-color: #ffb23a; background: #fff6dc; box-shadow: 0 0 0 2px #ffd24a inset; }
+.ward-item.locked { cursor: default; opacity: .75; background: #f4f6fa; }
+.ward-item.locked .nm { color: #8a96ab; font-weight: 400; }
+.ward-item:focus-visible { outline: 3px solid #5aa0ff; outline-offset: 2px; }

@@ -7,9 +7,14 @@ export const THEMES = {
   cream: { skyT: '#c4e0f6', skyB: '#fff0d2', top1: '#f6e9cc', top2: '#eedfba', side: '#d3bd92', side2: '#b7a07a', leaf: '#ffffff', sea: '#ffffff', flower: ['#e8b24a', '#ffffff', '#f4a6a0'] },
   aqua: { skyT: '#8fdde8', skyB: '#e4fbff', top1: '#dcf1e8', top2: '#cbe7dc', side: '#86b9b4', side2: '#6ba19d', leaf: '#ffffff', sea: '#f4ffff', flower: ['#ffffff', '#ffb6d6', '#bdf2ff'] },
   sunset: { skyT: '#ff9a78', skyB: '#ffe0a6', top1: '#f3c960', top2: '#e8b84c', side: '#bf7a44', side2: '#9e6034', leaf: '#ffe6a8', sea: '#fff3e0', flower: ['#ff7a45', '#ffe27a', '#ffffff'] },
+  forest: { skyT: '#9fd8c0', skyB: '#f4f8d8', top1: '#7fc56a', top2: '#72b95e', side: '#8a6a44', side2: '#6e5232', leaf: '#ffe9a0', sea: '#f6fff0', flower: ['#ffe27a', '#ffffff', '#ff9a7a'] },
+  snow: { skyT: '#a8c8f0', skyB: '#f4f8ff', top1: '#f6faff', top2: '#e8f0fa', side: '#9fb4cc', side2: '#8299b4', leaf: '#ffffff', sea: '#ffffff', flower: ['#ffffff', '#cfe6ff', '#ffd6e6'] },
+  sakura: { skyT: '#ffc6dc', skyB: '#fff3e8', top1: '#c8e89a', top2: '#bce08a', side: '#c49563', side2: '#a47a4d', leaf: '#ffc0d8', sea: '#fff6fa', flower: ['#ffb0cc', '#ffffff', '#ffd0e0'] },
+  falls: { skyT: '#7ad0f0', skyB: '#e8fbff', top1: '#a8e0b4', top2: '#98d6a6', side: '#7aa8a0', side2: '#5f8f88', leaf: '#ffffff', sea: '#f0ffff', flower: ['#ffffff', '#ffe27a', '#b0e0ff'] },
+  candy: { skyT: '#ffb8e8', skyB: '#fff0f8', top1: '#fde0ef', top2: '#f8d2e6', side: '#e7a6c8', side2: '#d68cb4', leaf: '#ffffff', sea: '#ffffff', flower: ['#ff8fc8', '#a0e8ff', '#fff07a'] },
   night: { skyT: '#0a0f3d', skyB: '#4a3a8c', top1: '#5361c0', top2: '#4857b4', side: '#2d3478', side2: '#222862', leaf: '#fff3a8', sea: '#7f78c8', flower: ['#fff3a0', '#9ff0ff', '#ffb0f0'] },
 };
-export const POND = { 2: [3, 1, 5, 7] };
+export const pondOf = (gi) => GARDENS[gi].pond || null;
 
 export const proj = (x, y, z = 0) => [(x - y) * TW / 2, (x + y) * TH / 2 - z];
 const hash = (a, b, c = 0) => { let h = (a * 374761393 + b * 668265263 + c * 2147483647) | 0; h = (h ^ (h >> 13)) * 1274126177; return ((h ^ (h >> 16)) >>> 0) / 4294967296; };
@@ -64,6 +69,24 @@ export function drawBackground(ctx, w, h, theme, t, reduce) {
       }); ctx.globalAlpha = 1;
     }
   }
+  if (theme === 'falls') { // 遠くの滝
+    for (let k = 0; k < 3; k++) {
+      const x = w * (0.12 + k * 0.36); const fw = 18 + k * 6; const g2 = ctx.createLinearGradient(0, h * 0.1, 0, h * 0.9);
+      g2.addColorStop(0, 'rgba(255,255,255,.0)'); g2.addColorStop(0.2, 'rgba(255,255,255,.55)'); g2.addColorStop(1, 'rgba(255,255,255,.15)');
+      ctx.fillStyle = g2; ctx.fillRect(x, h * 0.1, fw, h * 0.8);
+      ctx.strokeStyle = 'rgba(200,240,255,.6)'; ctx.lineWidth = 1; for (let j = 0; j < 4; j++) { const yy = ((t * 60 + j * 40 + k * 17) % (h * 0.8)) + h * 0.1; ctx.beginPath(); ctx.moveTo(x + 3, yy); ctx.lineTo(x + 3, yy + 12); ctx.stroke(); }
+    }
+    ['#ff9aa8', '#ffd08a', '#fff2a0', '#a8e6a0', '#9ad4ff', '#c8a8ff'].forEach((c, i) => { ctx.strokeStyle = c; ctx.globalAlpha = 0.4; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(w * 0.5, h * 0.75, h * 0.45 - i * 6, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke(); });
+    ctx.globalAlpha = 1;
+  }
+  if (theme === 'forest' || theme === 'snow' || theme === 'sakura') { // 下の方の木立
+    const col = { forest: ['rgba(70,140,90,.55)', 'rgba(50,110,70,.7)'], snow: ['rgba(150,175,210,.55)', 'rgba(120,150,190,.7)'], sakura: ['rgba(255,170,200,.45)', 'rgba(230,140,175,.55)'] }[theme];
+    [0.72, 0.8].forEach((yy, row) => { ctx.fillStyle = col[row]; for (let i = -1; i < w / 26 + 1; i++) { const x = i * 26 + row * 13; const hh = 26 + hash(i, row, 7) * 22; ctx.beginPath(); if (theme === 'sakura') ctx.arc(x, h * yy, hh * 0.55, 0, 7); else { ctx.moveTo(x - 13, h * yy + 10); ctx.lineTo(x, h * yy - hh); ctx.lineTo(x + 13, h * yy + 10); } ctx.fill(); } ctx.fillRect(0, h * yy + 8, w, h * 0.3); });
+  }
+  if (theme === 'snow') { // 遠くの雪山
+    ctx.fillStyle = 'rgba(200,215,240,.8)'; ctx.beginPath(); ctx.moveTo(0, h * 0.62); ctx.lineTo(w * 0.22, h * 0.3); ctx.lineTo(w * 0.42, h * 0.58); ctx.lineTo(w * 0.62, h * 0.24); ctx.lineTo(w * 0.86, h * 0.56); ctx.lineTo(w, h * 0.4); ctx.lineTo(w, h * 0.7); ctx.lineTo(0, h * 0.7); ctx.fill();
+    ctx.fillStyle = '#ffffff'; [[0.22, 0.3], [0.62, 0.24]].forEach(([a, b]) => { ctx.beginPath(); ctx.moveTo(w * a, h * b); ctx.lineTo(w * a - 22, h * b + 22); ctx.lineTo(w * a + 22, h * b + 22); ctx.fill(); });
+  }
   // 遠くの浮島と大きな雲（ゆっくり流れる）
   const drift = reduce ? 0 : t;
   for (let i = 0; i < 4; i++) {
@@ -97,8 +120,9 @@ function leafAt(ctx, T, gi, x, y, sway) {
   for (let k = 0; k < n; k++) {
     const r1 = hash(x, y, gi * 7 + k); const r2 = hash(y, x, gi * 11 + k);
     const [cx, cy] = proj(x + 0.2 + r1 * 0.6, y + 0.2 + r2 * 0.6);
-    if (gi === 2 || gi === 1) { ctx.fillStyle = 'rgba(120,140,140,.18)'; ctx.fillRect(cx - 4, cy, 8, 1.2); continue; }
-    ctx.strokeStyle = gi === 4 ? '#7fe0c8' : '#6fb04a'; ctx.lineWidth = 1.4;
+    const th = GARDENS[gi].theme;
+    if (th === 'aqua' || th === 'cream' || th === 'snow' || th === 'candy') { ctx.fillStyle = th === 'candy' ? 'rgba(255,255,255,.45)' : th === 'snow' ? 'rgba(150,180,220,.25)' : 'rgba(120,140,140,.18)'; ctx.fillRect(cx - 4, cy, 8, 1.2); if (th === 'candy' && r1 > 0.6) { ctx.fillStyle = T.flower[(r2 * 3) | 0]; ctx.fillRect(cx - 1, cy - 2, 3, 1.5); } continue; }
+    ctx.strokeStyle = th === 'night' ? '#7fe0c8' : th === 'sakura' ? '#7fb85a' : '#6fb04a'; ctx.lineWidth = 1.4;
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + sway * 2 - 1, cy - 5); ctx.moveTo(cx + 2, cy); ctx.lineTo(cx + 3 + sway * 2, cy - 4); ctx.stroke();
     if (r1 > 0.55) { ctx.fillStyle = T.flower[(r2 * 3) | 0]; ctx.beginPath(); ctx.arc(cx + sway * 2 - 1, cy - 6, 2.4, 0, 7); ctx.fill(); }
   }
@@ -117,11 +141,12 @@ export function drawTile(ctx, gi, x, y, T, t, reduce) {
   ctx.fillStyle = top; path(ctx, [pt, pr, pb, pl]); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = 1; path(ctx, [pt, pr, pb, pl]); ctx.stroke();
   // 縁の草（草の庭）／根のたれ
-  if (!below && (gi === 0 || gi === 3)) { ctx.fillStyle = gi === 0 ? '#8fcf5a' : '#e0a838'; path(ctx, [pl, pb, [pb[0], pb[1] + 6], [pl[0], pl[1] + 6]]); ctx.fill(); }
+  const edge = { dawn: '#8fcf5a', sunset: '#e0a838', forest: '#5fae4a', snow: '#ffffff', sakura: '#a8d878', candy: '#ffffff' }[GARDENS[gi].theme];
+  if (!below && edge) { ctx.fillStyle = edge; path(ctx, [pl, pb, [pb[0], pb[1] + 6], [pl[0], pl[1] + 6]]); ctx.fill(); }
   if (!below && hash(x, y, 8) > 0.45) { ctx.strokeStyle = 'rgba(90,60,30,.5)'; ctx.lineWidth = 1.5; const rx = pl[0] + 8 + hash(x, y, 9) * 20; const ry = pl[1] + DEP + 4; ctx.beginPath(); ctx.moveTo(rx, ry); ctx.quadraticCurveTo(rx - 3, ry + 14, rx + 2, ry + 22 + cliffL * 0.4); ctx.stroke(); }
   leafAt(ctx, T, gi, x, y, reduce ? 0 : Math.sin(t * 2 + x + y) * 0.6);
   // 庭ごとの足元
-  if (gi === 4 && hash(x, y, 5) > 0.55) { ctx.fillStyle = 'rgba(255,255,200,.7)'; const [cx, cy] = proj(x + 0.5, y + 0.5); ctx.beginPath(); ctx.arc(cx + 6, cy - 2, 1.6, 0, 7); ctx.fill(); }
+  if (GARDENS[gi].theme === 'night' && hash(x, y, 5) > 0.55) { ctx.fillStyle = 'rgba(255,255,200,.7)'; const [cx, cy] = proj(x + 0.5, y + 0.5); ctx.beginPath(); ctx.arc(cx + 6, cy - 2, 1.6, 0, 7); ctx.fill(); }
 }
 
 export function drawWaterCell(ctx, x, y, t, reduce) {
@@ -167,6 +192,18 @@ export function drawObstacle(ctx, gi, x, y, t, reduce) {
     ctx.fillStyle = '#7a4a2a'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, 7); ctx.fill(); ctx.restore();
     return;
   }
+  if (g.theme === 'sakura') { // 桜の木
+    shadow(ctx, cx, cy + 4, 24);
+    ctx.fillStyle = '#7a4a34'; ctx.fillRect(cx - 3, cy - 22, 6, 24);
+    [['#ffb6cf', -10, -26, 14], ['#ffc8da', 9, -28, 14], ['#ffd6e4', 0, -38, 15], ['#ffb0c8', 0, -22, 13]].forEach(([c, dx, dy, r]) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(cx + dx + sw * 0.5, cy + dy, r, 0, 7); ctx.fill(); });
+    return;
+  }
+  if (g.theme === 'forest') { // もみの木
+    shadow(ctx, cx, cy + 4, 20);
+    ctx.fillStyle = '#7a4a34'; ctx.fillRect(cx - 3, cy - 10, 6, 12);
+    [[0, '#3f8f4a'], [10, '#4fa058'], [20, '#5fb066']].forEach(([o, c]) => { ctx.fillStyle = c; path(ctx, [[cx - 18 + o * 0.4 + sw * 0.3, cy - 8 - o], [cx + 18 - o * 0.4 + sw * 0.3, cy - 8 - o], [cx + sw * 0.5, cy - 30 - o]]); ctx.fill(); });
+    return;
+  }
   if (g.obstacle === 'bush') {
     shadow(ctx, cx, cy + 4, 24);
     [['#6bbf4a', -9, -8, 14], ['#7ccf55', 8, -10, 14], ['#8bd962', 0, -18, 15], ['#6bbf4a', 0, -4, 16]].forEach(([c, dx, dy, r]) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(cx + dx + sw * 0.5, cy + dy, r, 0, 7); ctx.fill(); });
@@ -175,10 +212,12 @@ export function drawObstacle(ctx, gi, x, y, t, reduce) {
   }
   // 岩・石柱
   shadow(ctx, cx, cy + 4, 22);
-  const col = gi === 4 ? ['#6f78d0', '#8a93e8'] : gi === 2 ? ['#9ab8bc', '#bfdadc'] : ['#b8aa92', '#d8ccb4'];
+  const th = g.theme;
+  const col = { night: ['#6f78d0', '#8a93e8'], aqua: ['#9ab8bc', '#bfdadc'], falls: ['#8ab0a8', '#b0d4cc'], snow: ['#b8c8dc', '#ffffff'], candy: ['#f2a0c8', '#ffd0e8'] }[th] || ['#b8aa92', '#d8ccb4'];
   ctx.fillStyle = col[0]; path(ctx, [[cx - 16, cy + 4], [cx - 12, cy - 22], [cx + 2, cy - 30], [cx + 15, cy - 18], [cx + 17, cy + 4]]); ctx.fill();
   ctx.fillStyle = col[1]; path(ctx, [[cx - 12, cy - 22], [cx + 2, cy - 30], [cx + 15, cy - 18], [cx + 2, cy - 14]]); ctx.fill();
-  if (gi === 4) { ctx.fillStyle = 'rgba(255,250,170,.9)'; ctx.beginPath(); ctx.arc(cx + 2, cy - 16, 3, 0, 7); ctx.fill(); }
+  if (th === 'night') { ctx.fillStyle = 'rgba(255,250,170,.9)'; ctx.beginPath(); ctx.arc(cx + 2, cy - 16, 3, 0, 7); ctx.fill(); }
+  if (th === 'candy') { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(cx - 12 + k * 8, cy); ctx.lineTo(cx - 6 + k * 8, cy - 24); ctx.stroke(); } }
 }
 
 export function drawVane(ctx, x, y, windVec, t, active, reduce) {
@@ -204,14 +243,15 @@ export function drawVane(ctx, x, y, windVec, t, active, reduce) {
 export function drawBed(ctx, gi, x, y, bloomed, t, reduce) {
   const [cx, cy] = proj(x + 0.5, y + 0.5);
   const k = reduce ? 0 : Math.sin(t * 2.2 + x) * 0.8;
-  if (gi === 1) { // 鈴の台座
+  const bedKind = GARDENS[gi].bed;
+  if (bedKind === 'bell') { // 鈴の台座
     shadow(ctx, cx, cy + 2, 16); ctx.fillStyle = '#d9cdb4'; path(ctx, [[cx - 13, cy + 2], [cx + 13, cy + 2], [cx + 9, cy - 10], [cx - 9, cy - 10]]); ctx.fill();
     ctx.fillStyle = '#efe6d2'; ctx.beginPath(); ctx.ellipse(cx, cy - 10, 9, 4, 0, 0, 7); ctx.fill();
     ctx.fillStyle = bloomed ? '#ffd24a' : '#cfc3a6'; ctx.beginPath(); ctx.moveTo(cx - 8, cy - 11); ctx.quadraticCurveTo(cx - 8, cy - 26, cx, cy - 26); ctx.quadraticCurveTo(cx + 8, cy - 26, cx + 8, cy - 11); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#7a5a3a'; ctx.beginPath(); ctx.arc(cx, cy - 10, 2, 0, 7); ctx.fill();
     return;
   }
-  if (gi === 2) { // 蓮
+  if (bedKind === 'lotus') { // 蓮
     ctx.fillStyle = '#6cc7a0'; ctx.beginPath(); ctx.ellipse(cx, cy, 20, 9, 0, 0, 7); ctx.fill();
     ctx.fillStyle = '#58b58e'; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + 18, cy - 4); ctx.lineTo(cx + 18, cy + 4); ctx.fill();
     drawFlower(ctx, cx, cy - 2, bloomed ? 1 : 0.35, '#ffb6d6', '#fff6c0', k);
@@ -238,12 +278,12 @@ export function drawBell(ctx, x, y, t, ring, reduce) {
   if (ring) { ctx.strokeStyle = 'rgba(255,220,100,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy - 28, 14 + (t * 20 % 10), -0.6, 0.6); ctx.stroke(); }
 }
 
-export function drawPedestal(ctx, x, y, hist, t) {
+export function drawPedestal(ctx, x, y, hist, t, want = [0, 1, 2]) {
   const [cx, cy] = proj(x + 0.5, y + 0.5);
   shadow(ctx, cx, cy + 2, 18);
   ctx.fillStyle = '#d9c9a4'; path(ctx, [[cx - 16, cy + 2], [cx + 16, cy + 2], [cx + 12, cy - 14], [cx - 12, cy - 14]]); ctx.fill();
   ctx.fillStyle = '#efe2c0'; ctx.beginPath(); ctx.ellipse(cx, cy - 14, 12, 5, 0, 0, 7); ctx.fill();
-  const want = [0, 1, 2]; const cols = ['#4aa3ff', '#ff9a3c', '#ff5a7a'];
+  const cols = ['#4aa3ff', '#ff9a3c', '#ff5a7a'];
   const ok = want.map((w, i) => hist.length >= 3 - i && hist[hist.length - (3 - i)] === w);
   const prefix = [ok[0], ok[0] && ok[1], ok[0] && ok[1] && ok[2]];
   want.forEach((w, i) => {
@@ -301,26 +341,41 @@ export function drawCloudMob(ctx, cx, cy, hue, t, reduce, seed = 0) {
   drawCloudBody(ctx, cx, cy - 16 + bob, 13, hue, true, reduce ? 0 : (Math.sin(t * 0.9 + seed * 3) > 0.985 ? 1 : 0));
 }
 
-export function drawPlayer(ctx, cx, cy, t, moving, facing, reduce) {
+export function drawPlayer(ctx, cx, cy, t, moving, facing, reduce, outfit = null) {
+  const coat = outfit ? outfit.coat : { main: '#ffd21f', shade: '#f2b800', btn: '#b87f00' };
+  const hat = outfit ? outfit.hat.id : 'none';
   const bob = moving && !reduce ? Math.abs(Math.sin(t * 16)) * 3 : 0;
   const sw = moving && !reduce ? Math.sin(t * 16) * 2 : 0;
   shadow(ctx, cx, cy + 3, 11);
   // 長靴
   ctx.fillStyle = '#35507a'; ctx.beginPath(); ctx.ellipse(cx - 4 + sw, cy + 1, 3.6, 2.4, 0, 0, 7); ctx.ellipse(cx + 4 - sw, cy + 1, 3.6, 2.4, 0, 0, 7); ctx.fill();
   const y = cy - bob;
-  // 雨合羽（黄色）
-  ctx.fillStyle = '#ffd21f'; ctx.beginPath(); ctx.moveTo(cx - 10, y - 1); ctx.quadraticCurveTo(cx - 12, y - 16, cx, y - 20); ctx.quadraticCurveTo(cx + 12, y - 16, cx + 10, y - 1); ctx.quadraticCurveTo(cx, y + 3, cx - 10, y - 1); ctx.fill();
-  ctx.fillStyle = '#f2b800'; ctx.beginPath(); ctx.moveTo(cx + 3, y - 18); ctx.quadraticCurveTo(cx + 12, y - 14, cx + 10, y - 1); ctx.quadraticCurveTo(cx + 4, y + 1, cx + 3, y - 3); ctx.fill();
-  ctx.fillStyle = '#b87f00'; ctx.fillRect(cx - 1, y - 14, 2, 3); ctx.fillRect(cx - 1, y - 8, 2, 3);
+  let main = coat.main;
+  if (main === 'rainbow') { const g = ctx.createLinearGradient(cx - 12, y - 40, cx + 12, y); ['#ff8fa8', '#ffd27a', '#fff59a', '#9fe6a0', '#8fd0ff', '#c8a8ff'].forEach((c, i) => g.addColorStop(i / 5, c)); main = g; }
+  // 合羽
+  ctx.fillStyle = main; ctx.beginPath(); ctx.moveTo(cx - 10, y - 1); ctx.quadraticCurveTo(cx - 12, y - 16, cx, y - 20); ctx.quadraticCurveTo(cx + 12, y - 16, cx + 10, y - 1); ctx.quadraticCurveTo(cx, y + 3, cx - 10, y - 1); ctx.fill();
+  ctx.fillStyle = coat.shade; ctx.globalAlpha = coat.main === 'rainbow' ? 0.35 : 1; ctx.beginPath(); ctx.moveTo(cx + 3, y - 18); ctx.quadraticCurveTo(cx + 12, y - 14, cx + 10, y - 1); ctx.quadraticCurveTo(cx + 4, y + 1, cx + 3, y - 3); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.fillStyle = coat.btn; ctx.fillRect(cx - 1, y - 14, 2, 3); ctx.fillRect(cx - 1, y - 8, 2, 3);
   // 頭とフード
   const hy = y - 25;
-  ctx.fillStyle = '#ffd21f'; ctx.beginPath(); ctx.arc(cx, hy, 12.5, Math.PI * 0.95, Math.PI * 2.05); ctx.lineTo(cx + 12, hy + 6); ctx.lineTo(cx - 12, hy + 6); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = main; ctx.beginPath(); ctx.arc(cx, hy, 12.5, Math.PI * 0.95, Math.PI * 2.05); ctx.lineTo(cx + 12, hy + 6); ctx.lineTo(cx - 12, hy + 6); ctx.closePath(); ctx.fill();
   ctx.fillStyle = '#ffe2c4'; ctx.beginPath(); ctx.ellipse(cx, hy + 2, 9.5, 8.8, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = '#ffd21f'; ctx.beginPath(); ctx.ellipse(cx, hy - 5.5, 11.5, 5, 0, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = main; ctx.beginPath(); ctx.ellipse(cx, hy - 5.5, 11.5, 5, 0, Math.PI, 0); ctx.fill();
   const ex = facing[0] * 1.5;
   ctx.fillStyle = '#3b3b4f'; ctx.beginPath(); ctx.arc(cx - 3.6 + ex, hy + 2, 1.5, 0, 7); ctx.arc(cx + 3.6 + ex, hy + 2, 1.5, 0, 7); ctx.fill();
   ctx.fillStyle = 'rgba(255,140,140,.55)'; ctx.beginPath(); ctx.arc(cx - 6.4 + ex, hy + 5, 1.8, 0, 7); ctx.arc(cx + 6.4 + ex, hy + 5, 1.8, 0, 7); ctx.fill();
   ctx.strokeStyle = '#a05a3a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx + ex, hy + 5, 1.8, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+  drawHat(ctx, cx, hy - 9, hat, t, reduce);
+}
+export function drawHat(ctx, cx, top, id, t = 0, reduce = true) {
+  const sw = reduce ? 0 : Math.sin(t * 3) * 0.08;
+  if (id === 'flower') { ['#ff8fb0', '#ffd24a', '#ffffff', '#9ad4ff', '#ff8fb0'].forEach((c, i) => { const a = Math.PI * (1.05 + i * 0.22); const x = cx + Math.cos(a) * 11; const y = top + 6 + Math.sin(a) * 5; ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, 3, 0, 7); ctx.fill(); ctx.fillStyle = '#ffe27a'; ctx.beginPath(); ctx.arc(x, y, 1.1, 0, 7); ctx.fill(); }); }
+  if (id === 'straw') { ctx.fillStyle = '#f2d27a'; ctx.beginPath(); ctx.ellipse(cx, top + 4, 17, 5, 0, 0, 7); ctx.fill(); ctx.fillStyle = '#ebc35a'; ctx.beginPath(); ctx.ellipse(cx, top, 9, 6, 0, Math.PI, 0); ctx.fill(); ctx.fillStyle = '#e0584a'; ctx.fillRect(cx - 9, top, 18, 2.5); }
+  if (id === 'cat') { [[-1, 0], [1, 0]].forEach(([d]) => { ctx.fillStyle = '#4a4a5a'; ctx.beginPath(); ctx.moveTo(cx + d * 4, top + 4); ctx.lineTo(cx + d * 11, top - 6); ctx.lineTo(cx + d * 12, top + 6); ctx.fill(); ctx.fillStyle = '#ffb3c8'; ctx.beginPath(); ctx.moveTo(cx + d * 6, top + 4); ctx.lineTo(cx + d * 10.5, top - 2); ctx.lineTo(cx + d * 11, top + 5); ctx.fill(); }); }
+  if (id === 'leaf') { ctx.save(); ctx.translate(cx, top + 2); ctx.rotate(-0.4 + sw); ctx.fillStyle = '#6fbf4a'; ctx.beginPath(); ctx.ellipse(6, -6, 9, 4, -0.6, 0, 7); ctx.fill(); ctx.strokeStyle = '#3f8a2a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(12, -11); ctx.stroke(); ctx.restore(); }
+  if (id === 'cloud') { drawCloudBody(ctx, cx, top - 2, 9, 210, true); }
+  if (id === 'crown') { ctx.fillStyle = '#ffd24a'; ctx.beginPath(); ctx.moveTo(cx - 9, top + 4); ctx.lineTo(cx - 9, top - 5); ctx.lineTo(cx - 4.5, top); ctx.lineTo(cx, top - 8); ctx.lineTo(cx + 4.5, top); ctx.lineTo(cx + 9, top - 5); ctx.lineTo(cx + 9, top + 4); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#ff5a7a'; ctx.beginPath(); ctx.arc(cx, top, 1.8, 0, 7); ctx.fill(); ctx.fillStyle = '#5ab0ff'; ctx.beginPath(); ctx.arc(cx - 5, top + 1, 1.3, 0, 7); ctx.arc(cx + 5, top + 1, 1.3, 0, 7); ctx.fill(); }
+  if (id === 'star') { const k = reduce ? 0 : t * 2; ctx.strokeStyle = 'rgba(255,240,160,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx + 2, top - 4); ctx.quadraticCurveTo(cx - 10, top - 10, cx - 18, top - 6); ctx.stroke(); ctx.save(); ctx.translate(cx + 4, top - 6); ctx.rotate(k * 0.3); ctx.fillStyle = '#fff07a'; ctx.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? 3 : 7; const a = i * Math.PI / 5 - Math.PI / 2; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill(); ctx.restore(); }
 }
 
 export function drawCenterFlower(ctx, x, y, state, t, reduce) {

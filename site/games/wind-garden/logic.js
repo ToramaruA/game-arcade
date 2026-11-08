@@ -6,9 +6,10 @@ export const SIZE = 9;
 export const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]]; // 北 東 南 西
 export const WIND_NAMES = ['北風', '東風', '南風', '西風'];
 export const WIND_ARROWS = ['↗', '↘', '↙', '↖']; // 画面上の向き（北は右上）
-export const CLOUD_COUNT = 15;
+export const CLOUD_COUNT = GARDENS.length * 3;
+export const LAST = GARDENS.length - 1; // 最後の庭（夜空の花畑）
 export const UNLOCK_NEED = 2; // 各庭で2個集めると次の庭が開く
-export const FINAL_NEED = 14; // 最後の雲は他の14個
+export const FINAL_NEED = CLOUD_COUNT - 1; // 最後の雲は他のすべて
 
 const GROUND = new Set(['#', 'F', 'G', 'S', 'B']); // V（風見鶏）と T（障害物）は歩けない
 const FLUFF_OK = new Set(['#', 'F', 'S', 'B']);
@@ -56,6 +57,7 @@ export function newGame() {
     revealed: Array(CLOUD_COUNT).fill(false),
     bestGarden: Array(GARDENS.length).fill(null),
     finished: false,
+    outfit: { ...DEFAULT_OUTFIT },
   };
   updateReveals(g);
   return g;
@@ -190,12 +192,70 @@ export function resetGarden(game) {
   return next;
 }
 
+// ---- 着せ替え（集めた雲の数で増える） ----
+export const COATS = [
+  { id: 'yellow', name: 'きいろ', need: 0, main: '#ffd21f', shade: '#f2b800', btn: '#b87f00' },
+  { id: 'sky', name: 'そらいろ', need: 4, main: '#7cc8ff', shade: '#55aeea', btn: '#2f6fa8' },
+  { id: 'sakura', name: 'さくら', need: 10, main: '#ffb3cd', shade: '#f590b4', btn: '#b84a78' },
+  { id: 'mint', name: 'ミント', need: 16, main: '#8fe0c0', shade: '#66c9a4', btn: '#2f8a68' },
+  { id: 'night', name: 'よぞら', need: 22, main: '#5361c0', shade: '#3f4aa0', btn: '#fff3a8' },
+  { id: 'rainbow', name: 'にじいろ', need: 30, main: 'rainbow', shade: '#c8a8ff', btn: '#ffffff' },
+];
+export const HATS = [
+  { id: 'none', name: 'なし', need: 0 },
+  { id: 'flower', name: '花かんむり', need: 2 },
+  { id: 'straw', name: 'むぎわら', need: 7 },
+  { id: 'cat', name: 'ねこみみ', need: 13 },
+  { id: 'leaf', name: 'はっぱ', need: 19 },
+  { id: 'cloud', name: '雲のぼうし', need: 24 },
+  { id: 'crown', name: 'おうかん', need: 27 },
+  { id: 'star', name: 'ながれぼし', need: 30 },
+];
+const WARD = { coat: COATS, hat: HATS };
+export const DEFAULT_OUTFIT = { coat: 'yellow', hat: 'none' };
+export function outfitUnlocked(game, kind, id) {
+  const item = (WARD[kind] || []).find((o) => o.id === id);
+  return !!item && gotCount(game) >= item.need;
+}
+export function setOutfit(game, kind, id) {
+  if (!outfitUnlocked(game, kind, id)) return game;
+  return { ...game, outfit: { ...(game.outfit || DEFAULT_OUTFIT), [kind]: id } };
+}
+/** 雲の数が before → after に増えたとき、新しく使えるようになった着せ替え */
+export function newOutfits(before, after) {
+  return [...COATS.map((o) => ({ ...o, kind: 'coat' })), ...HATS.map((o) => ({ ...o, kind: 'hat' }))].filter((o) => o.need > before && o.need <= after);
+}
+/** 次に増える着せ替え（なければ null） */
+export function nextOutfit(game) {
+  const n = gotCount(game);
+  const rest = [...COATS.map((o) => ({ ...o, kind: 'coat' })), ...HATS.map((o) => ({ ...o, kind: 'hat' }))].filter((o) => o.need > n).sort((a, b) => a.need - b.need);
+  return rest.length ? { ...rest[0], left: rest[0].need - n } : null;
+}
+export const outfitOf = (game) => {
+  const o = game.outfit || DEFAULT_OUTFIT;
+  return { coat: COATS.find((c) => c.id === o.coat) || COATS[0], hat: HATS.find((h) => h.id === o.hat) || HATS[0] };
+};
+
 // ---- 保存 ----
+const OLD_GARDENS = 5; // 初版（5庭・15個）の保存を、今の並び（最後の庭が夜空）に移す
+function migrate(raw) {
+  if (!Array.isArray(raw.got) || raw.got.length !== OLD_GARDENS * 3 || CLOUD_COUNT === OLD_GARDENS * 3) return raw;
+  const mapG = (gi) => (gi < OLD_GARDENS - 1 ? gi : LAST);
+  const out = { ...raw };
+  const remap = (arr, fill) => { const a = Array(CLOUD_COUNT).fill(fill); arr.forEach((v, i) => { a[mapG(Math.floor(i / 3)) * 3 + (i % 3)] = v; }); return a; };
+  out.got = remap(raw.got, false);
+  if (Array.isArray(raw.revealed) && raw.revealed.length === OLD_GARDENS * 3) out.revealed = remap(raw.revealed, false);
+  if (Array.isArray(raw.gardens) && raw.gardens.length === OLD_GARDENS) { const g = Array(GARDENS.length).fill(null); raw.gardens.forEach((v, i) => { g[mapG(i)] = v; }); out.gardens = g; }
+  if (Array.isArray(raw.bestGarden) && raw.bestGarden.length === OLD_GARDENS) { const b = Array(GARDENS.length).fill(null); raw.bestGarden.forEach((v, i) => { b[mapG(i)] = v; }); out.bestGarden = b; }
+  if (Number.isInteger(raw.cur)) out.cur = mapG(raw.cur);
+  return out;
+}
 const isNum = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
 export function sanitize(raw) {
   try {
     const base = newGame();
     if (!raw || typeof raw !== 'object') return base;
+    raw = migrate(raw);
     if (Array.isArray(raw.got) && raw.got.length === CLOUD_COUNT) base.got = raw.got.map(Boolean);
     if (Array.isArray(raw.revealed) && raw.revealed.length === CLOUD_COUNT) base.revealed = raw.revealed.map(Boolean);
     base.got.forEach((v, i) => { if (v) base.revealed[i] = true; });
@@ -218,6 +278,9 @@ export function sanitize(raw) {
     if (isNum(raw.cur, 0, GARDENS.length - 1)) base.cur = raw.cur;
     while (base.cur > 0 && !isUnlocked(base, base.cur)) base.cur -= 1;
     base.finished = gotCount(base) === CLOUD_COUNT;
+    if (raw.outfit && typeof raw.outfit === 'object') {
+      for (const kind of ['coat', 'hat']) if (outfitUnlocked(base, kind, raw.outfit[kind])) base.outfit[kind] = raw.outfit[kind];
+    }
     updateReveals(base);
     return base;
   } catch { return newGame(); }

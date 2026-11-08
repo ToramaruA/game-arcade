@@ -7,7 +7,7 @@ const walk = (g, dirs) => dirs.reduce((s, d) => { const r = L.move(s, d); assert
 const N = 0, E = 1, S = 2, W = 3;
 
 test('マップは9x9で、開始位置・風見鶏・雲の位置が地面にある', () => {
-  assert.equal(L.GARDENS.length, 5);
+  assert.equal(L.GARDENS.length, 10);
   L.GARDENS.forEach((g, gi) => {
     assert.equal(g.rows.length, 9); g.rows.forEach((r) => assert.equal(r.length, 9));
     assert.equal(g.clouds.length, 3);
@@ -15,7 +15,7 @@ test('マップは9x9で、開始位置・風見鶏・雲の位置が地面に�
     assert.ok(g.rows.join('').includes('S'));
     assert.ok(g.rows.join('').includes('V'));
   });
-  assert.equal(L.CLOUD_COUNT, 15);
+  assert.equal(L.CLOUD_COUNT, 30);
 });
 
 test('風向き4種ごとの橋の通行判定', () => {
@@ -116,36 +116,38 @@ test('ひみつ雲：風を 北→東→南 の順に回したときだけ出る
   // 逆順（東→北…）では出ない：5回で止めた状態は未発見
 });
 
-test('最後の雲は他の14個を集めるまで出ない', () => {
-  const got = Array(15).fill(true); got[14] = false; got[13] = false;
+test('最後の雲は他のすべてを集めるまで出ない', () => {
+  const F = L.CLOUD_COUNT - 1;
+  const got = Array(L.CLOUD_COUNT).fill(true); got[F] = false; got[F - 1] = false;
   let g = { ...L.newGame(), got, revealed: got.slice() };
-  g = L.enterGarden(g, 4);
+  g = L.enterGarden(g, L.LAST);
   g = { ...g, revealed: g.revealed.slice() };
   const sanitized = L.sanitize(JSON.parse(JSON.stringify(g)));
-  assert.equal(sanitized.revealed[14], false);
-  const got2 = Array(15).fill(true); got2[14] = false;
-  assert.equal(L.sanitize({ got: got2 }).revealed[14], true);
+  assert.equal(sanitized.revealed[F], false);
+  const got2 = Array(L.CLOUD_COUNT).fill(true); got2[F] = false;
+  assert.equal(L.sanitize({ got: got2 }).revealed[F], true);
 });
 
-test('全15個を集めると finished になる', () => {
-  const got = Array(15).fill(true); got[14] = false;
-  let g = L.sanitize({ got, cur: 4 });
+test('全30個を集めると finished になる', () => {
+  const F = L.CLOUD_COUNT - 1;
+  const got = Array(L.CLOUD_COUNT).fill(true); got[F] = false;
+  let g = L.sanitize({ got, cur: L.LAST });
   g = L.turn(g).game; // 開始位置(1,4)は風見鶏(1,3)の隣。東風で橋が架かる
   g = walk(g, [E, E]); // 橋(2,4) → (3,4)
   assert.equal(g.finished, false);
-  assert.equal(g.gardens[4].x, 3);
+  assert.equal(g.gardens[L.LAST].x, 3);
   const r = L.move(g, E);
-  assert.deepEqual(r.collected, [14]);
+  assert.deepEqual(r.collected, [F]);
   assert.equal(r.game.finished, true);
 });
 
-test('全5庭：初期状態から3つの雲すべてに、風と歩行だけで到達できる（状態探索）', () => {
+test('全10庭：初期状態から3つの雲すべてに、風と歩行だけで到達できる（状態探索）', () => {
   L.GARDENS.forEach((g, gi) => {
     const r = L.exploreGarden(gi);
     assert.ok(r.complete, `${g.name}: 探索が打ち切られた`);
     assert.deepEqual(r.got, [0, 1, 2], `${g.name}: 取れない雲がある`);
     assert.ok(r.allTurns !== null);
-    if (gi < 4) assert.ok(r.gate, `${g.name}: 門に着けない`);
+    if (gi < L.LAST) assert.ok(r.gate, `${g.name}: 門に着けない`);
   });
 });
 
@@ -183,8 +185,8 @@ test('庭リセットで最初の状態に戻る（集めた雲と回数は残�
 test('保存データの復元：壊れていても安全に初期化される', () => {
   for (const bad of [null, 5, 'x', [], {}, { got: 3 }, { cur: 99, got: [true], gardens: 'a' }, { gardens: [null, 1, {}, [], { x: 'a' }] }]) {
     const g = L.sanitize(bad);
-    assert.equal(g.got.length, 15); assert.equal(g.gardens.length, 5);
-    assert.ok(g.cur >= 0 && g.cur < 5);
+    assert.equal(g.got.length, L.CLOUD_COUNT); assert.equal(g.gardens.length, L.GARDENS.length);
+    assert.ok(g.cur >= 0 && g.cur < L.GARDENS.length);
     assert.ok(L.isUnlocked(g, g.cur));
   }
   // 解放されていない庭にいる保存は戻される
@@ -197,4 +199,45 @@ test('保存データの復元：壊れていても安全に初期化される',
   const b = L.sanitize(JSON.parse(JSON.stringify(a)));
   assert.deepEqual(b.got, a.got);
   assert.deepEqual(b.gardens[0], a.gardens[0]);
+});
+
+test('追加の庭（6〜9）は、最初の庭より手数がかかる（中身の確認）', () => {
+  for (const gi of [4, 5, 6, 7, 8]) {
+    const r = L.exploreGarden(gi);
+    assert.ok(r.allTurns >= 3, `${L.GARDENS[gi].name}: ${r.allTurns}手で全部取れてしまう`);
+  }
+  assert.ok(L.exploreGarden(4).allTurns >= 10, '木漏れ日の森は綿毛どうしをぶつける長めの謎');
+  assert.ok(L.exploreGarden(8).allTurns >= 10, 'わたあめの島は綿毛を何度も押す長めの謎');
+});
+
+test('初版（5庭・15個）の保存は、夜空の花畑を最後の庭へ移して引き継ぐ', () => {
+  const got = Array(15).fill(false); got[0] = true; got[1] = true; got[12] = true; got[13] = true;
+  const g = L.sanitize({ got, cur: 4, gardens: [{}, {}, {}, {}, { x: 3, y: 4, wind: 1 }] });
+  assert.equal(g.got.length, 30);
+  assert.ok(g.got[0] && g.got[1]);
+  assert.ok(g.got[L.LAST * 3] && g.got[L.LAST * 3 + 1], '夜空の雲が最後の庭へ移る');
+  assert.equal(g.got.filter(Boolean).length, 4);
+  assert.ok(g.cur < L.LAST && L.isUnlocked(g, g.cur), '夜空はまだ解放されていないので、解放済みの庭に戻る');
+});
+
+test('着せ替え：集めた雲の数で解放、未解放は着られない、保存で戻る', () => {
+  let g = L.newGame();
+  assert.deepEqual(g.outfit, { coat: 'yellow', hat: 'none' });
+  assert.equal(L.outfitUnlocked(g, 'coat', 'sky'), false);
+  assert.deepEqual(L.setOutfit(g, 'coat', 'sky').outfit, g.outfit);
+  const some = { ...g, got: g.got.map((_, i) => i < 4) };
+  assert.ok(L.outfitUnlocked(some, 'coat', 'sky'));
+  const dressed = L.setOutfit(L.setOutfit(some, 'coat', 'sky'), 'hat', 'flower');
+  assert.deepEqual(dressed.outfit, { coat: 'sky', hat: 'flower' });
+  assert.equal(L.outfitOf(dressed).coat.name, 'そらいろ');
+  const back = L.sanitize(JSON.parse(JSON.stringify(dressed)));
+  assert.deepEqual(back.outfit, { coat: 'sky', hat: 'flower' });
+  // 未解放の着せ替えが保存に入っていても戻される
+  assert.deepEqual(L.sanitize({ outfit: { coat: 'rainbow', hat: 'star' } }).outfit, { coat: 'yellow', hat: 'none' });
+  // 増えた着せ替えの通知
+  assert.deepEqual(L.newOutfits(3, 4).map((o) => o.id), ['sky']);
+  assert.deepEqual(L.nextOutfit(L.newGame()), { ...L.HATS[1], kind: 'hat', left: 2 });
+  assert.ok(L.newOutfits(29, 30).some((o) => o.id === 'rainbow'));
+  // すべての着せ替えは雲30個以内で手に入る
+  [...L.COATS, ...L.HATS].forEach((o) => assert.ok(o.need <= L.CLOUD_COUNT));
 });

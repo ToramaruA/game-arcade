@@ -1,13 +1,13 @@
-// 5つの庭のデータ（9x9）。描画やDOMには依存しない。
+// 10の庭のデータ（9x9）。描画やDOMには依存しない。
 // 記号: . 虚空 / # 地面 / T 通れない物（木・岩・風車） / V 風見鶏 / F 綿毛の的（花壇・台座・蓮・星の台座）
 //       G 次の庭への門 / S 開始位置 / B 鈴の下（地面）
 // 風向き: 0=北 1=東 2=南 3=西（風見鶏を回すと 北→東→南→西 の順）
 // 雲の出現条件 reveal:
 //   visible … 最初から見える / bloom … 綿毛が的に入ると出る
-//   step … 指定のマス（に風 wind のとき）に立つと出る / seq … 風をその順に回すと出る / final … 他14個を集めると出る
+//   step … 指定のマス（に風 wind のとき）に立つと出る / seq … 風をその順に回すと出る / final … 他のすべての雲を集めると出る
 export const GARDENS = [
   {
-    id: 'dew', name: '朝露の丘', theme: 'dawn', obstacle: 'bush',
+    id: 'dew', name: '朝露の丘', intro: '風見鶏のそばで風を回すと、雲の橋が架かる', theme: 'dawn', obstacle: 'bush',
     rows: [
       '.........',
       '.........',
@@ -29,7 +29,7 @@ export const GARDENS = [
     hints: ['歩いてすぐの雲', '東風で架かる橋の先', '綿毛を東へ運び、花壇に入れる'],
   },
   {
-    id: 'bell', name: '鈴の回廊', theme: 'cream', obstacle: 'rock',
+    id: 'bell', name: '鈴の回廊', intro: '鈴の下に立つと何かが起きる', theme: 'cream', obstacle: 'rock', bed: 'bell',
     rows: [
       '.....####',
       '.....####',
@@ -52,7 +52,7 @@ export const GARDENS = [
     hints: ['南風のとき鈴の下に立つ', '北〜東風で伸びる橋の先', '綿毛を鈴の台座に当てる'],
   },
   {
-    id: 'mirror', name: '青い水鏡', theme: 'aqua', obstacle: 'rock',
+    id: 'mirror', name: '青い水鏡', intro: '池をまたぐ橋は、風向きで入れ替わる', theme: 'aqua', obstacle: 'rock', bed: 'lotus', pond: [3, 1, 5, 7],
     rows: [
       '.........',
       '###...###',
@@ -77,7 +77,7 @@ export const GARDENS = [
     hints: ['東風のとき、水面の影の上に立つ', '西風か東風で池の向こう岸へ橋が伸びる', '綿毛を蓮の花に運ぶ'],
   },
   {
-    id: 'mill', name: '夕焼けの風車', theme: 'sunset', obstacle: 'rock',
+    id: 'mill', name: '夕焼けの風車', intro: '台座の矢印の順に風を回してみよう', theme: 'sunset', obstacle: 'rock',
     rows: [
       '.........',
       '......###',
@@ -96,11 +96,130 @@ export const GARDENS = [
       { name: 'おいかぜ雲', say: 'びゅーん', x: 8, y: 1, reveal: { type: 'visible' }, hue: 15 },
       { name: 'ひみつ雲', say: 'ごろごろ', x: 3, y: 5, reveal: { type: 'seq', seq: [0, 1, 2] }, hue: 280 },
     ],
-    pedestal: { x: 4, y: 7 },
+    pedestal: { x: 4, y: 7, cloud: 2 },
     hints: ['風車の裏の小径', '南風の橋と北風の橋を乗り継ぐ', '台座の矢印の順（北→東→南）に風を回す'],
   },
   {
-    id: 'night', name: '夜空の花畑', theme: 'night', obstacle: 'rock',
+    id: 'forest', name: '木漏れ日の森', intro: '綿毛が2つ。ぶつかると止まる', theme: 'forest', obstacle: 'bush',
+    rows: [
+      '.........',
+      '.#######.',
+      '.###T###.',
+      '.###V###.',
+      '.S#####G.',
+      '.#T#F#T#.',
+      '.#F#####.',
+      '.........',
+      '.........',
+    ],
+    bridges: [],
+    fluff: [[5, 5], [5, 6]],
+    clouds: [
+      { name: 'きのこ雲', say: 'ぽこん', x: 7, y: 6, reveal: { type: 'visible' }, hue: 20 },
+      { name: 'こもれび雲', say: 'ちらちら', x: 1, y: 1, reveal: { type: 'bloom', bed: 0 }, hue: 70 },
+      { name: 'どんぐり雲', say: 'ころころ', x: 7, y: 1, reveal: { type: 'bloom', bed: 1 }, hue: 30 },
+    ],
+    hints: ['森の奥、ひだまりの角', '綿毛を真ん中の花壇へ', '綿毛どうしをぶつけて、左下の花壇まで運ぶ'],
+  },
+  {
+    id: 'snow', name: '雪の峰', intro: '谷の橋が風ごとに架け替わる。台座の順番も', theme: 'snow', obstacle: 'rock',
+    rows: [
+      '.........',
+      '.###.###.',
+      '.#V#.#V#.',
+      '.###.###.',
+      '.S##...#.',
+      '.###.###.',
+      '.#T#.#G#.',
+      '.###.###.',
+      '.........',
+    ],
+    bridges: [
+      { x: 4, y: 2, winds: [1, 3] }, { x: 4, y: 4, winds: [0] }, { x: 5, y: 4, winds: [0, 2] }, { x: 6, y: 4, winds: [2] }, { x: 4, y: 6, winds: [2, 3] },
+    ],
+    fluff: [],
+    clouds: [
+      { name: 'ゆきだま雲', say: 'ころん', x: 7, y: 1, reveal: { type: 'visible' }, hue: 200 },
+      { name: 'つらら雲', say: 'ぴきーん', x: 1, y: 7, reveal: { type: 'step', x: 3, y: 7, wind: 3 }, hue: 185 },
+      { name: 'おしるこ雲', say: 'あったかい', x: 5, y: 7, reveal: { type: 'seq', seq: [2, 3, 0] }, hue: 350 },
+    ],
+    pedestal: { x: 2, y: 4, cloud: 2 },
+    hints: ['東西の風で谷に橋が架かる', '西風のとき、谷のふちの角に立つ', '台座の矢印の順（南→西→北）に風を回す'],
+  },
+  {
+    id: 'sakura', name: '桜の段々畑', intro: '段々畑を風見鶏から風見鶏へ下っていく', theme: 'sakura', obstacle: 'bush',
+    rows: [
+      '###......',
+      '#V#......',
+      '#S##.....',
+      '..#V#....',
+      '..###....',
+      '##..#V#..',
+      '....###..',
+      '......#V#',
+      '......##G',
+    ],
+    bridges: [{ x: 3, y: 2, winds: [1] }, { x: 5, y: 4, winds: [2] }, { x: 7, y: 6, winds: [3] }, { x: 1, y: 3, winds: [2, 3] }, { x: 1, y: 4, winds: [3] }],
+    fluff: [],
+    clouds: [
+      { name: 'はなびら雲', say: 'ひらり', x: 4, y: 3, reveal: { type: 'visible' }, hue: 340 },
+      { name: 'おだんご雲', say: 'もぐもぐ', x: 6, y: 5, reveal: { type: 'step', x: 4, y: 5, wind: 2 }, hue: 15 },
+      { name: 'うぐいす雲', say: 'ほーほけきょ', x: 0, y: 5, reveal: { type: 'visible' }, hue: 90 },
+    ],
+    bells: [{ x: 4, y: 5 }],
+    hints: ['段を降りた先、花の下', '南風のとき鈴の下に立つ', '南風と西風の橋を乗り継いで崖下の畑へ'],
+  },
+  {
+    id: 'falls', name: '虹の滝', intro: '滝つぼの真ん中へ、橋を乗り継いで', theme: 'falls', obstacle: 'rock', pond: [2, 2, 6, 6],
+    rows: [
+      '####.####',
+      '#V#...#V#',
+      '##.....##',
+      '#.......#',
+      '#S..#..G#',
+      '#.......#',
+      '##.....##',
+      '#V#...#V#',
+      '####.####',
+    ],
+    bridges: [
+      { x: 4, y: 0, winds: [3] }, { x: 4, y: 8, winds: [1] },
+      { x: 2, y: 4, winds: [1] }, { x: 3, y: 4, winds: [1, 2] }, { x: 5, y: 4, winds: [3] }, { x: 6, y: 4, winds: [3, 0] },
+      { x: 4, y: 2, winds: [0] }, { x: 4, y: 3, winds: [0, 1] }, { x: 4, y: 5, winds: [2] }, { x: 4, y: 6, winds: [2, 3] },
+    ],
+    fluff: [],
+    clouds: [
+      { name: 'にじいろ雲', say: 'しゅわわ', x: 4, y: 4, reveal: { type: 'visible' }, hue: 280 },
+      { name: 'みずしぶき雲', say: 'ぱしゃっ', x: 8, y: 8, reveal: { type: 'visible' }, hue: 190 },
+      { name: 'たきのぼり雲', say: 'ざばーん', x: 8, y: 0, reveal: { type: 'step', x: 4, y: 4, wind: 3 }, hue: 120 },
+    ],
+    hints: ['滝つぼの真ん中の小島', '滝の向こう岸、下の角', '西風のとき、真ん中の小島に立つ'],
+  },
+  {
+    id: 'candy', name: 'わたあめの島', intro: '綿毛を何度も押して、遠くの花壇へ', theme: 'candy', obstacle: 'rock',
+    rows: [
+      '.........',
+      '.#####...',
+      '.#V###...',
+      '.#####.##',
+      '.S#B#..#G',
+      '.#F#T..##',
+      '.#####...',
+      '...#V#...',
+      '...###...',
+    ],
+    bridges: [{ x: 5, y: 4, winds: [1] }, { x: 6, y: 4, winds: [1, 2] }, { x: 6, y: 3, winds: [0] }],
+    fluff: [[2, 6]],
+    clouds: [
+      { name: 'あめだま雲', say: 'ころりん', x: 5, y: 6, reveal: { type: 'visible' }, hue: 320 },
+      { name: 'わたあめ雲', say: 'ふわっふわ', x: 7, y: 3, reveal: { type: 'step', x: 3, y: 4, wind: 3 }, hue: 300 },
+      { name: 'こんぺいとう雲', say: 'ちくちく', x: 1, y: 6, reveal: { type: 'bloom', bed: 0 }, hue: 50 },
+    ],
+    bells: [{ x: 3, y: 4 }],
+    hints: ['島のはしっこ、あまい匂い', '西風のとき鈴の下に立つ', '綿毛を何度も風で押して、左の花壇へ'],
+  },
+  {
+    id: 'night', name: '夜空の花畑', intro: '最後の庭。光る道の先へ', theme: 'night', obstacle: 'rock',
     rows: [
       '.........',
       '.........',
@@ -120,6 +239,6 @@ export const GARDENS = [
       { name: 'おかえり雲', say: 'おかえり！', x: 4, y: 4, reveal: { type: 'final' }, hue: 340 },
     ],
     centerFlower: { x: 4, y: 4 },
-    hints: ['光る道の先で待っている', '東風と西風で交互に伸びる橋', '14個集めると花が咲く'],
+    hints: ['光る道の先で待っている', '東風と西風で交互に伸びる橋', 'ほかの雲を全部集めると花が咲く'],
   },
 ];

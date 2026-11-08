@@ -17,7 +17,7 @@ const audio = createAudio(store);
 
 let game = L.newGame();
 if (OG) {
-  game = L.sanitize({ cur: 0, got: [true, ...Array(14).fill(false)], gardens: [{ x: 3, y: 4, wind: 1, fluff: [[3, 6]], bloom: [true], turns: 3 }, {}, {}, {}, {}] });
+  game = L.sanitize({ cur: 0, got: [true, ...Array(L.CLOUD_COUNT - 1).fill(false)], gardens: [{ x: 3, y: 4, wind: 1, fluff: [[3, 6]], bloom: [true], turns: 3 }, ...Array(GARDENS.length - 1).fill({})] });
 } else {
   try { game = L.sanitize(JSON.parse(store.getItem(SAVE) || 'null')); } catch { game = L.newGame(); }
 }
@@ -69,7 +69,7 @@ function toast(msg, ms = 2400) {
 function updateHud() {
   const gi = game.cur; const g = GARDENS[gi]; const gs = game.gardens[gi];
   $('gname').innerHTML = `${g.name} <b>${L.gardenGot(game, gi)}/3</b>`;
-  $('total').innerHTML = `☁ <b>${L.gotCount(game)}/15</b>`;
+  $('total').innerHTML = `☁ <b>${L.gotCount(game)}/${L.CLOUD_COUNT}</b>`;
   $('compassArrow').textContent = '↑';
   $('compassName').textContent = WIND_NAMES[gs.wind];
   $('compassArrow').style.display = 'inline-block';
@@ -85,7 +85,8 @@ function updateHud() {
   [...tabs.children].forEach((b, i) => {
     const open = L.isUnlocked(game, i);
     b.disabled = !open; b.setAttribute('aria-current', String(i === gi));
-    b.textContent = open ? `${i + 1} ${GARDENS[i].name}` : `${i + 1} 🔒`;
+    b.textContent = open ? (i === gi ? `${i + 1} ${GARDENS[i].name}` : `${i + 1}${L.gardenGot(game, i) === 3 ? '★' : ''}`) : `${i + 1}🔒`;
+    b.title = open ? GARDENS[i].name : '';
     b.setAttribute('aria-label', open ? `${i + 1}の庭 ${GARDENS[i].name}` : `${i + 1}の庭は鍵がかかっています`);
   });
   const can = L.canTurn(game);
@@ -113,6 +114,7 @@ function doMove(dir) {
   if (now < anim.lockUntil) return false;
   const gi = game.cur; const prev = { x: game.gardens[gi].x, y: game.gardens[gi].y };
   const r = L.move(game, dir);
+  const before = L.gotCount(game);
   anim.facing = [DIRS[dir][0] - DIRS[dir][1], DIRS[dir][0] + DIRS[dir][1]];
   if (r.result === 'blocked') { audio.bump(); bump(dir); return false; }
   everMoved = true;
@@ -126,6 +128,10 @@ function doMove(dir) {
   } else if (r.result === 'gate') {
     game.gardens[gi].x = prev.x; game.gardens[gi].y = prev.y; // 戻ったとき門の上に立たない
     audio.gate(); sail(r.to, true);
+  }
+  if (r.collected.length) {
+    const fresh = L.newOutfits(before, L.gotCount(game));
+    if (fresh.length) { setTimeout(() => toast(`👒 着せ替えが増えた：${fresh.map((o) => (o.kind === 'coat' ? `${o.name}の合羽` : o.name)).join('・')}`, 3200), 3000); $('wardNew').hidden = false; }
   }
   if (r.collected.length && game.finished && !celebrate) startFinale();
   save(); updateHud();
@@ -170,8 +176,8 @@ function onCollect(id) {
   audio.collect(L.gotCount(game));
   const [sx, sy] = toScreen(game.gardens[game.cur].x + 0.5, game.gardens[game.cur].y + 0.5, 30);
   fx.push({ type: 'orb', t0: performance.now(), x: sx, y: sy, hue: c.hue, id });
-  toast(`${c.name}を連れ帰った「${c.say}」 ${L.gotCount(game)}/15`, 2800);
-  if (L.gardenGot(game, gi) === L.UNLOCK_NEED && gi < 4) setTimeout(() => toast(`${GARDENS[gi + 1].name}への門が光った`, 2400), 1500);
+  toast(`${c.name}を連れ帰った「${c.say}」 ${L.gotCount(game)}/${L.CLOUD_COUNT}`, 2800);
+  if (L.gardenGot(game, gi) === L.UNLOCK_NEED && gi < L.LAST) setTimeout(() => toast(`${GARDENS[gi + 1].name}への門が光った`, 2400), 1500);
 }
 function sparkle(x, y, n, color, speed) {
   const k = reduce ? 0.4 : 1;
@@ -186,7 +192,7 @@ function sail(to, viaGate) {
     game = L.enterGarden(game, to);
     if (viaGate) { const info = L.gardenInfo(to); game.gardens[to].x = info.start[0]; game.gardens[to].y = info.start[1]; }
     resetAnim(); view.gi = -1; save(); updateHud();
-    toast(`${GARDENS[to].name}`, 1800);
+    toast(GARDENS[to].intro ? `${GARDENS[to].name}：${GARDENS[to].intro}` : `${GARDENS[to].name}`, GARDENS[to].intro ? 4200 : 1800);
     setTimeout(() => { f.classList.remove('on'); fading = false; }, 120);
   }, reduce ? 60 : 480);
 }
@@ -194,13 +200,13 @@ function travel(i) { if (i !== game.cur && L.isUnlocked(game, i)) { audio.gate()
 
 function startFinale() {
   celebrate = performance.now(); audio.finale();
-  toast('15個そろった！ 花畑に小さな合奏が響く', 4500);
+  toast(`${L.CLOUD_COUNT}個そろった！ 花畑に小さな合奏が響く`, 4500);
   setTimeout(() => { openCard(); }, 6500);
 }
 
 function pump() {
   const now = performance.now();
-  if (held.length && now - lastStep >= STEP_MS && !fading && dex.hidden && cardModal.hidden) { if (doMove(held[held.length - 1])) lastStep = now; else lastStep = now + 80; }
+  if (held.length && now - lastStep >= STEP_MS && !fading && dex.hidden && cardModal.hidden && ward.hidden) { if (doMove(held[held.length - 1])) lastStep = now; else lastStep = now + 80; }
 }
 // キーボード
 const KEYS = { ArrowUp: 0, ArrowRight: 1, ArrowDown: 2, ArrowLeft: 3, w: 0, d: 1, s: 2, a: 3, W: 0, D: 1, S: 2, A: 3 };
@@ -238,8 +244,41 @@ function toggleMute() { audio.setMuted(!audio.state.muted); updateHud(); }
 $('muteBtn').addEventListener('click', toggleMute);
 
 // ---------- 図鑑・結果カード ----------
-const dex = $('dex'); const cardModal = $('cardModal');
-function closeModals() { dex.hidden = true; cardModal.hidden = true; }
+const dex = $('dex'); const cardModal = $('cardModal'); const ward = $('ward');
+function closeModals() { dex.hidden = true; cardModal.hidden = true; ward.hidden = true; }
+function previewCanvas(c, outfit, size) {
+  const g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height);
+  const k = c.width / size; g.save(); g.scale(k, k);
+  const bg = g.createRadialGradient(size / 2, size * 0.55, 4, size / 2, size * 0.55, size * 0.6); bg.addColorStop(0, '#fff8e8'); bg.addColorStop(1, '#dff0ff'); g.fillStyle = bg; g.fillRect(0, 0, size, size);
+  g.translate(size / 2, size * 0.78); g.scale(size / 64, size / 64); R.drawPlayer(g, 0, 0, 0, false, [0, 0], true, outfit); g.restore();
+}
+function openWard() {
+  const cur = L.outfitOf(game); previewCanvas($('wardPreview'), cur, 64);
+  const nx = L.nextOutfit(game);
+  $('wardMsg').innerHTML = nx ? `次の着せ替え：<b>${nx.kind === 'coat' ? `${nx.name}の合羽` : nx.name}</b>まで、雲あと<b>${nx.left}</b>個` : 'すべての着せ替えがそろった！';
+  const n = L.gotCount(game);
+  const fill = (el, kind, list) => {
+    el.textContent = '';
+    list.forEach((o) => {
+      const open = L.outfitUnlocked(game, kind, o.id); const on = (kind === 'coat' ? cur.coat.id : cur.hat.id) === o.id;
+      const b = document.createElement('button'); b.type = 'button'; b.className = `ward-item${on ? ' on' : ''}${open ? '' : ' locked'}`; b.disabled = !open;
+      b.setAttribute('aria-pressed', String(on)); b.setAttribute('aria-label', open ? o.name : `${o.name}（雲${o.need}個で使える）`);
+      const c = document.createElement('canvas'); c.width = 96; c.height = 96;
+      previewCanvas(c, kind === 'coat' ? { coat: o, hat: cur.hat } : { coat: cur.coat, hat: o }, 64);
+      if (!open) { const g = c.getContext('2d'); g.fillStyle = 'rgba(230,236,245,.45)'; g.fillRect(0, 0, 96, 96); }
+      b.appendChild(c);
+      const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = open ? o.name : `🔒${o.name}（${o.need}個）`; b.appendChild(nm);
+      b.addEventListener('click', () => { game = L.setOutfit(game, kind, o.id); save(); audio.found?.(); openWard(); });
+      el.appendChild(b);
+    });
+  };
+  fill($('wardCoats'), 'coat', L.COATS); fill($('wardHats'), 'hat', L.HATS);
+  $('wardNew').hidden = true;
+  const wasHidden = ward.hidden; ward.hidden = false; if (wasHidden) $('wardClose').focus();
+}
+$('wardBtn').addEventListener('click', openWard);
+$('wardClose').addEventListener('click', closeModals);
+ward.addEventListener('click', (e) => { if (e.target === ward) closeModals(); });
 function openDex() {
   const body = $('dexBody'); body.textContent = '';
   GARDENS.forEach((g, gi) => {
@@ -260,8 +299,8 @@ function openDex() {
     });
     sec.appendChild(row); body.appendChild(sec);
   });
-  const n = L.gotCount(game); $('dexCount').textContent = `${n}/15`;
-  if (n >= 13 && n < 15) { const d = document.createElement('div'); d.className = 'locked'; const miss = GARDENS.map((g, gi) => [g, gi, L.gardenGot(game, gi)]).filter((a) => a[2] < 3).map((a) => `${a[0].name}（あと${3 - a[2]}）`); d.textContent = `あと少し！ まだ見つけていない雲：${miss.join('、')}`; body.prepend(d); }
+  const n = L.gotCount(game); $('dexCount').textContent = `${n}/${L.CLOUD_COUNT}`;
+  if (n >= L.CLOUD_COUNT - 3 && n < L.CLOUD_COUNT) { const d = document.createElement('div'); d.className = 'locked'; const miss = GARDENS.map((g, gi) => [g, gi, L.gardenGot(game, gi)]).filter((a) => a[2] < 3).map((a) => `${a[0].name}（あと${3 - a[2]}）`); d.textContent = `あと少し！ まだ見つけていない雲：${miss.join('、')}`; body.prepend(d); }
   dex.hidden = false; $('dexClose').focus();
 }
 $('dexBtn').addEventListener('click', openDex);
@@ -279,17 +318,17 @@ function makeCard() {
   const n = L.gotCount(game);
   g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = 'bold 64px sans-serif'; g.fillText('風の庭と迷子の雲', 600, 120);
   const cx = 600; const cy = 330;
-  for (let i = 0; i < 15; i++) {
-    const a = (i / 15) * Math.PI * 2 - Math.PI / 2; const rr = 190; const x = cx + Math.cos(a) * rr * 1.45; const y = cy + Math.sin(a) * rr * 0.62;
+  for (let i = 0; i < L.CLOUD_COUNT; i++) {
+    const a = (i / L.CLOUD_COUNT) * Math.PI * 2 - Math.PI / 2; const rr = 190; const x = cx + Math.cos(a) * rr * 1.45; const y = cy + Math.sin(a) * rr * 0.62;
     const cl = GARDENS[Math.floor(i / 3)].clouds[i % 3];
-    if (game.got[i]) { const gl = g.createRadialGradient(x, y, 4, x, y, 46); gl.addColorStop(0, `hsla(${cl.hue},100%,85%,.8)`); gl.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gl; g.beginPath(); g.arc(x, y, 46, 0, 7); g.fill(); R.drawCloudBody(g, x, y, 30, cl.hue, true); }
-    else { g.globalAlpha = 0.35; R.drawCloudBody(g, x, y, 26, 230, false); g.globalAlpha = 1; }
+    if (game.got[i]) { const gl = g.createRadialGradient(x, y, 4, x, y, 34); gl.addColorStop(0, `hsla(${cl.hue},100%,85%,.8)`); gl.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gl; g.beginPath(); g.arc(x, y, 34, 0, 7); g.fill(); R.drawCloudBody(g, x, y, 20, cl.hue, true); }
+    else { g.globalAlpha = 0.35; R.drawCloudBody(g, x, y, 17, 230, false); g.globalAlpha = 1; }
   }
-  R.drawFlower(g, cx, cy + 40, 2.4, n === 15 ? '#fff0a0' : '#aab3ff', '#ffb0e8', 0);
-  g.fillStyle = '#fff'; g.font = 'bold 54px sans-serif'; g.fillText(`見つけた雲 ${n}/15`, 600, 520);
+  R.drawFlower(g, cx, cy + 40, 2.4, n === L.CLOUD_COUNT ? '#fff0a0' : '#aab3ff', '#ffb0e8', 0);
+  g.fillStyle = '#fff'; g.font = 'bold 54px sans-serif'; g.fillText(`見つけた雲 ${n}/${L.CLOUD_COUNT}`, 600, 520);
   g.font = '30px sans-serif'; g.fillStyle = '#dfe6ff';
   const visited = GARDENS.filter((_, i) => L.isUnlocked(game, i)).length;
-  g.fillText(`風を回した回数 ${L.totalTurns(game)}回　訪れた庭 ${visited}/5`, 600, 575);
+  g.fillText(`風を回した回数 ${L.totalTurns(game)}回　訪れた庭 ${visited}/${GARDENS.length}`, 600, 575);
   return c;
 }
 function openCard() {
@@ -322,7 +361,7 @@ function draw(now) {
 
   ctx.save(); ctx.translate(view.ox, view.oy); ctx.scale(view.scale, view.scale);
   const near = L.canTurn(game); const pv = near ? L.windPreview(game) : null;
-  const pond = R.POND[gi];
+  const pond = R.pondOf(gi);
   const items = [];
   for (let y = 0; y < L.SIZE; y++) for (let x = 0; x < L.SIZE; x++) {
     const c = L.cellAt(gi, x, y); const d = x + y;
@@ -347,9 +386,9 @@ function draw(now) {
     }
   });
   (g.bells || []).forEach((b) => items.push({ d: b.x + b.y + 0.04, f: () => R.drawBell(ctx, b.x, b.y, t, gs.wind === 2, reduce) }));
-  if (g.pedestal) items.push({ d: g.pedestal.x + g.pedestal.y + 0.05, f: () => R.drawPedestal(ctx, g.pedestal.x, g.pedestal.y, gs.hist, t) });
-  if (g.centerFlower) { const st = game.got[14] ? 2 : L.gotCount(game) >= L.FINAL_NEED ? 1 : 0; items.push({ d: g.centerFlower.x + g.centerFlower.y + 0.03, f: () => R.drawCenterFlower(ctx, g.centerFlower.x, g.centerFlower.y, st, t, reduce) }); }
-  if (gi === 4 && game.finished) for (let i = 0; i < 14; i++) { const x = (i * 5) % 9; const y = (i * 7) % 9; if (L.isGround(gi, x, y) && L.cellAt(gi, x, y) === '#' && !(x === gs.x && y === gs.y)) items.push({ d: x + y + 0.02, f: () => { const [cx, cy] = R.proj(x + 0.5, y + 0.5); R.drawFlower(ctx, cx + 8, cy + 3, 0.7, ['#fff0a0', '#9ff0ff', '#ffb0f0'][i % 3], '#fff', 0); } }); }
+  if (g.pedestal) items.push({ d: g.pedestal.x + g.pedestal.y + 0.05, f: () => R.drawPedestal(ctx, g.pedestal.x, g.pedestal.y, gs.hist, t, g.clouds[g.pedestal.cloud].reveal.seq) });
+  if (g.centerFlower) { const st = game.got[L.CLOUD_COUNT - 1] ? 2 : L.gotCount(game) >= L.FINAL_NEED ? 1 : 0; items.push({ d: g.centerFlower.x + g.centerFlower.y + 0.03, f: () => R.drawCenterFlower(ctx, g.centerFlower.x, g.centerFlower.y, st, t, reduce) }); }
+  if (gi === L.LAST && game.finished) for (let i = 0; i < 14; i++) { const x = (i * 5) % 9; const y = (i * 7) % 9; if (L.isGround(gi, x, y) && L.cellAt(gi, x, y) === '#' && !(x === gs.x && y === gs.y)) items.push({ d: x + y + 0.02, f: () => { const [cx, cy] = R.proj(x + 0.5, y + 0.5); R.drawFlower(ctx, cx + 8, cy + 3, 0.7, ['#fff0a0', '#9ff0ff', '#ffb0f0'][i % 3], '#fff', 0); } }); }
   anim.fluff.forEach((f) => items.push({ d: f[0] + f[1] + 0.3, f: () => { const [cx, cy] = R.proj(f[0] + 0.5, f[1] + 0.5); R.drawFluff(ctx, cx, cy, t, reduce); } }));
   g.clouds.forEach((c, k) => {
     const id = L.cloudId(gi, k);
@@ -358,7 +397,7 @@ function draw(now) {
   // 主人公（弾かれたときの小さな揺れ）
   let bumpOff = [0, 0]; const bt = (now - bumpFx.t) / 1000;
   if (bt < 0.25 && !reduce) { const a = Math.sin(bt / 0.25 * Math.PI) * 5; bumpOff = [-(DIRS[bumpFx.dir][0] - DIRS[bumpFx.dir][1]) * a * 0.5, -(DIRS[bumpFx.dir][0] + DIRS[bumpFx.dir][1]) * a * 0.25]; }
-  items.push({ d: anim.px + anim.py + 0.4, f: () => { const [cx, cy] = R.proj(anim.px + 0.5, anim.py + 0.5); R.drawPlayer(ctx, cx + bumpOff[0], cy + bumpOff[1], t, anim.moving, anim.facing, reduce); } });
+  items.push({ d: anim.px + anim.py + 0.4, f: () => { const [cx, cy] = R.proj(anim.px + 0.5, anim.py + 0.5); R.drawPlayer(ctx, cx + bumpOff[0], cy + bumpOff[1], t, anim.moving, anim.facing, reduce, L.outfitOf(game)); } });
   items.sort((a, b) => a.d - b.d);
   items.forEach((it) => it.f());
   if (near) { // 風見鶏が使えるときの足元の輪
@@ -400,9 +439,9 @@ function drawFx(now, t) {
       R.drawCloudBody(ctx, x, y, 11, f.hue, true);
     }
   }
-  if (celebrate && now - celebrate < 7000 && game.cur === 4) {
-    const gs = game.gardens[4]; const [cx, cy] = toScreen(gs.x + 0.5, gs.y + 0.5, 40); const k = (now - celebrate) / 1000;
-    for (let i = 0; i < 15; i++) { const cl = GARDENS[Math.floor(i / 3)].clouds[i % 3]; const a = k * 0.9 + (i / 15) * Math.PI * 2; const rr = 70 + Math.min(1, k / 2) * 60; ctx.globalAlpha = Math.min(1, k) ; R.drawCloudBody(ctx, cx + Math.cos(a) * rr * 1.5, cy + Math.sin(a) * rr * 0.6 - 20, 10, cl.hue, true); }
+  if (celebrate && now - celebrate < 7000 && game.cur === L.LAST) {
+    const gs = game.gardens[L.LAST]; const [cx, cy] = toScreen(gs.x + 0.5, gs.y + 0.5, 40); const k = (now - celebrate) / 1000;
+    for (let i = 0; i < L.CLOUD_COUNT; i++) { const cl = GARDENS[Math.floor(i / 3)].clouds[i % 3]; const a = k * 0.9 + (i / L.CLOUD_COUNT) * Math.PI * 2; const rr = 70 + Math.min(1, k / 2) * 60; ctx.globalAlpha = Math.min(1, k) ; R.drawCloudBody(ctx, cx + Math.cos(a) * rr * 1.5, cy + Math.sin(a) * rr * 0.6 - 20, 10, cl.hue, true); }
     ctx.globalAlpha = 1;
   }
 }
@@ -412,6 +451,6 @@ new ResizeObserver(resize).observe(cv);
 resize();
 if (new URLSearchParams(location.search).get('og') === '1') { everMoved = true; }
 resetAnim(); updateHud();
-if (!OG && L.gotCount(game) === 0 && game.gardens[0].turns === 0) toast('迷子の雲を15個、見つけよう', 3500);
+if (!OG && L.gotCount(game) === 0 && game.gardens[0].turns === 0) toast(`迷子の雲を${L.CLOUD_COUNT}個、見つけよう`, 3500);
 document.addEventListener('visibilitychange', () => { held.length = 0; });
 requestAnimationFrame(draw);
