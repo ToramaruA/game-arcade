@@ -54,70 +54,175 @@ function facet(ctx, pts, tone, alpha = 1, glow = 0) {
 }
 
 // ───── 獣の絵（当たり判定なし）─────
-function beastShapes(key) {
-  const sh = [];
-  const poly = (pts, tone, a = 0.55) => sh.push({ pts, tone, a });
-  const ell = (cx, cy, rx, ry, n = 14, rot = 0) => Array.from({ length: n }, (_, i) => {
-    const t = (i / n) * Math.PI * 2 + rot;
-    return [cx + Math.cos(t) * rx, cy + Math.sin(t) * ry];
-  });
-  const rect = (cx, cy, w, h, d = 0) => {
-    const c = Math.cos((d * Math.PI) / 180); const s = Math.sin((d * Math.PI) / 180);
-    return [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]].map(([x, y]) => [cx + x * c - y * s, cy + x * s + y * c]);
-  };
-  if (key === 'deer') {
-    for (const x of [212, 262, 378, 428]) poly([[x - 9, 360], [x + 9, 360], [x + 6, 505], [x - 6, 505]], 'ruby', 0.5);
-    for (const x of [212, 428]) poly([[x - 12, 500], [x + 12, 500], [x + 8, 512], [x - 8, 512]], 'gold', 0.5);
-    poly(ell(320, 318, 150, 78, 12), 'ruby', 0.58);
-    poly(ell(320, 318, 96, 48, 8, 0.4), 'ruby', 0.7);
-    poly(ell(320, 330, 55, 28, 6), 'gold', 0.3);
-    poly([[286, 262], [354, 262], [364, 190], [276, 190]], 'ruby', 0.55);
-    poly([[276, 190], [364, 190], [348, 118], [292, 118]], 'ruby', 0.7);
-    poly([[292, 118], [348, 118], [320, 88]], 'gold', 0.6);
-    poly([[276, 160], [222, 138], [266, 186]], 'ruby', 0.55); poly([[364, 160], [418, 138], [374, 186]], 'ruby', 0.55);
-    for (const sgn of [-1, 1]) {
-      const x0 = 320 + sgn * 28;
-      poly([[x0, 120], [x0 + sgn * 36, 96], [x0 + sgn * 110, 86], [x0 + sgn * 170, 110], [x0 + sgn * 110, 100], [x0 + sgn * 40, 116]], 'peacock', 0.85);
-      poly([[x0 + sgn * 100, 92], [x0 + sgn * 120, 74], [x0 + sgn * 130, 96]], 'peacock', 0.85);
-      poly([[x0 + sgn * 68, 94], [x0 + sgn * 74, 70], [x0 + sgn * 86, 94]], 'peacock', 0.85);
-      poly([[x0 + sgn * 150, 106], [x0 + sgn * 176, 150], [x0 + sgn * 160, 150]], 'peacock', 0.75);
-    }
-  } else if (key === 'snake') {
-    const pts = [[120, 150], [300, 130], [470, 190], [520, 300], [420, 360], [200, 350], [110, 430], [200, 520], [400, 520]];
-    for (let i = 0; i < pts.length - 1; i++) {
-      const [x0, y0] = pts[i]; const [x1, y1] = pts[i + 1];
-      const ang = Math.atan2(y1 - y0, x1 - x0); const w = 30 - i * 1.5;
-      const nx = -Math.sin(ang) * w; const ny = Math.cos(ang) * w;
-      poly([[x0 + nx, y0 + ny], [x1 + nx, y1 + ny], [x1 - nx, y1 - ny], [x0 - nx, y0 - ny]], i % 2 ? 'peacock' : 'jade', 0.5);
-      poly([[x0, y0], [x1, y1], [x0 + nx * 0.5, y0 + ny * 0.5]], 'gold', 0.22);
-    }
-    poly(ell(120, 140, 44, 30, 10, 0.4), 'peacock', 0.62); // 頭A
-    poly(ell(404, 524, 40, 28, 10, 0.2), 'peacock', 0.62); // 頭B（二つの蛇頭）
-    poly([[420, 520], [460, 510], [440, 530]], 'ruby', 0.7);
-    poly([[102, 135], [92, 120], [112, 124]], 'gold', 0.8);
-  } else {
-    poly(ell(320, 300, 70, 150, 12), 'purple', 0.5); // 胴
-    poly(ell(320, 130, 70, 62, 12), 'purple', 0.6); // 顔
-    poly(ell(320, 330, 40, 90, 10), 'gold', 0.2);
-    poly([[300, 118], [340, 118], [320, 150]], 'gold', 0.7);
-    poly(ell(290, 122, 14, 14, 6), 'gold', 0.6); poly(ell(350, 122, 14, 14, 6), 'gold', 0.6);
-    poly([[270, 72], [300, 92], [280, 100]], 'purple', 0.7); poly([[370, 72], [340, 92], [360, 100]], 'purple', 0.7);
-    for (const sgn of [-1, 1]) {
-      for (let i = 0; i < 5; i++) {
-        const y0 = 190 + i * 36; const xo = 70 + i * 6;
-        poly([[320 + sgn * xo, y0], [320 + sgn * (xo + 210 - i * 22), y0 - 30 + i * 28], [320 + sgn * (xo + 190 - i * 22), y0 + 12 + i * 28], [320 + sgn * xo, y0 + 40]], i % 2 ? 'peacock' : 'purple', 0.5);
-      }
+// 太さのある折れ線（帯）を四角形の列にする
+function strip(line, w0, w1 = w0) {
+  const out = [];
+  for (let i = 0; i < line.length - 1; i++) {
+    const [x0, y0] = line[i]; const [x1, y1] = line[i + 1];
+    const ang = Math.atan2(y1 - y0, x1 - x0);
+    const wa = w0 + (w1 - w0) * (i / (line.length - 1)); const wb = w0 + (w1 - w0) * ((i + 1) / (line.length - 1));
+    const nx = -Math.sin(ang); const ny = Math.cos(ang);
+    out.push([[x0 + nx * wa, y0 + ny * wa], [x1 + nx * wb, y1 + ny * wb], [x1 - nx * wb, y1 - ny * wb], [x0 - nx * wa, y0 - ny * wa]]);
+  }
+  return out;
+}
+const ell = (cx, cy, rx, ry, n = 14, rot = 0) => Array.from({ length: n }, (_, i) => {
+  const t = (i / n) * Math.PI * 2 + rot;
+  return [cx + Math.cos(t) * rx, cy + Math.sin(t) * ry];
+});
+const mirrorX = (pts) => pts.map(([x, y]) => [640 - x, y]);
+function smooth(line, k = 4) {
+  const out = [];
+  for (let i = 0; i < line.length - 1; i++) {
+    const p0 = line[Math.max(0, i - 1)]; const p1 = line[i]; const p2 = line[i + 1]; const p3 = line[Math.min(line.length - 1, i + 2)];
+    for (let j = 0; j < k; j++) {
+      const t = j / k; const t2 = t * t; const t3 = t2 * t;
+      const f = (a, b, c, d) => 0.5 * ((2 * b) + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+      out.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])]);
     }
   }
-  return sh;
+  out.push(line[line.length - 1]);
+  return out;
+}
+
+function beastShapes(key) {
+  const sh = []; const eyes = [];
+  const poly = (pts, tone, a = 0.55) => sh.push({ pts, tone, a });
+  const both = (pts, tone, a) => { poly(pts, tone, a); poly(mirrorX(pts), tone, a); };
+  // 後ろの丸窓（光輪）
+  const halo = (cx, cy, r0, r1, n, tones) => {
+    for (let i = 0; i < n; i++) {
+      const t0 = (i / n) * Math.PI * 2; const t1 = ((i + 1) / n) * Math.PI * 2;
+      poly([[cx + Math.cos(t0) * r0, cy + Math.sin(t0) * r0], [cx + Math.cos(t0) * r1, cy + Math.sin(t0) * r1], [cx + Math.cos(t1) * r1, cy + Math.sin(t1) * r1], [cx + Math.cos(t1) * r0, cy + Math.sin(t1) * r0]], tones[i % tones.length], 0.5);
+    }
+  };
+  if (key === 'deer') {
+    halo(320, 175, 112, 150, 16, ['gold', 'peacock', 'ruby', 'peacock']);
+    // 脚（細い脚と関節、金のひづめ）
+    for (const x of [222, 268, 372, 418]) {
+      const lean = x < 320 ? -4 : 4;
+      strip([[x, 362], [x + lean * 2.5, 420], [x - lean, 452], [x + lean * 0.5, 498]], 10, 5).forEach((q, i) => poly(q, i ? 'ruby' : 'ruby', i ? 0.62 : 0.5));
+      poly([[x + lean * 0.5 - 9, 496], [x + lean * 0.5 + 9, 496], [x + lean * 0.5 + 7, 512], [x + lean * 0.5 - 7, 512]], 'gold', 0.75);
+    }
+    // 胴と肩
+    poly(ell(320, 322, 156, 74, 16), 'ruby', 0.5);
+    both([[200, 300], [262, 262], [292, 300], [250, 372], [196, 356]], 'ruby', 0.68);
+    poly([[292, 280], [348, 280], [366, 340], [320, 380], [274, 340]], 'ruby', 0.8);
+    // 子鹿の白い斑点
+    for (const [x, y] of [[214, 318], [240, 296], [232, 344], [404, 300], [426, 324], [396, 346]]) sh.push({ pts: ell(x, y, 6, 4, 8), tone: 'silver', a: 0.55, spot: true });
+    // 首
+    poly([[292, 234], [348, 234], [362, 290], [278, 290]], 'ruby', 0.7);
+    poly([[306, 240], [334, 240], [338, 286], [302, 286]], 'silver', 0.28);
+    // 角（枝分かれ）
+    for (const sg of [-1, 1]) {
+      const X = (x) => 320 + sg * x;
+      strip([[X(26), 126], [X(54), 96], [X(92), 74], [X(140), 64], [X(186), 74]], 8, 4).forEach((q) => poly(q, 'peacock', 0.9));
+      strip([[X(58), 94], [X(60), 58], [X(72), 34]], 5, 3).forEach((q) => poly(q, 'peacock', 0.9));
+      strip([[X(100), 72], [X(112), 42], [X(130), 24]], 5, 3).forEach((q) => poly(q, 'peacock', 0.9));
+      strip([[X(150), 66], [X(176), 42], [X(204), 34]], 4, 2.5).forEach((q) => poly(q, 'peacock', 0.9));
+      strip([[X(182), 74], [X(208), 94], [X(214), 120]], 4, 2.5).forEach((q) => poly(q, 'peacock', 0.85));
+    }
+    // 耳
+    both([[284, 134], [222, 112], [236, 138], [284, 156]], 'ruby', 0.75);
+    both([[276, 136], [236, 120], [246, 136], [278, 148]], 'silver', 0.4);
+    // 頭
+    poly([[280, 116], [360, 116], [374, 150], [356, 206], [338, 240], [302, 240], [284, 206], [266, 150]], 'ruby', 0.82);
+    poly([[300, 120], [340, 120], [332, 176], [320, 186], [308, 176]], 'gold', 0.35); // 額の金の飾り
+    poly([[302, 206], [338, 206], [334, 238], [306, 238]], 'silver', 0.45); // 鼻先
+    poly([[310, 226], [330, 226], [326, 236], [314, 236]], 'lead', 0.95); // 鼻
+    eyes.push({ x: 298, y: 170, r: 9, c: '#FFE9A8', almond: -0.35 }, { x: 342, y: 170, r: 9, c: '#FFE9A8', almond: 0.35 });
+  } else if (key === 'snake') {
+    const line = [[150, 160], [300, 136], [460, 190], [520, 296], [420, 362], [210, 352], [118, 432], [196, 516], [352, 534], [430, 520]];
+    const segs = strip(smooth(line), 30, 16);
+    segs.forEach((q, i) => {
+      poly(q, Math.floor(i / 2) % 2 ? 'peacock' : 'jade', 0.62);
+      // 腹の金の帯
+      const [a, bq, c, d] = q; const mid = (p, r) => [p[0] + (r[0] - p[0]) * 0.35, p[1] + (r[1] - p[1]) * 0.35];
+      poly([mid(a, d), mid(bq, c), mid(c, bq), mid(d, a)].map((pt, k) => pt), 'gold', 0.18);
+      // うろこ（菱形）
+      const cx = (a[0] + c[0]) / 2; const cy = (a[1] + c[1]) / 2;
+      if (i % 2 === 0) poly([[cx, cy - 7], [cx + 7, cy], [cx, cy + 7], [cx - 7, cy]], 'silver', 0.35);
+    });
+    // 二つの頭（えり飾り・光る目・牙・舌）
+    const head = (cx, cy, dir, rot) => {
+      const K = 1.5; const R = (x, y) => { const c = Math.cos(rot); const s2 = Math.sin(rot); return [cx + (x * K * c - y * K * s2) * dir, cy + (x * K * s2 + y * K * c)]; };
+      // えり
+      for (let i = -2; i <= 2; i++) poly([R(18, i * 14 - 6), R(-30 - Math.abs(i) * 4, i * 22 - 8), R(-26 - Math.abs(i) * 4, i * 22 + 10), R(18, i * 14 + 6)], i % 2 ? 'purple' : 'gold', 0.6);
+      poly([R(-22, -30), R(30, -26), R(64, -6), R(66, 8), R(30, 28), R(-22, 26)], 'peacock', 0.85);
+      poly([R(0, -22), R(40, -16), R(30, 0), R(0, -4)], 'jade', 0.6);
+      poly([R(64, 10), R(70, 18), R(60, 20)], 'silver', 0.9); // 牙
+      poly([R(66, 2), R(96, 4), R(104, -4), R(100, 6), R(104, 14), R(96, 8), R(66, 8)], 'ruby', 0.85); // 舌
+      const [ex, ey] = R(26, -12);
+      eyes.push({ x: ex, y: ey, r: 11, c: '#FFD76A', slit: true });
+    };
+    head(170, 160, 1, Math.PI);
+    head(430, 520, 1, 0);
+  } else {
+    halo(320, 140, 96, 132, 16, ['gold', 'peacock', 'purple', 'peacock']);
+    // 翼（重なる羽）
+    for (const sg of [-1, 1]) {
+      for (let i = 0; i < 6; i++) {
+        const y0 = 186 + i * 30; const xo = 66 + i * 4; const len = 236 - i * 26;
+        const pts = [[320 + sg * xo, y0], [320 + sg * (xo + len), y0 - 26 + i * 22], [320 + sg * (xo + len - 16), y0 + 16 + i * 22], [320 + sg * xo, y0 + 40]];
+        poly(pts, i % 2 ? 'peacock' : 'purple', 0.55);
+        poly([[320 + sg * (xo + len * 0.55), y0 - 6 + i * 12], [320 + sg * (xo + len), y0 - 26 + i * 22], [320 + sg * (xo + len * 0.6), y0 + 8 + i * 14]], 'silver', 0.25);
+      }
+    }
+    // 胴と胸の羽（うろこ状）
+    poly(ell(320, 312, 76, 150, 16), 'purple', 0.6);
+    for (let r = 0; r < 5; r++) for (let c = -2; c <= 2; c++) {
+      if (Math.abs(c) + r * 0.4 > 3) continue;
+      const x = 320 + c * 26 + (r % 2) * 13; const y = 236 + r * 34;
+      poly([[x - 12, y], [x + 12, y], [x, y + 18]], r % 2 ? 'gold' : 'silver', 0.32);
+    }
+    // 金の爪
+    for (const x of [292, 348]) for (const d of [-8, 0, 8]) poly([[x + d - 3, 452], [x + d + 3, 452], [x + d, 470]], 'gold', 0.85);
+    // 顔の皿（ハート形）と羽角
+    both([[320, 96], [270, 66], [244, 92], [250, 150], [284, 178], [320, 186]], 'purple', 0.82);
+    both([[320, 104], [278, 82], [258, 104], [264, 148], [292, 168], [320, 172]], 'silver', 0.3);
+    both([[262, 78], [236, 30], [282, 68]], 'purple', 0.85);
+    both([[264, 74], [248, 44], [276, 70]], 'gold', 0.45);
+    poly([[308, 140], [332, 140], [320, 170]], 'gold', 0.9); // くちばし
+    eyes.push({ x: 290, y: 124, r: 17, c: '#FFC94A', ring: true }, { x: 350, y: 124, r: 17, c: '#FFC94A', ring: true });
+  }
+  return { sh, eyes };
 }
 const decorCache = {};
 function decorOf(key) { return decorCache[key] || (decorCache[key] = beastShapes(key)); }
 
+function drawEye(ctx, e, time, dim) {
+  const blink = Math.max(0, Math.sin(time * 0.7 + e.x * 0.01)) > 0.995 ? 0.15 : 1;
+  ctx.save();
+  ctx.globalAlpha = dim;
+  const g = ctx.createRadialGradient(e.x, e.y, 1, e.x, e.y, e.r * (e.almond ? 2 : 3));
+  g.addColorStop(0, e.c); g.addColorStop(1, 'rgba(255,220,140,0)');
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(e.x, e.y, e.r * (e.almond ? 2 : 3), 0, 7); ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+  const rx = e.almond ? e.r * 1.35 : e.r; const ry = (e.almond ? e.r * 0.55 : e.r) * blink; const rot = e.almond || 0;
+  ctx.fillStyle = LEAD; ctx.beginPath(); ctx.ellipse(e.x, e.y, rx + 3, ry + 3, rot, 0, 7); ctx.fill();
+  ctx.fillStyle = e.c; ctx.beginPath(); ctx.ellipse(e.x, e.y, rx, ry, rot, 0, 7); ctx.fill();
+  if (e.almond && blink > 0.5) { ctx.fillStyle = '#2a0a14'; ctx.beginPath(); ctx.ellipse(e.x + (rot < 0 ? 2 : -2), e.y, e.r * 0.45, e.r * 0.5, 0, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.arc(e.x - 2, e.y - 2, 1.8, 0, 7); ctx.fill(); ctx.restore(); return; }
+  if (blink > 0.5) {
+    ctx.fillStyle = '#1a1020';
+    if (e.slit) { ctx.beginPath(); ctx.ellipse(e.x, e.y, e.r * 0.22, e.r * 0.85, 0, 0, 7); ctx.fill(); }
+    else if (e.ring) { ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 0.55, 0, 7); ctx.fill(); ctx.strokeStyle = '#fff4c8'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 0.78, 0, 7); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.arc(e.x + 1, e.y + 1, e.r * 0.5, 0, 7); ctx.fill(); }
+    ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.arc(e.x - e.r * 0.3, e.y - e.r * 0.35, Math.max(1.5, e.r * 0.22), 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
+
 export function drawDecor(ctx, beastIdx, time, dim = 1) {
   const key = BEASTS[beastIdx].key;
   const breathe = 0.85 + Math.sin(time * 1.1) * 0.15;
-  for (const s of decorOf(key)) facet(ctx, s.pts, s.tone, s.a * breathe * dim);
+  const d = decorOf(key);
+  for (const s of d.sh) {
+    if (s.glow) { const [gx, gy, gr] = s.glow; const g = ctx.createRadialGradient(gx, gy, gr * 0.3, gx, gy, gr); g.addColorStop(0, `rgba(255,200,120,${0.16 * dim})`); g.addColorStop(1, 'rgba(255,200,120,0)'); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(gx, gy, gr, 0, 7); ctx.fill(); ctx.restore(); continue; }
+    if (s.spot) { ctx.save(); ctx.globalAlpha = s.a * dim; path(ctx, s.pts); ctx.fillStyle = '#FFF4DE'; ctx.fill(); ctx.restore(); continue; }
+    facet(ctx, s.pts, s.tone, s.a * breathe * dim);
+  }
+  for (const e of d.eyes) drawEye(ctx, e, time, dim);
 }
 
 // ───── 背景（聖堂）─────
@@ -397,7 +502,8 @@ export function drawMemorial(ctx, level, mem, w = W, h = H) {
   const bg = ctx.createRadialGradient(320, 300, 30, 320, 330, 420); bg.addColorStop(0, '#2a2150'); bg.addColorStop(1, '#0f0c20');
   ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
   // 獣の姿は暗い鉛線で
-  for (const s of decorOf(BEASTS[level.beast].key)) {
+  for (const s of decorOf(BEASTS[level.beast].key).sh) {
+    if (!s.pts) continue;
     path(ctx, s.pts); ctx.fillStyle = 'rgba(43,36,53,0.35)'; ctx.fill(); ctx.strokeStyle = 'rgba(90,76,120,0.7)'; ctx.lineWidth = 2.5; ctx.stroke();
   }
   // 部位：割った所は明るい色で復元、未破壊は鉛線のみ
