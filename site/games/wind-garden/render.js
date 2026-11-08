@@ -12,6 +12,10 @@ export const THEMES = {
   sakura: { skyT: '#ffc6dc', skyB: '#fff3e8', top1: '#c8e89a', top2: '#bce08a', side: '#c49563', side2: '#a47a4d', leaf: '#ffc0d8', sea: '#fff6fa', flower: ['#ffb0cc', '#ffffff', '#ffd0e0'] },
   falls: { skyT: '#7ad0f0', skyB: '#e8fbff', top1: '#a8e0b4', top2: '#98d6a6', side: '#7aa8a0', side2: '#5f8f88', leaf: '#ffffff', sea: '#f0ffff', flower: ['#ffffff', '#ffe27a', '#b0e0ff'] },
   candy: { skyT: '#ffb8e8', skyB: '#fff0f8', top1: '#fde0ef', top2: '#f8d2e6', side: '#e7a6c8', side2: '#d68cb4', leaf: '#ffffff', sea: '#ffffff', flower: ['#ff8fc8', '#a0e8ff', '#fff07a'] },
+  desert: { skyT: '#7fc8f0', skyB: '#fff2d0', top1: '#f2d79a', top2: '#ecce8a', side: '#c9955a', side2: '#ad7a44', leaf: '#f6e2b0', sea: '#fff6e0', flower: ['#ff7a8a', '#ffd24a', '#ffffff'] },
+  dune: { skyT: '#ffb070', skyB: '#ffe8b8', top1: '#f0c27a', top2: '#e8b66a', side: '#c4823e', side2: '#a8682e', leaf: '#ffe0a0', sea: '#fff0d8', flower: ['#ff6a5a', '#ffe27a', '#ffffff'] },
+  ruins: { skyT: '#8a6ab8', skyB: '#ffc89a', top1: '#e0c8a0', top2: '#d6bc92', side: '#a88a6a', side2: '#8a6e52', leaf: '#ffe2c0', sea: '#ffeede', flower: ['#c8a0ff', '#ffd24a', '#ffffff'] },
+  mirage: { skyT: '#b8e8ff', skyB: '#fffbe8', top1: '#f8e6b4', top2: '#f2dca4', side: '#d4a870', side2: '#b88c56', leaf: '#ffffff', sea: '#fffaf0', flower: ['#ff9ad0', '#a0e8ff', '#fff07a'] },
   night: { skyT: '#0a0f3d', skyB: '#4a3a8c', top1: '#5361c0', top2: '#4857b4', side: '#2d3478', side2: '#222862', leaf: '#fff3a8', sea: '#7f78c8', flower: ['#fff3a0', '#9ff0ff', '#ffb0f0'] },
 };
 export const pondOf = (gi) => GARDENS[gi].pond || null;
@@ -79,6 +83,13 @@ export function drawBackground(ctx, w, h, theme, t, reduce) {
     ['#ff9aa8', '#ffd08a', '#fff2a0', '#a8e6a0', '#9ad4ff', '#c8a8ff'].forEach((c, i) => { ctx.strokeStyle = c; ctx.globalAlpha = 0.4; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(w * 0.5, h * 0.75, h * 0.45 - i * 6, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke(); });
     ctx.globalAlpha = 1;
   }
+  if (theme === 'desert' || theme === 'dune' || theme === 'ruins' || theme === 'mirage') { // 遠くの砂丘
+    const cols = { desert: ['#f0d090', '#e4bc78'], dune: ['#f0b870', '#dc9c58'], ruins: ['#d8a878', '#c08a60'], mirage: ['#f8e0b0', '#f0d098'] }[theme];
+    [[0.6, cols[0], 0], [0.7, cols[1], 2]].forEach(([yy, c, k]) => { ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(0, h); for (let x = 0; x <= w; x += 16) ctx.lineTo(x, h * yy - Math.sin(x / 90 + k) * 22 - Math.sin(x / 37 + k) * 6); ctx.lineTo(w, h); ctx.fill(); });
+    if (theme === 'ruins') { ctx.fillStyle = 'rgba(120,80,60,.45)'; [[0.15, 60], [0.3, 40], [0.78, 70]].forEach(([fx, hh]) => { const x = w * fx; ctx.fillRect(x, h * 0.6 - hh, 10, hh); ctx.fillRect(x - 4, h * 0.6 - hh - 6, 18, 6); }); }
+    if (theme === 'mirage') { ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2; for (let k = 0; k < 4; k++) { const yy = h * (0.55 + k * 0.03); ctx.beginPath(); for (let x = 0; x <= w; x += 10) ctx.lineTo(x, yy + Math.sin(x / 20 + t * 2 + k) * 2); ctx.stroke(); } }
+    if (theme === 'desert' || theme === 'dune') { [[0.2, 0.58], [0.85, 0.62]].forEach(([fx, fy]) => { const x = w * fx; const y = h * fy; ctx.fillStyle = 'rgba(70,130,80,.6)'; ctx.fillRect(x - 3, y - 26, 6, 26); ctx.fillRect(x - 10, y - 18, 5, 10); ctx.fillRect(x + 5, y - 22, 5, 10); }); }
+  }
   if (theme === 'forest' || theme === 'snow' || theme === 'sakura') { // 下の方の木立
     const col = { forest: ['rgba(70,140,90,.55)', 'rgba(50,110,70,.7)'], snow: ['rgba(150,175,210,.55)', 'rgba(120,150,190,.7)'], sakura: ['rgba(255,170,200,.45)', 'rgba(230,140,175,.55)'] }[theme];
     [0.72, 0.8].forEach((yy, row) => { ctx.fillStyle = col[row]; for (let i = -1; i < w / 26 + 1; i++) { const x = i * 26 + row * 13; const hh = 26 + hash(i, row, 7) * 22; ctx.beginPath(); if (theme === 'sakura') ctx.arc(x, h * yy, hh * 0.55, 0, 7); else { ctx.moveTo(x - 13, h * yy + 10); ctx.lineTo(x, h * yy - hh); ctx.lineTo(x + 13, h * yy + 10); } ctx.fill(); } ctx.fillRect(0, h * yy + 8, w, h * 0.3); });
@@ -121,6 +132,7 @@ function leafAt(ctx, T, gi, x, y, sway) {
     const r1 = hash(x, y, gi * 7 + k); const r2 = hash(y, x, gi * 11 + k);
     const [cx, cy] = proj(x + 0.2 + r1 * 0.6, y + 0.2 + r2 * 0.6);
     const th = GARDENS[gi].theme;
+    if (th === 'desert' || th === 'dune' || th === 'ruins' || th === 'mirage') { ctx.strokeStyle = 'rgba(160,110,50,.25)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - 6, cy); ctx.quadraticCurveTo(cx, cy - 2, cx + 6, cy); ctx.stroke(); continue; }
     if (th === 'aqua' || th === 'cream' || th === 'snow' || th === 'candy') { ctx.fillStyle = th === 'candy' ? 'rgba(255,255,255,.45)' : th === 'snow' ? 'rgba(150,180,220,.25)' : 'rgba(120,140,140,.18)'; ctx.fillRect(cx - 4, cy, 8, 1.2); if (th === 'candy' && r1 > 0.6) { ctx.fillStyle = T.flower[(r2 * 3) | 0]; ctx.fillRect(cx - 1, cy - 2, 3, 1.5); } continue; }
     ctx.strokeStyle = th === 'night' ? '#7fe0c8' : th === 'sakura' ? '#7fb85a' : '#6fb04a'; ctx.lineWidth = 1.4;
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + sway * 2 - 1, cy - 5); ctx.moveTo(cx + 2, cy); ctx.lineTo(cx + 3 + sway * 2, cy - 4); ctx.stroke();
@@ -141,7 +153,7 @@ export function drawTile(ctx, gi, x, y, T, t, reduce) {
   ctx.fillStyle = top; path(ctx, [pt, pr, pb, pl]); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = 1; path(ctx, [pt, pr, pb, pl]); ctx.stroke();
   // 縁の草（草の庭）／根のたれ
-  const edge = { dawn: '#8fcf5a', sunset: '#e0a838', forest: '#5fae4a', snow: '#ffffff', sakura: '#a8d878', candy: '#ffffff' }[GARDENS[gi].theme];
+  const edge = { dawn: '#8fcf5a', sunset: '#e0a838', forest: '#5fae4a', snow: '#ffffff', sakura: '#a8d878', candy: '#ffffff', desert: '#f8e2b0', dune: '#f4cc88', mirage: '#fff0c8' }[GARDENS[gi].theme];
   if (!below && edge) { ctx.fillStyle = edge; path(ctx, [pl, pb, [pb[0], pb[1] + 6], [pl[0], pl[1] + 6]]); ctx.fill(); }
   if (!below && hash(x, y, 8) > 0.45) { ctx.strokeStyle = 'rgba(90,60,30,.5)'; ctx.lineWidth = 1.5; const rx = pl[0] + 8 + hash(x, y, 9) * 20; const ry = pl[1] + DEP + 4; ctx.beginPath(); ctx.moveTo(rx, ry); ctx.quadraticCurveTo(rx - 3, ry + 14, rx + 2, ry + 22 + cliffL * 0.4); ctx.stroke(); }
   leafAt(ctx, T, gi, x, y, reduce ? 0 : Math.sin(t * 2 + x + y) * 0.6);
@@ -192,6 +204,17 @@ export function drawObstacle(ctx, gi, x, y, t, reduce) {
     ctx.fillStyle = '#7a4a2a'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, 7); ctx.fill(); ctx.restore();
     return;
   }
+  if (g.obstacle === 'cactus') { // サボテン
+    shadow(ctx, cx, cy + 4, 16);
+    const c1 = '#5aa860'; const c2 = '#4a9050';
+    ctx.fillStyle = c1; ctx.beginPath(); ctx.roundRect(cx - 6, cy - 40, 12, 44, 6); ctx.fill();
+    ctx.fillStyle = c2; ctx.fillRect(cx + 1, cy - 36, 4, 38);
+    ctx.fillStyle = c1; ctx.beginPath(); ctx.roundRect(cx - 17, cy - 28, 7, 16, 3.5); ctx.fill(); ctx.fillRect(cx - 14, cy - 16, 9, 6);
+    ctx.beginPath(); ctx.roundRect(cx + 10, cy - 34, 7, 16, 3.5); ctx.fill(); ctx.fillRect(cx + 5, cy - 22, 9, 6);
+    ctx.fillStyle = '#ff7a9a'; ctx.beginPath(); ctx.arc(cx, cy - 41, 3.5, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 1; for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.moveTo(cx - 6, cy - 34 + k * 7); ctx.lineTo(cx - 9, cy - 35 + k * 7); ctx.stroke(); }
+    return;
+  }
   if (g.theme === 'sakura') { // 桜の木
     shadow(ctx, cx, cy + 4, 24);
     ctx.fillStyle = '#7a4a34'; ctx.fillRect(cx - 3, cy - 22, 6, 24);
@@ -213,10 +236,11 @@ export function drawObstacle(ctx, gi, x, y, t, reduce) {
   // 岩・石柱
   shadow(ctx, cx, cy + 4, 22);
   const th = g.theme;
-  const col = { night: ['#6f78d0', '#8a93e8'], aqua: ['#9ab8bc', '#bfdadc'], falls: ['#8ab0a8', '#b0d4cc'], snow: ['#b8c8dc', '#ffffff'], candy: ['#f2a0c8', '#ffd0e8'] }[th] || ['#b8aa92', '#d8ccb4'];
+  const col = { ruins: ['#b8946a', '#d8bc94'], mirage: ['#d8b07a', '#f0d4a4'], desert: ['#c89a64', '#e4bc88'], dune: ['#c48a4e', '#e0aa6e'], night: ['#6f78d0', '#8a93e8'], aqua: ['#9ab8bc', '#bfdadc'], falls: ['#8ab0a8', '#b0d4cc'], snow: ['#b8c8dc', '#ffffff'], candy: ['#f2a0c8', '#ffd0e8'] }[th] || ['#b8aa92', '#d8ccb4'];
   ctx.fillStyle = col[0]; path(ctx, [[cx - 16, cy + 4], [cx - 12, cy - 22], [cx + 2, cy - 30], [cx + 15, cy - 18], [cx + 17, cy + 4]]); ctx.fill();
   ctx.fillStyle = col[1]; path(ctx, [[cx - 12, cy - 22], [cx + 2, cy - 30], [cx + 15, cy - 18], [cx + 2, cy - 14]]); ctx.fill();
   if (th === 'night') { ctx.fillStyle = 'rgba(255,250,170,.9)'; ctx.beginPath(); ctx.arc(cx + 2, cy - 16, 3, 0, 7); ctx.fill(); }
+  if (th === 'ruins') { ctx.strokeStyle = 'rgba(90,60,30,.5)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx - 8, cy - 14); ctx.lineTo(cx - 2, cy - 18); ctx.lineTo(cx + 4, cy - 12); ctx.moveTo(cx - 4, cy - 6); ctx.lineTo(cx + 6, cy - 4); ctx.stroke(); }
   if (th === 'candy') { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(cx - 12 + k * 8, cy); ctx.lineTo(cx - 6 + k * 8, cy - 24); ctx.stroke(); } }
 }
 
@@ -309,7 +333,15 @@ export function drawGate(ctx, x, y, open, t) {
   ctx.fillText(open ? '⛵' : '🔒', cx, cy - 14);
 }
 
-export function drawFluff(ctx, cx, cy, t, reduce) {
+export function drawFluff(ctx, cx, cy, t, reduce, tumble = false) {
+  if (tumble) { // 回転草
+    const rot = reduce ? 0 : t * 2; const y = cy - 11;
+    shadow(ctx, cx, cy + 4, 10);
+    ctx.save(); ctx.translate(cx, y); ctx.rotate(rot); ctx.scale(1.3, 1.3); ctx.strokeStyle = '#8a5a24'; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 9; i++) { ctx.beginPath(); ctx.ellipse(0, 0, 9, 4 + (i % 3) * 2, i * 0.7, 0, 7); ctx.stroke(); }
+    ctx.strokeStyle = '#d4a868'; ctx.beginPath(); ctx.arc(0, 0, 7, 0, 7); ctx.stroke(); ctx.restore();
+    return;
+  }
   const bob = reduce ? 0 : Math.sin(t * 3 + cx) * 2.5;
   shadow(ctx, cx, cy + 4, 7);
   ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.2;
@@ -374,6 +406,8 @@ export function drawHat(ctx, cx, top, id, t = 0, reduce = true) {
   if (id === 'cat') { [[-1, 0], [1, 0]].forEach(([d]) => { ctx.fillStyle = '#4a4a5a'; ctx.beginPath(); ctx.moveTo(cx + d * 4, top + 4); ctx.lineTo(cx + d * 11, top - 6); ctx.lineTo(cx + d * 12, top + 6); ctx.fill(); ctx.fillStyle = '#ffb3c8'; ctx.beginPath(); ctx.moveTo(cx + d * 6, top + 4); ctx.lineTo(cx + d * 10.5, top - 2); ctx.lineTo(cx + d * 11, top + 5); ctx.fill(); }); }
   if (id === 'leaf') { ctx.save(); ctx.translate(cx, top + 2); ctx.rotate(-0.4 + sw); ctx.fillStyle = '#6fbf4a'; ctx.beginPath(); ctx.ellipse(6, -6, 9, 4, -0.6, 0, 7); ctx.fill(); ctx.strokeStyle = '#3f8a2a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(12, -11); ctx.stroke(); ctx.restore(); }
   if (id === 'cloud') { drawCloudBody(ctx, cx, top - 2, 9, 210, true); }
+  if (id === 'turban') { ctx.fillStyle = '#f4f0e6'; ctx.beginPath(); ctx.ellipse(cx, top + 2, 12, 6, 0, Math.PI, 0); ctx.fill(); ctx.beginPath(); ctx.ellipse(cx, top - 1, 10, 7, 0, 0, 7); ctx.fill(); ctx.strokeStyle = '#d8ccb4'; ctx.lineWidth = 1; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.ellipse(cx, top - 1 + k * 2, 9, 4, 0.3, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke(); } ctx.fillStyle = '#4ab0a0'; ctx.beginPath(); ctx.arc(cx, top + 1, 2, 0, 7); ctx.fill(); }
+  if (id === 'glasses') { const y = top + 11; ctx.fillStyle = '#2a2a3a'; ctx.beginPath(); ctx.roundRect(cx - 8.5, y - 2.5, 7, 5, 2); ctx.roundRect(cx + 1.5, y - 2.5, 7, 5, 2); ctx.fill(); ctx.fillRect(cx - 2, y - 1.5, 4, 1.2); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fillRect(cx - 7, y - 1.5, 2, 1.2); ctx.fillRect(cx + 3, y - 1.5, 2, 1.2); }
   if (id === 'crown') { ctx.fillStyle = '#ffd24a'; ctx.beginPath(); ctx.moveTo(cx - 9, top + 4); ctx.lineTo(cx - 9, top - 5); ctx.lineTo(cx - 4.5, top); ctx.lineTo(cx, top - 8); ctx.lineTo(cx + 4.5, top); ctx.lineTo(cx + 9, top - 5); ctx.lineTo(cx + 9, top + 4); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#ff5a7a'; ctx.beginPath(); ctx.arc(cx, top, 1.8, 0, 7); ctx.fill(); ctx.fillStyle = '#5ab0ff'; ctx.beginPath(); ctx.arc(cx - 5, top + 1, 1.3, 0, 7); ctx.arc(cx + 5, top + 1, 1.3, 0, 7); ctx.fill(); }
   if (id === 'star') { const k = reduce ? 0 : t * 2; ctx.strokeStyle = 'rgba(255,240,160,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx + 2, top - 4); ctx.quadraticCurveTo(cx - 10, top - 10, cx - 18, top - 6); ctx.stroke(); ctx.save(); ctx.translate(cx + 4, top - 6); ctx.rotate(k * 0.3); ctx.fillStyle = '#fff07a'; ctx.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? 3 : 7; const a = i * Math.PI / 5 - Math.PI / 2; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill(); ctx.restore(); }
 }

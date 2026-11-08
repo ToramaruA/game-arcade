@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>風の庭と迷子の雲</title>
-  <meta name="description" content="雲海に浮かぶ小さな庭を歩き、風向きを変えて橋と綿毛を動かし、迷子の雲を30個集める箱庭パズル。全10の庭と着せ替えつき。">
+  <meta name="description" content="雲海に浮かぶ小さな庭を歩き、風向きを変えて橋と綿毛を動かし、迷子の雲を45個集める箱庭パズル。草原・砂漠・空の3つの島に5つずつ庭があり、着せ替えもできる。">
   <link rel="canonical" href="https://game-arcade-bdt.pages.dev/games/wind-garden/">
   <meta property="og:type" content="website">
   <meta property="og:title" content="風の庭と迷子の雲">
-  <meta property="og:description" content="雲海に浮かぶ小さな庭を歩き、風向きを変えて橋と綿毛を動かし、迷子の雲を30個集める箱庭パズル。全10の庭と着せ替えつき。">
+  <meta property="og:description" content="雲海に浮かぶ小さな庭を歩き、風向きを変えて橋と綿毛を動かし、迷子の雲を45個集める箱庭パズル。草原・砂漠・空の3つの島に5つずつ庭があり、着せ替えもできる。">
   <meta property="og:url" content="https://game-arcade-bdt.pages.dev/games/wind-garden/">
   <meta property="og:image" content="https://game-arcade-bdt.pages.dev/games/wind-garden/og.png">
   <meta name="twitter:card" content="summary_large_image">
@@ -22,7 +22,7 @@
       <div class="hud-row">
         <div id="gname" class="pill name">朝露の丘 <b>0/3</b></div>
         <div class="grow"></div>
-        <div id="total" class="pill total" title="見つけた雲">☁ <b>0/30</b></div>
+        <div id="total" class="pill total" title="見つけた雲">☁ <b>0/45</b></div>
         <button id="dexBtn" class="pill btn" type="button" aria-label="図鑑を開く">図鑑</button>
         <button id="wardBtn" class="pill btn" type="button" aria-label="着せ替えを開く">👒<span class="wb-new" id="wardNew" hidden></span></button>
         <button id="muteBtn" class="pill btn icon" type="button" aria-label="音を切り替える" aria-pressed="false">♪</button>
@@ -58,6 +58,13 @@
           <button id="cardBtn" class="pill btn primary" type="button">結果カードを作る（PNG）</button>
           <label class="vol">音量 <input id="vol" type="range" min="0" max="100" value="60" aria-label="音量"></label>
         </div>
+      </div>
+    </section>
+    <section id="worldMap" class="modal map-modal" hidden role="dialog" aria-modal="true" aria-label="ワールドを選ぶ">
+      <div class="sheet">
+        <div class="sheet-head"><h2>🗺 <span id="mapMsg">どの島へ行く？</span></h2><button id="mapClose" class="pill btn" type="button">とじる</button></div>
+        <p class="map-total" id="mapTotal"></p>
+        <div id="worlds" class="worlds"></div>
       </div>
     </section>
     <section id="ward" class="modal" hidden role="dialog" aria-modal="true" aria-label="着せ替え">

@@ -1,7 +1,8 @@
 // 風の庭と迷子の雲：ルール（DOM を触らない）。
-import { GARDENS } from './gardens.js';
+import { GARDENS, WORLDS } from './gardens.js';
 
-export { GARDENS };
+export { GARDENS, WORLDS };
+export const STAGES = 5; // 1つのワールドの庭の数
 export const SIZE = 9;
 export const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]]; // 北 東 南 西
 export const WIND_NAMES = ['北風', '東風', '南風', '西風'];
@@ -68,7 +69,18 @@ export const cloudId = (gi, k) => gi * 3 + k;
 export const gotCount = (game) => game.got.filter(Boolean).length;
 export const gardenGot = (game, gi) => [0, 1, 2].filter((k) => game.got[cloudId(gi, k)]).length;
 export const totalTurns = (game) => game.gardens.reduce((s, g) => s + g.turns, 0);
-export const isUnlocked = (game, gi) => gi === 0 || gardenGot(game, gi - 1) >= UNLOCK_NEED;
+export const worldFirst = (wi) => wi * STAGES;
+/** 庭が開いているか。ワールドの中では前の庭で2個、ほかのワールドは草原の島の最後の庭まで進むと開く */
+export function isUnlocked(game, gi) {
+  if (gi < 0 || gi >= GARDENS.length) return false;
+  const g = GARDENS[gi];
+  if (g.stage > 0) return gardenGot(game, gi - 1) >= UNLOCK_NEED;
+  if (g.world === 0) return true;
+  return gardenGot(game, worldFirst(0) + STAGES - 2) >= UNLOCK_NEED;
+}
+export const worldUnlocked = (game, wi) => isUnlocked(game, worldFirst(wi));
+export const worldGot = (game, wi) => GARDENS.reduce((n, g, gi) => n + (g.world === wi ? gardenGot(game, gi) : 0), 0);
+export const isLastStage = (gi) => GARDENS[gi].stage === STAGES - 1;
 export const unlockedCount = (game) => GARDENS.filter((_, i) => isUnlocked(game, i)).length;
 
 /** 雲の出現条件を調べ、新しく現れた雲の id を返す（game を直接更新する） */
@@ -118,7 +130,8 @@ export function move(game, dir) {
   out.revealed.push(...updateReveals(next));
   if (gotCount(next) === CLOUD_COUNT) next.finished = true;
   if (cellAt(gi, nx, ny) === 'G') {
-    if (isUnlocked(next, gi + 1)) { out.result = 'gate'; out.to = gi + 1; } else out.result = 'locked-gate';
+    if (isLastStage(gi)) { if (gardenGot(next, gi) >= UNLOCK_NEED) out.result = 'map'; else out.result = 'locked-gate'; }
+    else if (isUnlocked(next, gi + 1)) { out.result = 'gate'; out.to = gi + 1; } else out.result = 'locked-gate';
   }
   return out;
 }
@@ -198,18 +211,21 @@ export const COATS = [
   { id: 'sky', name: 'そらいろ', need: 4, main: '#7cc8ff', shade: '#55aeea', btn: '#2f6fa8' },
   { id: 'sakura', name: 'さくら', need: 10, main: '#ffb3cd', shade: '#f590b4', btn: '#b84a78' },
   { id: 'mint', name: 'ミント', need: 16, main: '#8fe0c0', shade: '#66c9a4', btn: '#2f8a68' },
-  { id: 'night', name: 'よぞら', need: 22, main: '#5361c0', shade: '#3f4aa0', btn: '#fff3a8' },
-  { id: 'rainbow', name: 'にじいろ', need: 30, main: 'rainbow', shade: '#c8a8ff', btn: '#ffffff' },
+  { id: 'sand', name: 'すないろ', need: 22, main: '#e8c48a', shade: '#d4a868', btn: '#8a5a2a' },
+  { id: 'night', name: 'よぞら', need: 30, main: '#5361c0', shade: '#3f4aa0', btn: '#fff3a8' },
+  { id: 'rainbow', name: 'にじいろ', need: 45, main: 'rainbow', shade: '#c8a8ff', btn: '#ffffff' },
 ];
 export const HATS = [
   { id: 'none', name: 'なし', need: 0 },
   { id: 'flower', name: '花かんむり', need: 2 },
   { id: 'straw', name: 'むぎわら', need: 7 },
-  { id: 'cat', name: 'ねこみみ', need: 13 },
-  { id: 'leaf', name: 'はっぱ', need: 19 },
-  { id: 'cloud', name: '雲のぼうし', need: 24 },
-  { id: 'crown', name: 'おうかん', need: 27 },
-  { id: 'star', name: 'ながれぼし', need: 30 },
+  { id: 'cat', name: 'ねこみみ', need: 12 },
+  { id: 'leaf', name: 'はっぱ', need: 18 },
+  { id: 'turban', name: 'ターバン', need: 25 },
+  { id: 'glasses', name: 'サングラス', need: 28 },
+  { id: 'cloud', name: '雲のぼうし', need: 33 },
+  { id: 'crown', name: 'おうかん', need: 38 },
+  { id: 'star', name: 'ながれぼし', need: 45 },
 ];
 const WARD = { coat: COATS, hat: HATS };
 export const DEFAULT_OUTFIT = { coat: 'yellow', hat: 'none' };
@@ -237,17 +253,23 @@ export const outfitOf = (game) => {
 };
 
 // ---- 保存 ----
-const OLD_GARDENS = 5; // 初版（5庭・15個）の保存を、今の並び（最後の庭が夜空）に移す
+// 以前の並びの保存を、今の並び（ワールドごと）に移す。並びは庭の id で対応させる
+const OLD_ORDERS = [
+  ['dew', 'bell', 'mirror', 'mill', 'night'], // 初版（5庭・15個）
+  ['dew', 'bell', 'mirror', 'mill', 'forest', 'snow', 'sakura', 'falls', 'candy', 'night'], // 10庭版
+];
 function migrate(raw) {
-  if (!Array.isArray(raw.got) || raw.got.length !== OLD_GARDENS * 3 || CLOUD_COUNT === OLD_GARDENS * 3) return raw;
-  const mapG = (gi) => (gi < OLD_GARDENS - 1 ? gi : LAST);
+  if (!Array.isArray(raw.got) || raw.got.length === CLOUD_COUNT) return raw;
+  const order = OLD_ORDERS.find((o) => o.length * 3 === raw.got.length);
+  if (!order) return raw;
+  const mapG = (oi) => GARDENS.findIndex((g) => g.id === order[oi]);
   const out = { ...raw };
-  const remap = (arr, fill) => { const a = Array(CLOUD_COUNT).fill(fill); arr.forEach((v, i) => { a[mapG(Math.floor(i / 3)) * 3 + (i % 3)] = v; }); return a; };
-  out.got = remap(raw.got, false);
-  if (Array.isArray(raw.revealed) && raw.revealed.length === OLD_GARDENS * 3) out.revealed = remap(raw.revealed, false);
-  if (Array.isArray(raw.gardens) && raw.gardens.length === OLD_GARDENS) { const g = Array(GARDENS.length).fill(null); raw.gardens.forEach((v, i) => { g[mapG(i)] = v; }); out.gardens = g; }
-  if (Array.isArray(raw.bestGarden) && raw.bestGarden.length === OLD_GARDENS) { const b = Array(GARDENS.length).fill(null); raw.bestGarden.forEach((v, i) => { b[mapG(i)] = v; }); out.bestGarden = b; }
-  if (Number.isInteger(raw.cur)) out.cur = mapG(raw.cur);
+  const remap = (arr) => { const a = Array(CLOUD_COUNT).fill(false); arr.forEach((v, i) => { const gi = mapG(Math.floor(i / 3)); if (gi >= 0) a[gi * 3 + (i % 3)] = v; }); return a; };
+  out.got = remap(raw.got);
+  if (Array.isArray(raw.revealed) && raw.revealed.length === raw.got.length) out.revealed = remap(raw.revealed);
+  if (Array.isArray(raw.gardens) && raw.gardens.length === order.length) { const g = Array(GARDENS.length).fill(null); raw.gardens.forEach((v, i) => { g[mapG(i)] = v; }); out.gardens = g; }
+  if (Array.isArray(raw.bestGarden) && raw.bestGarden.length === order.length) { const b = Array(GARDENS.length).fill(null); raw.bestGarden.forEach((v, i) => { b[mapG(i)] = v; }); out.bestGarden = b; }
+  if (Number.isInteger(raw.cur) && order[raw.cur]) out.cur = mapG(raw.cur);
   return out;
 }
 const isNum = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;

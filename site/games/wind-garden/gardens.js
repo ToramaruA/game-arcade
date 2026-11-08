@@ -5,7 +5,7 @@
 // 雲の出現条件 reveal:
 //   visible … 最初から見える / bloom … 綿毛が的に入ると出る
 //   step … 指定のマス（に風 wind のとき）に立つと出る / seq … 風をその順に回すと出る / final … 他のすべての雲を集めると出る
-export const GARDENS = [
+const ALL = [
   {
     id: 'dew', name: '朝露の丘', intro: '風見鶏のそばで風を回すと、雲の橋が架かる', theme: 'dawn', obstacle: 'bush',
     rows: [
@@ -219,6 +219,120 @@ export const GARDENS = [
     hints: ['島のはしっこ、あまい匂い', '西風のとき鈴の下に立つ', '綿毛を何度も風で押して、左の花壇へ'],
   },
   {
+    id: 'oasis', name: 'オアシスの入口', intro: '砂漠の島へようこそ。オアシスをはさんで橋が架かる', theme: 'desert', obstacle: 'cactus', pond: [3, 4, 5, 6],
+    rows: [
+      '.........',
+      '.###.....',
+      '.#V#.....',
+      '.S##..###',
+      '.###..#G#',
+      '..#...###',
+      '..##.....',
+      '..###....',
+      '.........',
+    ],
+    bridges: [{ x: 4, y: 3, winds: [1] }, { x: 5, y: 3, winds: [1, 2] }, { x: 3, y: 5, winds: [2, 3] }, { x: 4, y: 5, winds: [2, 3] }, { x: 5, y: 5, winds: [3] }],
+    fluff: [],
+    clouds: [
+      { name: 'すなぼこり雲', say: 'けほっ', x: 8, y: 3, reveal: { type: 'visible' }, hue: 35 },
+      { name: 'らくだ雲', say: 'のっしのっし', x: 4, y: 7, reveal: { type: 'visible' }, hue: 28 },
+      { name: 'みずたまり雲', say: 'ちゃぷん', x: 1, y: 1, reveal: { type: 'step', x: 6, y: 4, wind: 3 }, hue: 195 },
+    ],
+    hints: ['東風の橋の先', 'オアシスの南、砂の小道', '西風のとき、門のとなりに立つ'],
+  },
+  {
+    id: 'dune', name: '砂丘の谷', intro: '転がる回転草（綿毛）を、オアシスの花まで', theme: 'dune', obstacle: 'cactus',
+    rows: [
+      '.........',
+      '.#######.',
+      '.#T###V#.',
+      '.#######.',
+      '.S#F#T##G',
+      '.#######.',
+      '.##T####.',
+      '.#######.',
+      '.........',
+    ],
+    bridges: [],
+    fluff: [[6, 6], [2, 2]],
+    clouds: [
+      { name: 'かげろう雲', say: 'ゆらゆら', x: 7, y: 7, reveal: { type: 'visible' }, hue: 45 },
+      { name: 'まわる雲', say: 'ころころころ', x: 1, y: 1, reveal: { type: 'bloom', bed: 0 }, hue: 60 },
+      { name: 'すなどけい雲', say: 'さらさら', x: 7, y: 1, reveal: { type: 'step', x: 3, y: 4, wind: 3 }, hue: 25 },
+    ],
+    hints: ['谷のすみ、日なたの角', '回転草を真ん中の花まで運ぶ', '西風のとき、花の上に立つ'],
+  },
+  {
+    id: 'ruins', name: '風紋の遺跡', intro: '石の台座が風の順番を覚えている', theme: 'ruins', obstacle: 'rock',
+    rows: [
+      '###......',
+      '#V#......',
+      '#S###....',
+      '..#.#V#..',
+      '..###.#..',
+      '....#.###',
+      '....###V#',
+      '......#G#',
+      '......###',
+    ],
+    bridges: [{ x: 3, y: 3, winds: [0, 3] }, { x: 5, y: 4, winds: [1] }, { x: 5, y: 5, winds: [2] }, { x: 6, y: 4, winds: [2, 3] }],
+    fluff: [],
+    clouds: [
+      { name: 'いしころ雲', say: 'ごろん', x: 4, y: 3, reveal: { type: 'visible' }, hue: 30 },
+      { name: 'こだい雲', say: 'むかしむかし', x: 8, y: 5, reveal: { type: 'visible' }, hue: 270 },
+      { name: 'ふうもん雲', say: 'ひゅるる', x: 0, y: 0, reveal: { type: 'seq', seq: [3, 0, 1] }, hue: 15 },
+    ],
+    pedestal: { x: 2, y: 2, cloud: 2 },
+    hints: ['遺跡の柱の上', '南風の橋で崖の向こうへ', '台座の矢印の順（西→北→東）に風を回す'],
+  },
+  {
+    id: 'cactus', name: 'サボテンの迷路', intro: 'サボテンにはさまれた道。回転草が2つ', theme: 'desert', obstacle: 'cactus',
+    rows: [
+      '.........',
+      '.#######.',
+      '.#T#T#T#.',
+      '.###V###.',
+      '.#T#T#T#.',
+      '.S####FG.',
+      '.#T#T#T#.',
+      '.###F###.',
+      '.........',
+    ],
+    bridges: [],
+    fluff: [[5, 6], [5, 7]],
+    clouds: [
+      { name: 'とげとげ雲', say: 'ちくっ', x: 7, y: 1, reveal: { type: 'visible' }, hue: 110 },
+      { name: 'はなさく雲', say: 'ぱっ', x: 1, y: 1, reveal: { type: 'bloom', bed: 0 }, hue: 330 },
+      { name: 'ゆうだち雲', say: 'ざーっ', x: 7, y: 7, reveal: { type: 'bloom', bed: 1 }, hue: 200 },
+    ],
+    hints: ['迷路の右上', '回転草を門の手前の花へ', '回転草を下の花へ'],
+  },
+  {
+    id: 'mirage', name: '蜃気楼の塔', intro: '揺れる橋を乗り継いで、塔のてっぺんへ', theme: 'mirage', obstacle: 'rock',
+    rows: [
+      '.........',
+      '.###.###.',
+      '.#V#.#V#.',
+      '.###.###.',
+      '.........',
+      '.###.##V.',
+      '.#S#.#B#.',
+      '.###.##G.',
+      '.........',
+    ],
+    bridges: [
+      { x: 4, y: 2, winds: [1] }, { x: 2, y: 4, winds: [2] }, { x: 6, y: 4, winds: [3] }, { x: 4, y: 6, winds: [0, 1] },
+    ],
+    fluff: [],
+    clouds: [
+      { name: 'しんきろう雲', say: 'みえる？', x: 1, y: 1, reveal: { type: 'visible' }, hue: 50 },
+      { name: 'ねっぷう雲', say: 'あっつーい', x: 7, y: 1, reveal: { type: 'visible' }, hue: 10 },
+      { name: 'すずなり雲', say: 'しゃらららん', x: 5, y: 5, reveal: { type: 'step', x: 6, y: 6, wind: 2 }, hue: 290 },
+    ],
+    bells: [{ x: 6, y: 6 }],
+    hints: ['左上の塔', '右上の塔', '南風のとき、鈴の下に立つ'],
+  },
+  {
     id: 'night', name: '夜空の花畑', intro: '最後の庭。光る道の先へ', theme: 'night', obstacle: 'rock',
     rows: [
       '.........',
@@ -242,3 +356,12 @@ export const GARDENS = [
     hints: ['光る道の先で待っている', '東風と西風で交互に伸びる橋', 'ほかの雲を全部集めると花が咲く'],
   },
 ];
+
+// ワールド（島）ごとに5つの庭。ワールドの順に並べたものを GARDENS とする
+export const WORLDS = [
+  { id: 'plain', name: '草原の島', icon: '🌿', theme: 'dawn', gardens: ['dew', 'bell', 'forest', 'sakura', 'mill'] },
+  { id: 'desert', name: '砂漠の島', icon: '🏜', theme: 'desert', gardens: ['oasis', 'dune', 'ruins', 'cactus', 'mirage'] },
+  { id: 'sky', name: '空の島', icon: '☁', theme: 'night', gardens: ['snow', 'falls', 'candy', 'mirror', 'night'] },
+];
+export const GARDENS = WORLDS.flatMap((w, wi) => w.gardens.map((id, si) => ({ ...ALL.find((g) => g.id === id), world: wi, stage: si })));
+

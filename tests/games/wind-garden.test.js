@@ -7,7 +7,9 @@ const walk = (g, dirs) => dirs.reduce((s, d) => { const r = L.move(s, d); assert
 const N = 0, E = 1, S = 2, W = 3;
 
 test('マップは9x9で、開始位置・風見鶏・雲の位置が地面にある', () => {
-  assert.equal(L.GARDENS.length, 10);
+  assert.equal(L.GARDENS.length, 15);
+  assert.equal(L.WORLDS.length, 3);
+  L.WORLDS.forEach((w) => assert.equal(w.gardens.length, 5));
   L.GARDENS.forEach((g, gi) => {
     assert.equal(g.rows.length, 9); g.rows.forEach((r) => assert.equal(r.length, 9));
     assert.equal(g.clouds.length, 3);
@@ -15,7 +17,7 @@ test('マップは9x9で、開始位置・風見鶏・雲の位置が地面に�
     assert.ok(g.rows.join('').includes('S'));
     assert.ok(g.rows.join('').includes('V'));
   });
-  assert.equal(L.CLOUD_COUNT, 30);
+  assert.equal(L.CLOUD_COUNT, 45);
 });
 
 test('風向き4種ごとの橋の通行判定', () => {
@@ -106,13 +108,15 @@ test('りんりん雲：南風のとき鈴の下に立つと現れる', () => {
 });
 
 test('ひみつ雲：風を 北→東→南 の順に回したときだけ出る', () => {
-  let g = L.enterGarden({ ...L.newGame(), got: L.newGame().got.map((_, i) => i < 8) }, 3);
+  const MILL = L.GARDENS.findIndex((x) => x.id === 'mill'); const H = MILL * 3 + 2;
+  let g = L.enterGarden({ ...L.newGame(), got: L.newGame().got.map((_, i) => i < MILL * 3 && i % 3 < 2) }, MILL);
+  assert.equal(g.cur, MILL);
   g = walk(g, [N]); // (1,7) 風見鶏(1,6)の真下
   assert.ok(L.canTurn(g));
-  for (let i = 0; i < 5; i++) { g = L.turn(g).game; assert.equal(g.revealed[11], false, `${i + 1}回目で出てはいけない`); }
+  for (let i = 0; i < 5; i++) { g = L.turn(g).game; assert.equal(g.revealed[H], false, `${i + 1}回目で出てはいけない`); }
   g = L.turn(g).game; // 6回目：…N,E,S
-  assert.deepEqual(g.gardens[3].hist.slice(-3), [0, 1, 2]);
-  assert.equal(g.revealed[11], true);
+  assert.deepEqual(g.gardens[MILL].hist.slice(-3), [0, 1, 2]);
+  assert.equal(g.revealed[H], true);
   // 逆順（東→北…）では出ない：5回で止めた状態は未発見
 });
 
@@ -128,7 +132,7 @@ test('最後の雲は他のすべてを集めるまで出ない', () => {
   assert.equal(L.sanitize({ got: got2 }).revealed[F], true);
 });
 
-test('全30個を集めると finished になる', () => {
+test('全45個を集めると finished になる', () => {
   const F = L.CLOUD_COUNT - 1;
   const got = Array(L.CLOUD_COUNT).fill(true); got[F] = false;
   let g = L.sanitize({ got, cur: L.LAST });
@@ -141,7 +145,7 @@ test('全30個を集めると finished になる', () => {
   assert.equal(r.game.finished, true);
 });
 
-test('全10庭：初期状態から3つの雲すべてに、風と歩行だけで到達できる（状態探索）', () => {
+test('全15庭：初期状態から3つの雲すべてに、風と歩行だけで到達できる（状態探索）', () => {
   L.GARDENS.forEach((g, gi) => {
     const r = L.exploreGarden(gi);
     assert.ok(r.complete, `${g.name}: 探索が打ち切られた`);
@@ -201,23 +205,57 @@ test('保存データの復元：壊れていても安全に初期化される',
   assert.deepEqual(b.gardens[0], a.gardens[0]);
 });
 
-test('追加の庭（6〜9）は、最初の庭より手数がかかる（中身の確認）', () => {
-  for (const gi of [4, 5, 6, 7, 8]) {
-    const r = L.exploreGarden(gi);
-    assert.ok(r.allTurns >= 3, `${L.GARDENS[gi].name}: ${r.allTurns}手で全部取れてしまう`);
+test('後から足した庭は、最初の庭より手数がかかる（中身の確認）', () => {
+  const idx = (id) => L.GARDENS.findIndex((g) => g.id === id);
+  for (const id of ['forest', 'snow', 'sakura', 'falls', 'candy', 'oasis', 'dune', 'ruins', 'cactus', 'mirage']) {
+    const r = L.exploreGarden(idx(id));
+    assert.ok(r.allTurns >= 3, `${id}: ${r.allTurns}手で全部取れてしまう`);
   }
-  assert.ok(L.exploreGarden(4).allTurns >= 10, '木漏れ日の森は綿毛どうしをぶつける長めの謎');
-  assert.ok(L.exploreGarden(8).allTurns >= 10, 'わたあめの島は綿毛を何度も押す長めの謎');
+  assert.ok(L.exploreGarden(idx('forest')).allTurns >= 10, '木漏れ日の森は綿毛どうしをぶつける長めの謎');
+  assert.ok(L.exploreGarden(idx('candy')).allTurns >= 10, 'わたあめの島は綿毛を何度も押す長めの謎');
 });
 
-test('初版（5庭・15個）の保存は、夜空の花畑を最後の庭へ移して引き継ぐ', () => {
+test('ワールド：最初は草原だけ。草原の5つめの庭まで進むと砂漠と空が開く。各ワールドの中は順番に開く', () => {
+  const g = L.newGame();
+  assert.ok(L.worldUnlocked(g, 0));
+  assert.equal(L.worldUnlocked(g, 1), false); assert.equal(L.worldUnlocked(g, 2), false);
+  const upTo4 = { ...g, got: g.got.map((_, i) => i < 12 && i % 3 < 2) };
+  assert.ok(L.isUnlocked(upTo4, 4));
+  assert.ok(L.worldUnlocked(upTo4, 1) && L.worldUnlocked(upTo4, 2));
+  assert.equal(L.isUnlocked(upTo4, L.worldFirst(1) + 1), false, '砂漠の2つめは砂漠の1つめで2個必要');
+  assert.equal(L.worldGot(upTo4, 0), 8);
+});
+
+test('ワールドの最後の庭の門は、ワールド選択（map）へ戻る。2個そろうまでは閉じている', () => {
+  const MILL = 4; const [gx, gy] = L.gardenInfo(MILL).gate;
+  const base = L.enterGarden({ ...L.newGame(), got: L.newGame().got.map((_, i) => i < 15 && i % 3 < 2) }, MILL);
+  assert.equal(base.cur, MILL);
+  const enter = (g) => {
+    for (let d = 0; d < 4; d++) {
+      const [dx, dy] = L.DIRS[d]; const sx = gx - dx; const sy = gy - dy;
+      if (!L.isGround(MILL, sx, sy)) continue;
+      const h = JSON.parse(JSON.stringify(g)); h.gardens[MILL] = { ...h.gardens[MILL], x: sx, y: sy };
+      return L.move(h, d).result;
+    }
+    return null;
+  };
+  assert.equal(enter(base), 'map');
+  const noClouds = { ...base, got: base.got.map((v, i) => (Math.floor(i / 3) === MILL ? false : v)) };
+  assert.equal(enter(noClouds), 'locked-gate');
+});
+
+test('以前の保存（5庭・15個／10庭・30個）を、庭の名前で今の並びへ引き継ぐ', () => {
+  const idx = (id) => L.GARDENS.findIndex((g) => g.id === id);
   const got = Array(15).fill(false); got[0] = true; got[1] = true; got[12] = true; got[13] = true;
   const g = L.sanitize({ got, cur: 4, gardens: [{}, {}, {}, {}, { x: 3, y: 4, wind: 1 }] });
-  assert.equal(g.got.length, 30);
+  assert.equal(g.got.length, 45);
   assert.ok(g.got[0] && g.got[1]);
-  assert.ok(g.got[L.LAST * 3] && g.got[L.LAST * 3 + 1], '夜空の雲が最後の庭へ移る');
+  assert.ok(g.got[idx('night') * 3] && g.got[idx('night') * 3 + 1], '夜空の雲が夜空の花畑へ移る');
   assert.equal(g.got.filter(Boolean).length, 4);
-  assert.ok(g.cur < L.LAST && L.isUnlocked(g, g.cur), '夜空はまだ解放されていないので、解放済みの庭に戻る');
+  assert.ok(L.isUnlocked(g, g.cur), '開いていない庭にはいない');
+  const got30 = Array(30).fill(false); got30[4 * 3] = true; got30[8 * 3 + 2] = true;
+  const h = L.sanitize({ got: got30 });
+  assert.ok(h.got[idx('forest') * 3] && h.got[idx('candy') * 3 + 2]);
 });
 
 test('着せ替え：集めた雲の数で解放、未解放は着られない、保存で戻る', () => {
@@ -237,7 +275,7 @@ test('着せ替え：集めた雲の数で解放、未解放は着られない�
   // 増えた着せ替えの通知
   assert.deepEqual(L.newOutfits(3, 4).map((o) => o.id), ['sky']);
   assert.deepEqual(L.nextOutfit(L.newGame()), { ...L.HATS[1], kind: 'hat', left: 2 });
-  assert.ok(L.newOutfits(29, 30).some((o) => o.id === 'rainbow'));
-  // すべての着せ替えは雲30個以内で手に入る
+  assert.ok(L.newOutfits(44, 45).some((o) => o.id === 'rainbow'));
+  // すべての着せ替えは雲45個以内で手に入る
   [...L.COATS, ...L.HATS].forEach((o) => assert.ok(o.need <= L.CLOUD_COUNT));
 });

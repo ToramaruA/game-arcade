@@ -69,25 +69,25 @@ function toast(msg, ms = 2400) {
 function updateHud() {
   const gi = game.cur; const g = GARDENS[gi]; const gs = game.gardens[gi];
   $('gname').innerHTML = `${g.name} <b>${L.gardenGot(game, gi)}/3</b>`;
+  $('gname').title = `${L.WORLDS[g.world].name} ${g.stage + 1}`;
   $('total').innerHTML = `☁ <b>${L.gotCount(game)}/${L.CLOUD_COUNT}</b>`;
   $('compassArrow').textContent = '↑';
   $('compassName').textContent = WIND_NAMES[gs.wind];
   $('compassArrow').style.display = 'inline-block';
   $('compassArrow').style.transform = `rotate(${gs.wind * 90 + 45}deg)`;
   const tabs = $('tabs');
-  if (!tabs.children.length) {
-    GARDENS.forEach((gg, i) => {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'tab'; b.dataset.i = i;
-      b.addEventListener('click', () => travel(i));
-      tabs.appendChild(b);
-    });
-  }
-  [...tabs.children].forEach((b, i) => {
+  tabs.textContent = '';
+  const mb = document.createElement('button'); mb.type = 'button'; mb.className = 'tab map'; mb.textContent = '🗺 島'; mb.setAttribute('aria-label', 'ワールドを選ぶ'); mb.addEventListener('click', () => openMap()); tabs.appendChild(mb);
+  GARDENS.forEach((gg, i) => {
+    if (gg.world !== g.world) return;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'tab';
     const open = L.isUnlocked(game, i);
     b.disabled = !open; b.setAttribute('aria-current', String(i === gi));
-    b.textContent = open ? (i === gi ? `${i + 1} ${GARDENS[i].name}` : `${i + 1}${L.gardenGot(game, i) === 3 ? '★' : ''}`) : `${i + 1}🔒`;
-    b.title = open ? GARDENS[i].name : '';
-    b.setAttribute('aria-label', open ? `${i + 1}の庭 ${GARDENS[i].name}` : `${i + 1}の庭は鍵がかかっています`);
+    b.textContent = open ? (i === gi ? `${gg.stage + 1} ${gg.name}` : `${gg.stage + 1}${L.gardenGot(game, i) === 3 ? '★' : ''}`) : `${gg.stage + 1}🔒`;
+    b.title = open ? gg.name : '';
+    b.setAttribute('aria-label', open ? `${gg.stage + 1}の庭 ${gg.name}` : `${gg.stage + 1}の庭は鍵がかかっています`);
+    b.addEventListener('click', () => travel(i));
+    tabs.appendChild(b);
   });
   const can = L.canTurn(game);
   const wb = $('windBtn'); wb.disabled = !can;
@@ -125,6 +125,9 @@ function doMove(dir) {
   if (r.result === 'locked-gate') {
     const need = L.UNLOCK_NEED - L.gardenGot(game, gi);
     toast(`門は閉じている。この庭の雲をあと${need}個見つけよう`);
+  } else if (r.result === 'map') {
+    game.gardens[gi].x = prev.x; game.gardens[gi].y = prev.y;
+    audio.gate(); save(); updateHud(); setTimeout(() => openMap(`${L.WORLDS[GARDENS[gi].world].name}の最後の門をくぐった！`), reduce ? 0 : 300);
   } else if (r.result === 'gate') {
     game.gardens[gi].x = prev.x; game.gardens[gi].y = prev.y; // 戻ったとき門の上に立たない
     audio.gate(); sail(r.to, true);
@@ -177,7 +180,8 @@ function onCollect(id) {
   const [sx, sy] = toScreen(game.gardens[game.cur].x + 0.5, game.gardens[game.cur].y + 0.5, 30);
   fx.push({ type: 'orb', t0: performance.now(), x: sx, y: sy, hue: c.hue, id });
   toast(`${c.name}を連れ帰った「${c.say}」 ${L.gotCount(game)}/${L.CLOUD_COUNT}`, 2800);
-  if (L.gardenGot(game, gi) === L.UNLOCK_NEED && gi < L.LAST) setTimeout(() => toast(`${GARDENS[gi + 1].name}への門が光った`, 2400), 1500);
+  if (L.gardenGot(game, gi) === L.UNLOCK_NEED && !L.isLastStage(gi)) setTimeout(() => toast(`${GARDENS[gi + 1].name}への門が光った`, 2400), 1500);
+  if (L.gardenGot(game, gi) === L.UNLOCK_NEED && gi === L.STAGES - 2) setTimeout(() => toast('🗺 砂漠の島と空の島に行けるようになった！', 3200), 4200);
 }
 function sparkle(x, y, n, color, speed) {
   const k = reduce ? 0.4 : 1;
@@ -206,7 +210,7 @@ function startFinale() {
 
 function pump() {
   const now = performance.now();
-  if (held.length && now - lastStep >= STEP_MS && !fading && dex.hidden && cardModal.hidden && ward.hidden) { if (doMove(held[held.length - 1])) lastStep = now; else lastStep = now + 80; }
+  if (held.length && now - lastStep >= STEP_MS && !fading && dex.hidden && cardModal.hidden && ward.hidden && mapEl.hidden) { if (doMove(held[held.length - 1])) lastStep = now; else lastStep = now + 80; }
 }
 // キーボード
 const KEYS = { ArrowUp: 0, ArrowRight: 1, ArrowDown: 2, ArrowLeft: 3, w: 0, d: 1, s: 2, a: 3, W: 0, D: 1, S: 2, A: 3 };
@@ -244,8 +248,43 @@ function toggleMute() { audio.setMuted(!audio.state.muted); updateHud(); }
 $('muteBtn').addEventListener('click', toggleMute);
 
 // ---------- 図鑑・結果カード ----------
-const dex = $('dex'); const cardModal = $('cardModal'); const ward = $('ward');
-function closeModals() { dex.hidden = true; cardModal.hidden = true; ward.hidden = true; }
+const dex = $('dex'); const cardModal = $('cardModal'); const ward = $('ward'); const mapEl = $('worldMap');
+function closeModals() { dex.hidden = true; cardModal.hidden = true; ward.hidden = true; mapEl.hidden = true; }
+function stageToEnter(wi) {
+  const list = GARDENS.map((g, i) => i).filter((i) => GARDENS[i].world === wi && L.isUnlocked(game, i));
+  if (GARDENS[game.cur].world === wi) return game.cur;
+  return list.find((i) => L.gardenGot(game, i) < 3) ?? list[0];
+}
+function openMap(msg) {
+  const box = $('worlds'); box.textContent = '';
+  $('mapMsg').textContent = msg || 'どの島へ行く？';
+  $('mapTotal').textContent = `☁ ${L.gotCount(game)}/${L.CLOUD_COUNT}`;
+  L.WORLDS.forEach((w, wi) => {
+    const open = L.worldUnlocked(game, wi);
+    const b = document.createElement('button'); b.type = 'button'; b.className = `world${open ? '' : ' locked'}${GARDENS[game.cur].world === wi ? ' here' : ''}`; b.disabled = !open;
+    const c = document.createElement('canvas'); c.width = 320; c.height = 150; const g = c.getContext('2d');
+    const firstGi = L.worldFirst(wi); const th = GARDENS[firstGi].theme;
+    R.drawBackground(g, 320, 150, th, 2, true); R.drawSea(g, 320, 170, th, 0, true);
+    const T = R.THEMES[th];
+    g.save(); g.translate(160, 18); g.scale(0.7, 0.7);
+    [[-1, 0], [0, -1], [0, 0], [1, 0], [0, 1], [-1, 1], [1, -1]].forEach(([x, y]) => { const [sx, sy] = R.proj(x, y); g.translate(sx, sy); R.drawTile(g, firstGi, 3, 3, T, 0, true); g.translate(-sx, -sy); });
+    g.restore();
+    if (!open) { g.fillStyle = 'rgba(40,50,80,.55)'; g.fillRect(0, 0, 320, 150); g.font = '48px sans-serif'; g.textAlign = 'center'; g.fillText('🔒', 160, 92); }
+    b.appendChild(c);
+    const got = L.worldGot(game, wi);
+    const full = GARDENS.filter((gg, i) => gg.world === wi && L.gardenGot(game, i) === 3).length;
+    const opened = GARDENS.filter((gg, i) => gg.world === wi && L.isUnlocked(game, i)).length;
+    const info = document.createElement('div'); info.className = 'winfo';
+    info.innerHTML = `<b>${w.icon} ${w.name}</b><span>${open ? `☁ 雲 ${got}/15　🚪 行ける庭 ${opened}/5　★ 全部集めた庭 ${full}/5` : '🔒 草原の島の5つめの庭まで進むと行ける'}</span>`;
+    b.appendChild(info);
+    b.setAttribute('aria-label', open ? `${w.name}、雲${got}個` : `${w.name}、まだ行けない`);
+    b.addEventListener('click', () => { mapEl.hidden = true; const to = stageToEnter(wi); if (to !== game.cur) { audio.gate(); sail(to, false); } });
+    box.appendChild(b);
+  });
+  closeModals(); mapEl.hidden = false; $('mapClose').focus();
+}
+$('mapClose').addEventListener('click', closeModals);
+mapEl.addEventListener('click', (e) => { if (e.target === mapEl) closeModals(); });
 function previewCanvas(c, outfit, size) {
   const g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height);
   const k = c.width / size; g.save(); g.scale(k, k);
@@ -282,9 +321,10 @@ ward.addEventListener('click', (e) => { if (e.target === ward) closeModals(); })
 function openDex() {
   const body = $('dexBody'); body.textContent = '';
   GARDENS.forEach((g, gi) => {
+    if (g.stage === 0) { const wh = document.createElement('h3'); wh.className = 'dex-w'; const w = L.WORLDS[g.world]; wh.textContent = `${w.icon} ${w.name}　☁ ${L.worldGot(game, g.world)}/15`; body.appendChild(wh); }
     const sec = document.createElement('div'); sec.className = 'dex-g';
-    const h = document.createElement('h3'); h.innerHTML = `<span>${gi + 1}. ${g.name}</span><span>${L.gardenGot(game, gi)} / 3</span>`; sec.appendChild(h);
-    if (!L.isUnlocked(game, gi)) { const d = document.createElement('div'); d.className = 'locked'; d.textContent = `🔒 前の庭で雲を${L.UNLOCK_NEED}個見つけると行ける`; sec.appendChild(d); body.appendChild(sec); return; }
+    const h = document.createElement('h3'); h.innerHTML = `<span>${g.stage + 1}. ${g.name}</span><span>${L.gardenGot(game, gi)} / 3</span>`; sec.appendChild(h);
+    if (!L.isUnlocked(game, gi)) { const d = document.createElement('div'); d.className = 'locked'; d.textContent = g.stage === 0 ? '🔒 草原の島の5つめの庭まで進むと行ける' : `🔒 前の庭で雲を${L.UNLOCK_NEED}個見つけると行ける`; sec.appendChild(d); body.appendChild(sec); return; }
     const row = document.createElement('div'); row.className = 'dex-row';
     g.clouds.forEach((c, k) => {
       const id = L.cloudId(gi, k); const got = game.got[id];
@@ -389,7 +429,7 @@ function draw(now) {
   if (g.pedestal) items.push({ d: g.pedestal.x + g.pedestal.y + 0.05, f: () => R.drawPedestal(ctx, g.pedestal.x, g.pedestal.y, gs.hist, t, g.clouds[g.pedestal.cloud].reveal.seq) });
   if (g.centerFlower) { const st = game.got[L.CLOUD_COUNT - 1] ? 2 : L.gotCount(game) >= L.FINAL_NEED ? 1 : 0; items.push({ d: g.centerFlower.x + g.centerFlower.y + 0.03, f: () => R.drawCenterFlower(ctx, g.centerFlower.x, g.centerFlower.y, st, t, reduce) }); }
   if (gi === L.LAST && game.finished) for (let i = 0; i < 14; i++) { const x = (i * 5) % 9; const y = (i * 7) % 9; if (L.isGround(gi, x, y) && L.cellAt(gi, x, y) === '#' && !(x === gs.x && y === gs.y)) items.push({ d: x + y + 0.02, f: () => { const [cx, cy] = R.proj(x + 0.5, y + 0.5); R.drawFlower(ctx, cx + 8, cy + 3, 0.7, ['#fff0a0', '#9ff0ff', '#ffb0f0'][i % 3], '#fff', 0); } }); }
-  anim.fluff.forEach((f) => items.push({ d: f[0] + f[1] + 0.3, f: () => { const [cx, cy] = R.proj(f[0] + 0.5, f[1] + 0.5); R.drawFluff(ctx, cx, cy, t, reduce); } }));
+  anim.fluff.forEach((f) => items.push({ d: f[0] + f[1] + 0.3, f: () => { const [cx, cy] = R.proj(f[0] + 0.5, f[1] + 0.5); R.drawFluff(ctx, cx, cy, t, reduce, g.world === 1); } }));
   g.clouds.forEach((c, k) => {
     const id = L.cloudId(gi, k);
     if (game.revealed[id] && !game.got[id]) items.push({ d: c.x + c.y + 0.35, f: () => { const [cx, cy] = R.proj(c.x + 0.5, c.y + 0.5); R.drawCloudMob(ctx, cx, cy, c.hue, t, reduce, k + gi); } });
@@ -452,5 +492,6 @@ resize();
 if (new URLSearchParams(location.search).get('og') === '1') { everMoved = true; }
 resetAnim(); updateHud();
 if (!OG && L.gotCount(game) === 0 && game.gardens[0].turns === 0) toast(`迷子の雲を${L.CLOUD_COUNT}個、見つけよう`, 3500);
+else if (!OG && params.get('map') !== '0') openMap('おかえり！ どの島へ行く？');
 document.addEventListener('visibilitychange', () => { held.length = 0; });
 requestAnimationFrame(draw);

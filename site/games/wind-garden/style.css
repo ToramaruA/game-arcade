@@ -104,3 +104,23 @@ body.og .game { height: 100dvh; max-width: none; }
 .ward-item.locked { cursor: default; opacity: .75; background: #f4f6fa; }
 .ward-item.locked .nm { color: #8a96ab; font-weight: 400; }
 .ward-item:focus-visible { outline: 3px solid #5aa0ff; outline-offset: 2px; }
+
+/* ワールド選択 */
+.tab.map { background: #fff7d6; font-weight: 700; }
+.map-total { margin: 0 14px 6px; font-size: 13px; color: #6b7c96; }
+.worlds { display: grid; gap: 10px; padding: 0 14px 14px; overflow-y: auto; }
+@media (min-width: 700px) { .worlds { grid-template-columns: repeat(3, 1fr); } }
+.world { font: inherit; color: inherit; border: 3px solid #e6eef8; border-radius: 18px; padding: 0; overflow: hidden; background: #fff; cursor: pointer; text-align: left; display: flex; flex-direction: column; }
+.world canvas { width: 100%; height: auto; display: block; }
+.world .winfo { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 2px; }
+.world .winfo b { font-size: 16px; }
+.world .winfo span { font-size: 13px; color: #6b7c96; letter-spacing: .02em; }
+.world.here { border-color: #ffb23a; }
+.world.locked { cursor: default; }
+.world:focus-visible { outline: 3px solid #5aa0ff; outline-offset: 2px; }
+.dex-w { margin: 14px 0 4px; font-size: 15px; }
+
+.map-modal { background: linear-gradient(#9fd8ff, #fff3e0); }
+.map-modal .sheet { max-width: 980px; background: rgba(255,253,246,.92); }
+.map-modal .sheet-head h2 { font-size: 20px; }
+.world .winfo span { line-height: 1.5; }
