@@ -149,6 +149,7 @@ export function createRun(room, phase = 0, opts = {}) {
   info.opts.forEach(([x, y], i) => items.push({ x, y, kind: 'opt', idx: i + 1, got: false }));
   const run = {
     room, phase, t: 0, slow: !!opts.slow, status: 'play', time: 0, alerts: 0, latched: false,
+    start: [info.start[0] + 0.5, info.start[1] + 0.5],
     p: { x: info.start[0] + 0.5, y: info.start[1] + 0.5, vx: 0, vy: 0, fx: 0, fy: -1 },
     guards: room.guards.map(makeGuard), items, decoys: CFG.decoyCount, decoyObj: null,
     gauge: 0, unseen: 99, stamina: CFG.staminaMax, dashing: false, sneaking: false,
@@ -597,4 +598,30 @@ export function loadSave(storage) {
 }
 export function saveSave(storage, s) {
   try { storage.setItem('moonlight-heist-v1', JSON.stringify(s)); } catch { /* 保存できなくても遊べる */ }
+}
+
+// ---------- 無線（キツネ） ----------
+// 操作の説明を、キーボード／タッチに合わせて言い換える。
+export function radioText(text, touch) {
+  if (!touch) return text;
+  return text.replace(/Shift（忍び足）|Shift ?/g, '「忍び足」ボタン').replace(/Space（おとり）|Space ?/g, '「おとり」ボタン');
+}
+// 第1室の手引き：プレイの状態を見て、次に言うべきセリフを1つ返す（done は言い終えた id の Set）。
+export function tutorialCue(run, done, touch) {
+  const say = (id, text) => (done.has(id) ? null : { id, text: radioText(text, touch) });
+  const sx = run.start ? run.start[0] : run.p.x, sy = run.start ? run.start[1] : run.p.y;
+  const moved = Math.hypot(run.p.x - sx, run.p.y - sy);
+  const near = run.guards.some((g) => Math.hypot(g.x - run.p.x, g.y - run.p.y) < 4.5);
+  const order = [
+    ['move', () => true, touch ? '聞こえるか、ルウ。キツネだ。左下のパッドで動いてみろ。' : '聞こえるか、ルウ。キツネだ。WASDか矢印キーで動いてみろ。'],
+    ['trail', () => moved > 1.2 || run.t > 5, '床に光る足跡が見えるか？ たどれば“夜のかけら”に着く。'],
+    ['guard', () => near || run.t > 11, '赤い服が警備員だ。ランタンの光の扇に入るな。像やケースの陰なら見えない。'],
+    ['decoy', () => run.t > 24 && run.decoys > 0, '近づけないときは Space（おとり）。小石の音で警備員を引きつけられる。'],
+  ];
+  if (run.gauge > 0.3 && run.t > 4 && done.has('move') && !done.has('gauge')) return say('gauge', '画面上のゲージがたまってる！ 満ちる前に視線の外へ出ろ。');
+  for (const [id, cond, text] of order) {
+    if (done.has(id)) continue;
+    return cond() ? say(id, text) : null;
+  }
+  return null;
 }

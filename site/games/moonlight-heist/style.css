@@ -84,3 +84,23 @@ html,body{margin:0;height:100%;background:#070b22;color:var(--milk);font-family:
 #btns button.on{background:radial-gradient(circle at 35% 30%,#fff1b0,#c9a24a 75%);color:#16204a}
 #btns button.on svg{stroke:#16204a}
 #btns button:active{transform:scale(.92)}
+/* 無線（キツネ） */
+#radio{position:absolute;left:50%;top:62px;transform:translate(-50%,-8px);width:min(94vw,500px);display:flex;gap:10px;align-items:center;padding:8px 12px 8px 8px;border-radius:10px;background:linear-gradient(#0d2a26f0,#08161ff0);border:1px solid #5fc79a99;box-shadow:0 0 0 3px #070b22,0 0 18px #5fc79a33;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;overflow:hidden}
+#radio::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(#ffffff08 0 1px,transparent 1px 3px);pointer-events:none}
+#radio.on{opacity:1;transform:translate(-50%,0)}
+#radio b{display:block;font-size:11px;letter-spacing:.12em;color:#7fe0b4}
+#radio p{margin:2px 0 0;font-size:14px;line-height:1.5;min-height:1.5em;color:#eafff4}
+.radio-face{flex:none;width:44px;height:44px;border-radius:50%;background:radial-gradient(#2a4a44,#0b1a1a);border:2px solid #5fc79a;display:grid;place-items:center;animation:rpulse 1.2s infinite}
+.radio-face .fox{width:34px;height:34px}
+@keyframes rpulse{50%{box-shadow:0 0 0 4px #5fc79a33}}
+body.radio-on #toast{top:146px}
+.card .who{display:flex;gap:10px;align-items:center;text-align:left;margin:8px auto;max-width:440px;padding:6px 10px;border-radius:10px}
+.card .who b{display:block;font-size:12px;letter-spacing:.12em}
+.card .fox-l{background:#0d2a26cc;border:1px solid #5fc79a77}
+.card .fox-l b{color:#7fe0b4}
+.card .fox-l .fox{flex:none;width:38px;height:38px;border-radius:50%;background:#16302c;border:2px solid #5fc79a;padding:2px}
+.card .boss-l{background:#2a0d16cc;border:1px solid #d6414f88}
+.card .boss-l b{color:#ff8a96}
+.card .who.tl{font-size:14px}
+@media (prefers-reduced-motion:reduce){.radio-face{animation:none}#radio{transition:none}}
+.card .boss-l .fox{flex:none;width:38px;height:38px;border-radius:50%;background:#2a1020;border:2px solid #d6414f;padding:2px}

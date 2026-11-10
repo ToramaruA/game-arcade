@@ -208,3 +208,29 @@ test('巡回位相が違うと警備員の開始位置が変わる', () => {
   const a = L.createRun(room, 0).guards[0], b = L.createRun(room, 1).guards[0];
   assert.ok(Math.abs(a.x - b.x) > 0.5 || Math.abs(a.y - b.y) > 0.5);
 });
+
+test('無線：第1室の手引きは 移動→足跡→警備員 の順で、ゲージが上がれば割り込む', async () => {
+  const { INTRO, STORY, EPILOGUE } = await import('../../site/games/moonlight-heist/rooms.js');
+  assert.ok(INTRO.some((l) => l.includes('解放')), '序章で「自由になれる」目的が分かる');
+  assert.ok(INTRO.some((l) => l.startsWith('キツネ「')));
+  for (const k of ['ch1', 'ch2', 'ch3']) assert.ok(STORY[k].some((l) => l.startsWith('キツネ「')), k);
+  assert.ok(EPILOGUE.some((l) => l.includes('自由')));
+  const r = L.createRun(ROOMS[0], 0), done = new Set();
+  const next = (touch = false) => { const c = L.tutorialCue(r, done, touch); if (c) done.add(c.id); return c; };
+  assert.match(L.tutorialCue(r, new Set(), true).text, /パッド/);
+  assert.equal(next().id, 'move');
+  assert.equal(next(), null, '動くまでは次を言わない');
+  r.p.x += 2;
+  assert.equal(next().id, 'trail');
+  r.gauge = 0.5;
+  assert.notEqual(L.tutorialCue(r, done, false)?.id, 'gauge', '始まってすぐはゲージで割り込まない');
+  r.t = 5;
+  assert.equal(next().id, 'gauge', 'ゲージは順番より優先');
+  r.gauge = 0; r.t = 12;
+  assert.equal(next().id, 'guard');
+  r.t = 30;
+  assert.match(next(true).text, /「おとり」ボタン/);
+  assert.equal(next(), null);
+  assert.equal(L.radioText('床が鳴る。Shift で忍び足。', true), '床が鳴る。「忍び足」ボタンで忍び足。');
+  assert.equal(L.radioText('Space で投げる', false), 'Space で投げる');
+});

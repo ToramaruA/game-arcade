@@ -1,5 +1,5 @@
 import * as L from './logic.js';
-import { STORY } from './rooms.js';
+import { STORY, INTRO, EPILOGUE } from './rooms.js';
 
 const { ROOMS, CHAPTERS, CFG } = L;
 const $ = (id) => document.getElementById(id);
@@ -43,6 +43,7 @@ function tone(f, d, type = 'sine', v = 0.3, to = null, delay = 0) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + d + 0.02);
 }
 const sfx = {
+  radio: () => { tone(1400, 0.04, 'square', 0.05); tone(1800, 0.05, 'square', 0.04, null, 0.06); },
   step: () => tone(120 + Math.random() * 30, 0.05, 'triangle', 0.1),
   key: () => { tone(660, 0.25, 'sine', 0.3); tone(990, 0.4, 'sine', 0.25, null, 0.1); tone(1320, 0.5, 'sine', 0.2, null, 0.22); },
   opt: () => { tone(880, 0.2, 'sine', 0.25); tone(1175, 0.3, 'sine', 0.2, null, 0.1); },
@@ -60,6 +61,7 @@ const sfx = {
 const screenEl = $('screen');
 function show(name, html, cls = '') {
   screenName = name; screenEl.className = 'screen on ' + cls; screenEl.innerHTML = html;
+  if (typeof radioClear === 'function' && name !== 'pause' && name !== 'options') radioClear();
   if (reduceMotion()) screenEl.classList.add('rm');
   $('touch').hidden = true; $('hud').hidden = true; $('gaugeBar').hidden = true; $('collect').hidden = true;
   const f = screenEl.querySelector('button'); if (f) f.focus({ preventScroll: true });
@@ -79,13 +81,14 @@ function titleScreen() {
   mode = 'title';
   const started = Object.keys(save.rooms).length > 0;
   show('title', `<div class="card">
-    <p class="sub">閉館後の美術館 ― 見習い怪盗ルウ</p>
+    <p class="sub">怪盗団「夜鴉」の見習いルウ、最後の仕事</p>
     <h2 class="big">月光美術館と<br>十二の怪盗</h2>
-    <p>見つからないように展示室を進み、<br>盗まれた「夜のかけら」を取り戻せ。</p>
+    <p>警備員に見つからずに「夜のかけら」を集めきれば、<br>ルウは団から自由になれる。</p>
+    <p class="who fox-l tl">${FOX}<span><b>無線 ― キツネ</b>案内は俺に任せろ。足跡はこっちで照らす。</span></p>
     <button class="pri" data-a="${started ? 'continue' : 'new'}">${started ? `つづきから（第${firstUnplayed() + 1}室）` : 'はじめる'}</button>
     <div class="row2"><button data-a="rooms">室えらび</button><button data-a="album">アルバム ${total()}/45</button></div>
     <button data-a="options">せってい</button>
-    <p class="sub">WASD/矢印：移動　Shift：忍び足　Space：おとり</p>
+    <p class="sub">${isTouchUI() ? '左下のパッドで移動　右下のボタンで忍び足・おとり' : 'WASD/矢印：移動　Shift：忍び足　Space：おとり'}</p>
     <p class="sub"><a href="/" style="color:#7f8ab5">Game Arcade</a></p></div>`, 'title');
 }
 function roomsScreen() {
@@ -125,8 +128,13 @@ function optionsScreen(back = 'title') {
   $('oView').onchange = (e) => { save.opt.showView = e.target.checked; persist(); };
   $('oRed').onchange = (e) => { save.opt.reduceMotion = e.target.checked; persist(); };
 }
+function storyLine(l) {
+  if (l.startsWith('キツネ「')) return `<p class="who fox-l">${FOX}<span><b>キツネ</b>${l.slice(3)}</span></p>`;
+  if (l.startsWith('頭領「')) return `<p class="who boss-l">${CROW}<span><b>頭領</b>${l.slice(2)}</span></p>`;
+  return `<p>${l}</p>`;
+}
 function storyScreen(lines, next, title = '') {
-  show('story', `<div class="card"><h2>${title}</h2><div class="lines">${lines.map((l, i) => `<p style="animation-delay:${i * 0.5}s">${l}</p>`).join('')}</div><button class="pri" data-a="next">つづける</button></div>`);
+  show('story', `<div class="card"><h2>${title}</h2><div class="lines">${lines.map((l, i) => storyLine(l).replace('<p', `<p style="animation-delay:${i * 0.5}s"`)).join('')}</div><button class="pri" data-a="next">つづける</button></div>`);
   storyNext = next;
 }
 let storyNext = null;
@@ -145,7 +153,7 @@ function resultScreen() {
 }
 function endingScreen() {
   const e = L.endingFor(save);
-  storyScreen(e.lines, () => { titleScreen(); }, `結末「${e.title}」<br><small style="font-size:13px;color:#a9b8e8">集めた展示品 ${total()}/45</small>`);
+  storyScreen([...e.lines, ...EPILOGUE], () => { titleScreen(); }, `結末「${e.title}」<br><small style="font-size:13px;color:#a9b8e8">集めた展示品 ${total()}/45</small>`);
 }
 function pauseScreen() {
   paused = true;
@@ -156,7 +164,7 @@ screenEl.addEventListener('click', (e) => {
   const b = e.target.closest('[data-a]'); if (!b) return;
   audio();
   const a = b.dataset.a;
-  if (a === 'new') startRoom(0);
+  if (a === 'new') storyScreen(INTRO, () => startRoom(0), '序章　最後の仕事');
   else if (a === 'continue') startRoom(firstUnplayed());
   else if (a === 'rooms') { paused = false; roomsScreen(); }
   else if (a === 'album') albumScreen();
@@ -186,8 +194,12 @@ function startRoom(ri, ph) {
   hideScreen();
   tutorialT = 0;
   const flavor = c.flavor[phase];
-  toast(`${ROOMS[ri].name} ― ${flavor}`, 3200);
+  void flavor;
+  radioClear(); tutDone = new Set(save.rooms[0] ? ['opt'] : []);
+  tutorialOn = ri === 0 && !save.rooms[0];
+  if (!tutorialOn) radio(ROOMS[ri].hint);
 }
+let tutorialOn = false;
 function newRun() {
   run = L.createRun(ROOMS[roomIdx], phase, { slow: save.opt.slow });
   fade = 0; flash = 0;
@@ -204,18 +216,49 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), ms);
 }
 
+// ---------- 無線（キツネ） ----------
+const FOX = `<svg class="fox" viewBox="0 0 40 40" aria-hidden="true"><path d="M5 4l9 9h12l9-9 1 15c0 9-7 17-16 17S4 28 4 19z" fill="#f4ecdc"/><path d="M5 4l9 9-7 4zM35 4l-9 9 7 4z" fill="#d6414f"/><path d="M9 21c3-3 7-3 9 0-3 2-6 2-9 0zM31 21c-3-3-7-3-9 0 3 2 6 2 9 0z" fill="#16204a"/><path d="M13 27h14l-7 6z" fill="#d6414f"/><circle cx="20" cy="30" r="1.6" fill="#16204a"/><path d="M17 15l3 4 3-4" stroke="#c9a24a" stroke-width="1.5" fill="none"/></svg>`;
+document.querySelector('#radio .radio-face').innerHTML = FOX;
+const CROW = `<svg class="fox" viewBox="0 0 40 40" aria-hidden="true"><path d="M4 16c4-9 28-9 32 0l-4 8-12 12L8 24z" fill="#1a1020"/><path d="M8 18c4-3 8-3 10 0-3 3-7 3-10 0zM32 18c-4-3-8-3-10 0 3 3 7 3 10 0z" fill="#d6414f"/><path d="M16 22h8l-4 12z" fill="#c9a24a"/><path d="M6 12l6 2M34 12l-6 2" stroke="#5a3a6a" stroke-width="2"/></svg>`;
+let radioQ = [], radioCur = '', radioT = 0, radioShown = 0, tutDone = new Set();
+function radio(text, now = false) {
+  text = L.radioText(text, isTouchUI());
+  if (now) { radioQ = []; radioCur = ''; }
+  if (radioCur) { if (!radioQ.includes(text) && radioCur !== text) radioQ.push(text); return; }
+  radioCur = text; radioShown = 0; radioT = Math.min(7, Math.max(3.2, 1.4 + text.length * 0.09));
+  $('radioName').textContent = '無線 ― キツネ'; $('radioText').textContent = reduceMotion() ? text : '';
+  if (reduceMotion()) radioShown = text.length;
+  $('radio').classList.add('on'); document.body.classList.add('radio-on');
+  sfx.radio();
+}
+function radioClear() { radioQ = []; radioCur = ''; $('radio').classList.remove('on'); document.body.classList.remove('radio-on'); }
+function radioTick(dt) {
+  if (!radioCur) return;
+  if (radioShown < radioCur.length) { radioShown = Math.min(radioCur.length, radioShown + dt * 28); $('radioText').textContent = radioCur.slice(0, Math.ceil(radioShown)); return; }
+  radioT -= dt;
+  if (radioT <= 0) { const n = radioQ.shift(); radioCur = ''; if (n) radio(n); else radioClear(); }
+}
+
 function handleEvents() {
   const room = run.room;
   for (const ev of run.events.splice(0)) {
-    if (ev === 'key') { sfx.key(); flash = 0.6; const it = run.items.filter((i) => i.kind === 'key' && i.got).length; toast(`「${room.items[0][0]}」${room.items[0][1]}`, 3200); void it; updateHud(); }
+    if (ev === 'key') {
+      sfx.key(); flash = 0.6; toast(`「${room.items[0][0]}」${room.items[0][1]}`, 3200); updateHud();
+      const left = run.items.filter((i) => i.kind === 'key' && !i.got).length;
+      if (room.finalAlarm) { /* final イベント側で話す */ }
+      else if (left > 0) radio(`かけら確保。あと${left}つだ。`, true);
+      else if (roomIdx === 0) radio('いいぞ、かけらだ！ 出口の扉が青く光った。来た道の上、左上の扉へ。', true);
+      else radio('かけらはそろった。出口が青く光ってる。抜けろ。', true);
+    }
     else if (ev === 'opt') {
       const got = run.items.filter((i) => i.kind === 'opt' && i.got);
       const idx = got[got.length - 1].idx; sfx.opt(); toast(`「${room.items[idx][0]}」${room.items[idx][1]}`, 3200); updateHud();
+      if (!tutDone.has('opt')) { tutDone.add('opt'); radio('展示品も拾ったか。頭領の注文じゃないが……集めておけ。何かある気がする。'); }
     }
-    else if (ev === 'alert') { sfx.alert(); toast('見つかった！ 走って、視線を切れ！', 2200); shake = reduceMotion() ? 0 : 0.25; }
+    else if (ev === 'alert') { sfx.alert(); radio('見つかった！ 走って物陰へ、視線を切れ！', true); shake = reduceMotion() ? 0 : 0.25; }
     else if (ev === 'decoy') { sfx.decoy(); updateHud(); }
-    else if (ev === 'fake') { sfx.fake(); toast('にせもの…光る足跡の台座が本物だ。', 2600); }
-    else if (ev === 'final') { sfx.final(); flash = 1.2; toast('最後のかけら！ 館が目を覚ます。出口まで走れ！', 3600); }
+    else if (ev === 'fake') { sfx.fake(); radio('そいつはにせものだ。光る足跡の台座が本物だぞ。', true); }
+    else if (ev === 'final') { sfx.final(); flash = 1.2; radio('最後のかけらだ！ 館が目を覚ました、出口まで走れ！', true); }
     else if (ev === 'caught') { sfx.caught(); }
     else if (ev === 'clear') { sfx.clear(); onClear(); }
   }
@@ -623,12 +666,6 @@ function render(t) {
   if (flash > 0) { ctx.fillStyle = `rgba(255,252,235,${Math.min(0.8, flash) * (reduceMotion() ? 0.3 : 1)})`; ctx.fillRect(0, 0, W, H); }
   ctx.restore();
   if (fade > 0) { ctx.fillStyle = `rgba(0,0,10,${Math.min(1, fade)})`; ctx.fillRect(0, 0, W, H); }
-  // 初回の手引き
-  if (roomIdx === 0 && !save.rooms[0] && mode === 'play' && !paused) {
-    ctx.font = '700 16px "Hiragino Mincho ProN",serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#0b1236'; ctx.fillStyle = '#f4e5b0';
-    const msg = '視線を避けて光を取ろう', yy = H - (isTouchUI() && W < 700 ? 205 : 36);
-    ctx.strokeText(msg, W / 2, yy); ctx.fillText(msg, W / 2, yy);
-  }
 }
 function drawPlanet(cx, cy, r, t) {
   const g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
@@ -655,6 +692,7 @@ function frame(ts) {
       const inp = readInput();
       L.step(run, inp, dt);
       handleEvents();
+      if (tutorialOn) { const cue = L.tutorialCue(run, tutDone, isTouchUI()); if (cue) { tutDone.add(cue.id); radio(cue.text, cue.id === 'gauge'); } }
       // 足音・心拍・BGM
       if (ac && save.opt.volume > 0) {
         stepT -= dt;
@@ -671,10 +709,11 @@ function frame(ts) {
     } else if (run.status === 'caught') {
       L.step(run, {}, dt);
       fade = Math.min(1, run.caughtT / 0.5);
-      if (run.caughtT > 1.0) { handleEvents(); newRun(); toast('つかまった！ 入口からやり直し', 1800); }
+      if (run.caughtT > 1.0) { handleEvents(); newRun(); toast('つかまった！ 入口からやり直し', 1800); radio('ザザッ……捕まったか。大丈夫だ、入口から仕切り直そう。', true); }
     }
     handleEvents();
     updateCamera(dt, false);
+    radioTick(dt);
     $('gaugeFill').style.width = `${Math.round(run.gauge * 100)}%`;
   } else if (run && mode === 'clearing') {
     updateCamera(dt, false);
