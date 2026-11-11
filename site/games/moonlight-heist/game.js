@@ -151,6 +151,7 @@ function memoryScreen(mi, next) {
     <div class="lines">${m.lines.map((l, i) => storyLine(l).replace('<p', `<p style="animation-delay:${0.6 + i * 0.5}s"`)).join('')}</div>
     <button class="pri" data-a="next">つづける</button></div>`, 'mem');
   memShown = mi; storyNext = next;
+  clearTimeout(toastTimer); $('toast').classList.remove('on');
 }
 let memShown = -1;
 function memoryArtTick(t) {
@@ -172,6 +173,7 @@ function resultScreen() {
     <div class="rk"><span>${L.rankOf(room, run)}</span></div>
     <div class="stat"><span><b>${fmt(run.time)}</b>タイム</span><span><b>${run.alerts}</b>見つかった</span><span><b>${got}/2</b>展示品</span></div>
     <p class="sub">自己ベスト ${fmt(s.time)}　最高ランク ${s.rank}</p>
+    ${L.memoryIndex(roomIdx) >= 0 ? `<p class="memgot">☾ ルウの記憶 ${L.memoryIndex(roomIdx) + 1}/6「${L.MEMORIES[L.memoryIndex(roomIdx)].title}」が戻った</p>` : ''}
     ${got < 2 ? '<p class="sub">まだ取っていない展示品がある。もう一度忍び込んでみる？</p>' : ''}
     <button class="pri" data-a="${last ? 'ending' : 'nextroom'}">${last ? '結末へ' : '次の室へ'}</button>
     <div class="row2"><button data-a="retry">もう一度</button><button data-a="rooms">室えらび</button></div></div>`, 'clear');

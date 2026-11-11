@@ -618,7 +618,7 @@ export function tutorialCue(run, done, touch) {
     ['guard', () => near || run.t > 11, '仮面の影が“夜守（よもり）”。この館で、預けられた夜を守る番人だ。ランタンの光の扇に入るな。像やケースの陰なら見えない。'],
     ['decoy', () => run.t > 24 && run.decoys > 0, '近づけないときは Space（おとり）。小石の音で夜守を引きつけられる。'],
   ];
-  if (run.gauge > 0.3 && run.t > 4 && done.has('move') && !done.has('gauge')) return say('gauge', '画面上のゲージがたまってる！ 満ちる前に視線の外へ出ろ。');
+  if (run.gauge > 0.3 && run.t > 4 && done.has('move') && !done.has('gauge')) return say('gauge', '画面の上の“目”が開いてきた！ 開ききる前に視線の外へ出ろ。');
   for (const [id, cond, text] of order) {
     if (done.has(id)) continue;
     return cond() ? say(id, text) : null;
