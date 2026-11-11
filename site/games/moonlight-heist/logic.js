@@ -615,8 +615,8 @@ export function tutorialCue(run, done, touch) {
   const order = [
     ['move', () => true, touch ? '聞こえるか、ルウ。キツネだ。左下のパッドで動いてみろ。' : '聞こえるか、ルウ。キツネだ。WASDか矢印キーで動いてみろ。'],
     ['trail', () => moved > 1.2 || run.t > 5, '床に光る足跡が見えるか？ たどれば“夜のかけら”に着く。'],
-    ['guard', () => near || run.t > 11, '赤い服が警備員だ。ランタンの光の扇に入るな。像やケースの陰なら見えない。'],
-    ['decoy', () => run.t > 24 && run.decoys > 0, '近づけないときは Space（おとり）。小石の音で警備員を引きつけられる。'],
+    ['guard', () => near || run.t > 11, '仮面の影が“夜守（よもり）”。この館で、預けられた夜を守る番人だ。ランタンの光の扇に入るな。像やケースの陰なら見えない。'],
+    ['decoy', () => run.t > 24 && run.decoys > 0, '近づけないときは Space（おとり）。小石の音で夜守を引きつけられる。'],
   ];
   if (run.gauge > 0.3 && run.t > 4 && done.has('move') && !done.has('gauge')) return say('gauge', '画面上のゲージがたまってる！ 満ちる前に視線の外へ出ろ。');
   for (const [id, cond, text] of order) {
