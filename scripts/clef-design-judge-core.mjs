@@ -47,7 +47,7 @@ const THRESHOLDS = {depth:2.5,longevity:2.5,clarity:2,progression:2,coherence:2.
 export const READY_THRESHOLD = 0.7;
 
 export function parseDesignRequest(body) {
-  if (typeof body !== 'string' || body.length > 28000) throw new Error('Design body missing or too long');
+  if (typeof body !== 'string' || body.length > 42000) throw new Error('Design body missing or too long');
   const trim = body.trim();
   // JSON-only request. Avoid markdown escaping ambiguity or partial snapshots.
   let r;
@@ -55,6 +55,7 @@ export function parseDesignRequest(body) {
   if (!r || Array.isArray(r) || r.schema_version!==1 || r.phase!=='design') throw new Error('Expected phase: design and schema_version: 1');
   if (!Number.isSafeInteger(r.revision) || r.revision<1 || r.revision>100) throw new Error('revision must be a positive integer');
   if (typeof r.context!=='string' || !r.context.trim() || r.context.length>2500) throw new Error('Invalid design context');
+  if (typeof r.selection_record!=='string' || !r.selection_record.trim() || r.selection_record.length>12000) throw new Error('Invalid selection_record');
   if (typeof r.idea_review_url!=='string' || !/^https:\/\/github\.com\/ToramaruA\/game-arcade\/issues\/\d+$/.test(r.idea_review_url)) throw new Error('Invalid idea_review_url');
   if (!r.selected_idea || typeof r.selected_idea!=='object' || !/^[A-F]$/.test(r.selected_idea.id) ||
       typeof r.selected_idea.title!=='string' || !r.selected_idea.title.trim() || r.selected_idea.title.length>160) throw new Error('Invalid selected_idea');
@@ -65,7 +66,7 @@ export function parseDesignRequest(body) {
   }
   return {
     schema_version:1,phase:'design',revision:r.revision,
-    context:r.context.trim(),idea_review_url:r.idea_review_url,
+    context:r.context.trim(),selection_record:r.selection_record.trim(),idea_review_url:r.idea_review_url,
     selected_idea:{id:r.selected_idea.id,title:r.selected_idea.title.trim()},
     design:Object.fromEntries(DESIGN_FIELDS.map(k=>[k,d[k].trim()])),
   };
