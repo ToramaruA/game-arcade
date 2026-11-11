@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>月光美術館と十二の怪盗</title>
+  <meta name="description" content="街の人の“夜”を預かる月の館に忍び込み、影の番人・夜守の視線をかいくぐって夜のかけらを集めろ。隠れる・走る・おとりを投げる見下ろし型ステルス。">
+  <link rel="canonical" href="https://game-arcade-bdt.pages.dev/games/moonlight-heist/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="月光美術館と十二の怪盗">
+  <meta property="og:description" content="街の人の“夜”を預かる月の館に忍び込み、影の番人・夜守の視線をかいくぐって夜のかけらを集めろ。隠れる・走る・おとりを投げる見下ろし型ステルス。">
+  <meta property="og:url" content="https://game-arcade-bdt.pages.dev/games/moonlight-heist/">
+  <meta property="og:image" content="https://game-arcade-bdt.pages.dev/games/moonlight-heist/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="game" class="game">
+    <h1 class="sr">月光美術館と十二の怪盗</h1>
+    <canvas id="gl" aria-hidden="true"></canvas>
+    <canvas id="cv" aria-label="美術館の見下ろし画面"></canvas>
+    <div id="hud" hidden>
+      <div class="hud-l"><b id="hChap"></b><span id="hRoom"></span></div>
+      <div class="hud-r"><span class="chip">✦ <output id="hItems">0/45</output></span><span id="hDecoy" class="chip" aria-label="おとりの残り"></span><button id="bMute" type="button" aria-label="音">♪</button><button id="bPause" type="button" aria-label="ポーズ">Ⅱ</button></div>
+    </div>
+    <div id="gaugeBar" hidden><i id="gaugeFill"></i></div>
+    <div id="collect" hidden><i id="collectFill"></i></div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <div id="radio" aria-live="polite"><i class="radio-face"></i><div><b id="radioName">無線 ― キツネ</b><p id="radioText"></p></div></div>
+    <div id="touch" hidden>
+      <div id="dpad"><i class="ar a-u"></i><i class="ar a-d"></i><i class="ar a-l"></i><i class="ar a-r"></i><i id="knob"></i></div>
+      <div id="btns"><button id="bSneak" type="button"><svg viewBox="0 0 24 24"><path d="M7 4c2 0 3 2 3 5s-1 5-3 5-3-2-3-5 1-5 3-5zM16 10c2 0 3 2 3 5s-1 5-3 5-3-2-3-5 1-5 3-5z"/></svg>忍び足</button><button id="bDecoy" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="5"/><path d="M4 7l3 2M20 7l-3 2M12 2v3"/></svg>おとり</button></div>
+    </div>
+    <section id="screen" class="screen"></section>
+  </main>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
