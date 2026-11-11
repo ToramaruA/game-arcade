@@ -247,5 +247,7 @@ test('ルウの記憶：6つが章末以外の室に1つずつ、クリアで戻
   s.rooms[MEMORIES[0].room] = { rank: 'A', time: 1, alerts: 0, opts: [] };
   assert.deepEqual(L.memoriesUnlocked(s), [true, false, false, false, false, false]);
   assert.equal(L.memoryIndex(MEMORIES[2].room), 2);
+  const s2 = L.emptySave(); s2.mem = [3];
+  assert.deepEqual(L.memoriesUnlocked(s2), [false, false, false, true, false, false], 'かけらを取った時点で記憶が戻る');
   assert.equal(L.memoryIndex(0), -1);
 });

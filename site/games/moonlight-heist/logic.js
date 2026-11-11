@@ -628,4 +628,4 @@ export function tutorialCue(run, done, touch) {
 
 // ルウの記憶：クリア済みの室に対応する記憶が戻っている。
 export function memoryIndex(ri) { return MEMORIES.findIndex((m) => m.room === ri); }
-export function memoriesUnlocked(save) { return MEMORIES.map((m) => !!save.rooms[m.room]); }
+export function memoriesUnlocked(save) { return MEMORIES.map((m, i) => (save.mem || []).includes(i) || !!save.rooms[m.room]); }

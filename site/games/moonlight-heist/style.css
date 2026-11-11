@@ -112,3 +112,72 @@ body.radio-on #toast{top:146px}
 .memk{font-size:12px;letter-spacing:.2em;color:#d9b47a}
 .alb.mems button{margin:0;padding:6px 8px;text-align:left;font-size:12px;font-weight:400;letter-spacing:0;line-height:1.5;border-color:#e8c48a;background:linear-gradient(#3a2a18,#1e140a);box-shadow:none}
 .alb.mems button b{display:block;color:#ffe2b0;font-size:13px}
+
+/* ===== 幻想UI（劇的に刷新） ===== */
+:root{--moon:#fbf3da;--violet:#2a1e58;--glass:rgba(16,10,44,.72);--line:rgba(236,214,160,.55)}
+.screen{background:radial-gradient(ellipse at 50% 20%,rgba(60,40,140,.55),rgba(6,4,24,.88))}
+.screen.title{background:linear-gradient(rgba(6,4,24,0) 30%,rgba(6,4,24,.55))}
+.card{position:relative;border:1px solid var(--line);border-radius:4px;background:var(--glass);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:inset 0 0 0 5px rgba(16,10,44,.6),inset 0 0 0 6px rgba(236,214,160,.25),0 0 60px rgba(140,120,255,.25);padding:22px 20px 18px}
+.card::before,.card::after{content:'☾';position:absolute;top:-13px;left:50%;transform:translateX(-50%);font-size:20px;color:#f1d98a;text-shadow:0 0 10px #f1d98a;background:#120c30;padding:0 8px;line-height:24px}
+.card::after{content:'✦';top:auto;bottom:-12px;font-size:14px}
+.card h2{color:#f6e3a8;text-shadow:0 0 18px rgba(246,227,168,.5);letter-spacing:.18em}
+.card button,.card .btn{border:1px solid rgba(236,214,160,.55);border-radius:999px;background:linear-gradient(rgba(60,44,130,.55),rgba(20,14,56,.55));box-shadow:0 0 0 1px rgba(16,10,44,.8),0 4px 18px rgba(0,0,0,.35);letter-spacing:.2em;font-weight:600}
+.card button:hover{filter:none;box-shadow:0 0 0 1px rgba(16,10,44,.8),0 0 22px rgba(241,217,138,.45)}
+.card button.pri{border-color:#fff3c8;background:radial-gradient(ellipse at 50% 0%,#fffbe8,#f1d98a 60%,#c99a40);color:#2a1a40;box-shadow:0 0 26px rgba(255,236,170,.55),inset 0 0 0 2px rgba(255,255,255,.4);text-shadow:none}
+/* タイトル */
+.ttl{width:min(94vw,520px);text-align:center;padding:4vh 0 2vh;display:flex;flex-direction:column;align-items:center;gap:6px}
+.ttl-sub{margin:0;letter-spacing:.5em;font-size:13px;color:#d9ccff;text-shadow:0 0 10px #8a70ff}
+.logo{margin:4px 0 2px;font-size:clamp(34px,10vw,54px);line-height:1.15;letter-spacing:.12em;font-weight:700;background:linear-gradient(#fffbe8,#f1d98a 55%,#c99a40);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 18px rgba(255,230,160,.55)) drop-shadow(0 2px 0 #1a1040)}
+.logo span{display:block;font-size:.55em;letter-spacing:.3em}
+.ttl-lead{margin:2px 0 8px;font-size:14px;line-height:1.8;color:#efe8ff;text-shadow:0 1px 4px #000}
+.menu{display:flex;flex-direction:column;gap:9px;width:min(80vw,320px)}
+.menu button{position:relative;padding:12px 10px;border-radius:999px;border:1px solid rgba(236,214,160,.5);background:rgba(16,10,44,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:#f6efff;font:600 16px inherit;font-family:inherit;letter-spacing:.24em;cursor:pointer;transition:box-shadow .2s,transform .1s}
+.menu button small{font-size:11px;letter-spacing:.05em;color:#d9ccff}
+.menu button:hover{box-shadow:0 0 24px rgba(241,217,138,.5)}
+.menu button:active{transform:scale(.97)}
+.menu button.pri{border-color:#fff3c8;background:radial-gradient(ellipse at 50% 0%,#fffbe8,#f1d98a 60%,#c99a40);color:#2a1a40;box-shadow:0 0 30px rgba(255,236,170,.6)}
+.menu button.pri::before,.menu button.pri::after{content:'☽';position:absolute;left:16px;top:50%;transform:translateY(-50%);color:#7a5a20}
+.menu button.pri::after{content:'☾';left:auto;right:16px}
+.ttl .who{background:rgba(10,30,30,.6);border:1px solid #5fc79a77;margin-top:10px;width:min(90vw,420px)}
+.ttl-keys{margin:2px 0;font-size:12px;color:#b8b0e0}.ttl-keys a{color:#9a90d0}
+/* HUD */
+#hud{background:linear-gradient(rgba(6,4,24,.85),rgba(6,4,24,0))}
+.hud-l b{color:#d9ccff;letter-spacing:.3em;font-size:11px}
+.hud-l span{font-size:16px;letter-spacing:.12em;color:#fff6dc;text-shadow:0 0 10px rgba(255,230,160,.6)}
+.hud-r button{border:1px solid var(--line);background:rgba(16,10,44,.7);box-shadow:0 0 12px rgba(140,120,255,.3)}
+/* 見つかりゲージ：目が開いていく */
+#gaugeBar{--g:0;top:46px;width:64px;height:24px;margin-left:-32px;border:0;border-radius:0;background:none;overflow:visible}
+#gaugeBar::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;background:linear-gradient(90deg,transparent,#d9ccff,transparent);opacity:calc(1 - var(--g))}
+#gaugeFill{position:absolute;inset:0;width:auto!important;background:radial-gradient(circle at 50% 50%,#1a0010 0 18%,#ff3a5a 20% 34%,#fff2f4 36%);clip-path:ellipse(50% calc(var(--g) * 50%) at 50% 50%);filter:drop-shadow(0 0 8px #ff3a5a)}
+/* 収集：月が満ちていく */
+#collect{right:12px;top:54px;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:#120c30;box-shadow:0 0 14px rgba(255,236,170,.25)}
+#collectFill{background:radial-gradient(circle at 50% 100%,#fffbe8,#f1d98a)}
+/* タッチ操作 */
+#dpad{background:radial-gradient(circle,rgba(60,44,130,.45),rgba(16,10,44,.55) 70%);border:1px solid var(--line);box-shadow:0 0 24px rgba(140,120,255,.35),inset 0 0 0 10px rgba(16,10,44,.35);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+#dpad:before,#dpad:after{background:rgba(236,214,160,.22)}
+#knob{background:radial-gradient(circle at 40% 35%,#fffbe8,#f1d98a 55%,#b0802a);box-shadow:0 0 22px rgba(255,236,170,.7)}
+#btns button{width:78px;height:78px;border-radius:50%;border:1px solid var(--line);background:radial-gradient(circle at 50% 30%,rgba(90,70,170,.6),rgba(16,10,44,.7));box-shadow:0 0 18px rgba(140,120,255,.4);font-size:13px;letter-spacing:.1em}
+#btns button.on{background:radial-gradient(circle,#fffbe8,#f1d98a);color:#2a1a40;box-shadow:0 0 26px rgba(255,236,170,.7)}
+/* 結果の印 */
+.rk{display:grid;place-items:center;margin:8px auto 4px;width:110px;height:110px;border-radius:50%;background:radial-gradient(circle,#fffbe8 0,#f1d98a 45%,rgba(241,217,138,0) 70%);box-shadow:0 0 50px rgba(255,236,170,.45)}
+.rk span{font-size:52px;font-weight:700;color:#2a1a40}
+/* 記憶の一枚絵 */
+.memcard{width:min(94vw,600px)}
+.memcard h2{margin:2px 0 10px}
+#memArt{display:block;width:100%;height:auto;aspect-ratio:16/10;border-radius:2px;box-shadow:0 0 30px rgba(240,192,122,.35);margin-bottom:8px}
+.mem .memk{margin:0;font-size:12px;letter-spacing:.3em;color:#d9b47a}
+.alb.mems{grid-template-columns:1fr 1fr 1fr}
+.alb.mems button,.alb.mems div{display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:4px}
+.thumb{display:block;width:100%;height:auto;aspect-ratio:16/10;border-radius:2px}
+.thumb.lock{display:grid;place-items:center;background:#120c30;color:#5a4a90;font-size:22px}
+@media (max-width:480px){.alb.mems{grid-template-columns:1fr 1fr}.logo{letter-spacing:.06em}}
+.ttl .who .fox{flex:none;width:38px;height:38px;border-radius:50%;background:#16302c;border:2px solid #5fc79a;padding:2px}
+.ttl .who{display:flex;gap:10px;align-items:center;text-align:left;padding:6px 10px;border-radius:10px;font-size:13px;margin:8px 0 0}
+.ttl .who b{display:block;font-size:11px;letter-spacing:.12em;color:#7fe0b4}
+.screen.title{align-items:stretch}
+.ttl{margin:0 auto;min-height:100%;justify-content:space-between;padding:max(3vh,env(safe-area-inset-top)) 0 2vh}
+.ttl-head{display:flex;flex-direction:column;align-items:center;gap:4px}
+.ttl-foot{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%}
+#radio{top:76px}
+body.radio-on #toast{top:160px}
+#collect{top:44px;width:28px;height:28px}

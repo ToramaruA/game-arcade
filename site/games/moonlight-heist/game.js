@@ -1,5 +1,6 @@
 import * as L from './logic.js';
 import { STORY, INTRO, EPILOGUE } from './rooms.js';
+import { drawMemory, drawTitleArt } from './art.js';
 
 const { ROOMS, CHAPTERS, CFG } = L;
 const $ = (id) => document.getElementById(id);
@@ -78,18 +79,21 @@ const total = () => L.collectedTotal(save);
 const firstUnplayed = () => { for (let i = 0; i < 15; i++) if (!save.rooms[i]) return i; return 14; };
 
 function titleScreen() {
-  mode = 'title';
+  mode = 'title'; run = null;
   const started = Object.keys(save.rooms).length > 0;
-  show('title', `<div class="card">
-    <p class="sub">夜を預かる月の館 ― 怪盗ルウ、最後の仕事</p>
-    <h2 class="big">月光美術館と<br>十二の怪盗</h2>
-    <p>夜守に見つからずに「夜のかけら」を集めきれば、<br>ルウは団から自由になれる。</p>
+  show('title', `<div class="ttl">
+    <div class="ttl-head"><p class="ttl-sub">夜を預かる月の館</p>
+    <h2 class="logo"><span>月光美術館と</span>十二の怪盗</h2></div>
+    <div class="ttl-foot"><p class="ttl-lead">夜守に見つからず「夜のかけら」を集めきれば、<br>怪盗ルウは自由になれる。</p>
+    <nav class="menu">
+      <button class="pri" data-a="${started ? 'continue' : 'new'}">${started ? `つづきから　第${firstUnplayed() + 1}室` : 'はじめる'}</button>
+      <button data-a="rooms">室えらび</button>
+      <button data-a="album">アルバム　<small>${total()}/45・記憶 ${L.memoriesUnlocked(save).filter(Boolean).length}/6</small></button>
+      <button data-a="options">せってい</button>
+    </nav>
     <p class="who fox-l tl">${FOX}<span><b>無線 ― キツネ</b>案内は俺に任せろ。足跡はこっちで照らす。</span></p>
-    <button class="pri" data-a="${started ? 'continue' : 'new'}">${started ? `つづきから（第${firstUnplayed() + 1}室）` : 'はじめる'}</button>
-    <div class="row2"><button data-a="rooms">室えらび</button><button data-a="album">アルバム ${total()}/45</button></div>
-    <button data-a="options">せってい</button>
-    <p class="sub">${isTouchUI() ? '左下のパッドで移動　右下のボタンで忍び足・おとり' : 'WASD/矢印：移動　Shift：忍び足　Space：おとり'}</p>
-    <p class="sub"><a href="/" style="color:#7f8ab5">Game Arcade</a></p></div>`, 'title');
+    <p class="ttl-keys">${isTouchUI() ? '左下のパッドで移動　右下のボタンで忍び足・おとり' : 'WASD/矢印：移動　Shift：忍び足　Space：おとり'}</p>
+    <p class="ttl-keys"><a href="/">Game Arcade</a></p></div></div>`, 'title');
 }
 function roomsScreen() {
   let h = '<div class="card"><h2>室えらび</h2>';
@@ -108,7 +112,7 @@ function albumScreen() {
   let h = `<div class="card"><h2>アルバム ${total()}/45</h2>`;
   h += `<div class="chap">ルウの記憶 ${mu.filter(Boolean).length}/${mu.length}</div><div class="alb mems">`;
   L.MEMORIES.forEach((m, i) => {
-    h += mu[i] ? `<button data-a="mem" data-i="${i}"><b>${i + 1}. ${m.title}</b>もう一度読む</button>` : `<div class="no"><b>${i + 1}. ？？？</b>第${m.room + 1}室をクリアすると戻る</div>`;
+    h += mu[i] ? `<button data-a="mem" data-i="${i}"><canvas class="thumb" data-m="${i}" width="240" height="150"></canvas><b>${i + 1}. ${m.title}</b></button>` : `<div class="no"><span class="thumb lock">☾</span><b>${i + 1}. ？？？</b>第${m.room + 1}室のかけらで戻る</div>`;
   });
   h += `</div><div class="chap">夜のかけらと展示品</div><p class="sub">集めるほど結末が変わる。</p><div class="alb">`;
   ROOMS.forEach((room, ri) => {
@@ -119,6 +123,7 @@ function albumScreen() {
     });
   });
   show('album', h + '</div><button data-a="title">もどる</button></div>');
+  screenEl.querySelectorAll('canvas.thumb').forEach((c) => drawMemory(c.getContext('2d'), +c.dataset.m, c.width, c.height, 1));
 }
 function optionsScreen(back = 'title') {
   const o = save.opt;
@@ -141,7 +146,17 @@ function storyLine(l) {
 }
 function memoryScreen(mi, next) {
   const m = L.MEMORIES[mi];
-  storyScreen(m.lines, next, `<small class="memk">ルウの記憶 ${mi + 1}/${L.MEMORIES.length}</small><br>${m.title}`, 'mem');
+  show('memory', `<div class="card memcard"><p class="memk">ルウの記憶 ${mi + 1}/${L.MEMORIES.length}</p><h2>${m.title}</h2>
+    <canvas id="memArt" width="640" height="400" aria-label="記憶の一枚絵"></canvas>
+    <div class="lines">${m.lines.map((l, i) => storyLine(l).replace('<p', `<p style="animation-delay:${0.6 + i * 0.5}s"`)).join('')}</div>
+    <button class="pri" data-a="next">つづける</button></div>`, 'mem');
+  memShown = mi; storyNext = next;
+}
+let memShown = -1;
+function memoryArtTick(t) {
+  if (screenName !== 'memory') return;
+  const c = $('memArt'); if (!c) return;
+  drawMemory(c.getContext('2d'), memShown, c.width, c.height, reduceMotion() ? 1 : t);
 }
 function storyScreen(lines, next, title = '', cls = '') {
   show('story', `<div class="card"><h2>${title}</h2><div class="lines">${lines.map((l, i) => storyLine(l).replace('<p', `<p style="animation-delay:${i * 0.5}s"`)).join('')}</div><button class="pri" data-a="next">つづける</button></div>`, cls);
@@ -154,7 +169,7 @@ function resultScreen() {
   const got = run.items.filter((i) => i.kind === 'opt' && i.got).length;
   const last = roomIdx === 14;
   show('result', `<div class="card"><p class="sub">${room.name}</p><h2>クリア</h2>
-    <div class="rk">${L.rankOf(room, run)}</div>
+    <div class="rk"><span>${L.rankOf(room, run)}</span></div>
     <div class="stat"><span><b>${fmt(run.time)}</b>タイム</span><span><b>${run.alerts}</b>見つかった</span><span><b>${got}/2</b>展示品</span></div>
     <p class="sub">自己ベスト ${fmt(s.time)}　最高ランク ${s.rank}</p>
     ${got < 2 ? '<p class="sub">まだ取っていない展示品がある。もう一度忍び込んでみる？</p>' : ''}
@@ -256,6 +271,12 @@ function handleEvents() {
   for (const ev of run.events.splice(0)) {
     if (ev === 'key') {
       { const it = run.items.filter((i) => i.kind === 'key' && i.got).pop(); if (it) burst(it.x + 0.5, it.y + 0.5, 40, '255,240,190'); }
+      const mi = L.memoryIndex(roomIdx);
+      if (mi >= 0 && !(save.mem || []).includes(mi)) {
+        save.mem = [...(save.mem || []), mi]; persist();
+        paused = true; keys.clear();
+        setTimeout(() => memoryScreen(mi, () => { paused = false; hideScreen(); lastT = 0; }), reduceMotion() ? 100 : 500);
+      }
       sfx.key(); flash = 0.6; toast(`「${room.items[0][0]}」${room.items[0][1]}`, 3200); updateHud();
       const left = run.items.filter((i) => i.kind === 'key' && !i.got).length;
       if (room.finalAlarm) { /* final イベント側で話す */ }
@@ -280,8 +301,8 @@ function onClear() {
   const first = !save.rooms[roomIdx];
   save = L.recordClear(save, roomIdx, run); persist(); updateHud();
   const room = ROOMS[roomIdx];
-  const mi = L.memoryIndex(roomIdx);
-  const after = first && mi >= 0 ? () => memoryScreen(mi, () => resultScreen()) : () => resultScreen();
+  void first;
+  const after = () => resultScreen();
   setTimeout(() => {
     if (room.endEvent && room.endEvent !== 'ch3') storyScreen(STORY[room.endEvent], after, `${CHAPTERS[roomChapter(roomIdx)].sub}　おわり`);
     else if (room.endEvent === 'ch3') storyScreen(STORY.ch3, after, '最後の月光');
@@ -759,14 +780,7 @@ function drawPlanet(cx, cy, r, t) {
   ctx.strokeStyle = '#d9914a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(cx, cy, r * 1.35, r * 0.35, -0.3, 0, 7); ctx.stroke();
 }
 function drawBackdrop(t) {
-  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#1b2756'); g.addColorStop(1, '#070b22'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const mx = W * 0.72, my = H * 0.28, mr = Math.min(W, H) * 0.14;
-  const mg = ctx.createRadialGradient(mx, my, mr * 0.2, mx, my, mr * 3); mg.addColorStop(0, 'rgba(255,250,230,0.5)'); mg.addColorStop(1, 'rgba(255,250,230,0)'); ctx.fillStyle = mg; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = '#f4f1e6'; ctx.beginPath(); ctx.arc(mx, my, mr, 0, 7); ctx.fill();
-  ctx.fillStyle = '#1b2756'; ctx.beginPath(); ctx.arc(mx + mr * 0.45, my - mr * 0.1, mr * 0.9, 0, 7); ctx.fill();
-  for (let i = 0; i < 60; i++) { ctx.fillStyle = `rgba(224,190,100,${0.2 + hash(i, 1) * 0.5})`; ctx.fillRect(hash(i, 2) * W, hash(i, 3) * H * 0.6, 2, 2); }
-  ctx.fillStyle = '#0a0d1f'; for (let i = 0; i < 12; i++) { const bw = W / 10, bh = 30 + hash(i, 9) * 70; ctx.fillRect(i * bw - 10, H * 0.78 - bh, bw - 4, bh + H); }
-  void t;
+  drawTitleArt(ctx, W, H, reduceMotion() ? 1 : t, !reduceMotion());
 }
 
 // ---------- ループ ----------
@@ -799,13 +813,14 @@ function frame(ts) {
     handleEvents();
     updateCamera(dt, false);
     radioTick(dt);
-    $('gaugeFill').style.width = `${Math.round(run.gauge * 100)}%`;
+    $('gaugeBar').style.setProperty('--g', run.gauge.toFixed(3));
   } else if (run && mode === 'clearing') {
     updateCamera(dt, false);
   }
   if (flash > 0) flash -= dt * 1.2;
   if (shake > 0) shake -= dt;
   render(t);
+  memoryArtTick(t);
   requestAnimationFrame(frame);
 }
 let wasChase = false;
