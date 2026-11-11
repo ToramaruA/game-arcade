@@ -34,7 +34,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #7fd4ff; outline-offs
 .chip { background: rgba(255,248,236,.92); color: var(--ink); border-radius: 999px; padding: 6px 12px; font-size: 14px; font-weight: 700; border: 0; box-shadow: 0 2px 0 rgba(0,0,0,.3); white-space: nowrap; line-height: 1.2; font-family: inherit; }
 .chip.btn { pointer-events: auto; min-height: 34px; }
 .chip.icon { width: 38px; padding: 6px 0; }
-.stage-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+.stage-name { min-width: 0; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
 .stars { display: flex; align-items: center; gap: 5px; }
 .bell-ico { width: 16px; height: 16px; display: inline-block; background: radial-gradient(circle at 50% 85%, #8a5a10 0 14%, transparent 15%), radial-gradient(ellipse 48% 60% at 50% 55%, var(--gold2) 0 98%, transparent 100%); }
 
@@ -159,10 +159,10 @@ button:focus-visible, a:focus-visible { outline: 3px solid #7fd4ff; outline-offs
 .arcade-link { height: 22px; text-align: center; font-size: 11px; opacity: .55; line-height: 22px; font-family: system-ui, sans-serif; }
 .arcade-link a { color: #e9dcff; }
 
-body.og .pad, body.og .arcade-link, body.og .hint, body.og #menuBtn { display: none !important; }
+body.og .pad, body.og .arcade-link, body.og .hint, body.og .hud { display: none !important; }
 body.og .og-card { position: absolute; right: 36px; bottom: 34px; text-align: right; }
 .og-card { display: none; }
-body.og .og-card { display: block; text-shadow: 0 3px 0 #2a0f4a, 0 0 24px rgba(255,215,106,.5); pointer-events: none; }
+body.og .og-card { display: block; padding: 18px 22px; border-radius: 24px; background: radial-gradient(ellipse at center, rgba(10,4,26,.75), rgba(10,4,26,0) 75%); text-shadow: 0 3px 0 #2a0f4a, 0 0 24px rgba(255,215,106,.5); pointer-events: none; }
 .og-card .t { font-size: 64px; font-weight: 800; color: var(--gold); -webkit-text-stroke: 1px #6a3a10; letter-spacing: .05em; }
 .og-card .s { font-size: 22px; color: #fff4d6; margin-top: 4px; }
 

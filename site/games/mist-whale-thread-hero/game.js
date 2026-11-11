@@ -45,7 +45,7 @@ function resize() {
 window.addEventListener('resize', resize);
 try { new ResizeObserver(() => resize()).observe(document.getElementById('cv')); } catch { /* 古いブラウザは resize だけ */ }
 
-function viewScale() { return Math.min(H / 360, W / 270); }
+function viewScale() { return Math.min(H / 360, W / 300); }
 
 // ───────────────────────── 入力 ─────────────────────────
 const held = { left: false, right: false, jump: false };
@@ -106,6 +106,7 @@ function burst(x, y, color, n = 12, sp = 160, life = 0.6, size = 3) {
   }
 }
 function ring(x, y, color, r = 60, life = 0.8) { rings.push({ x, y, color, r, life, max: life }); }
+function hideToast() { $('toast').classList.remove('show'); }
 function toast(msg, ms = 1400) {
   const el = $('toast'); el.textContent = msg; el.classList.add('show');
   clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), ms);
@@ -175,7 +176,7 @@ function updateHud(pop = false) {
   [...hearts.children].forEach((h, i) => { h.classList.toggle('lost', i >= n); if (pop && i === n) { h.classList.remove('pop'); void h.getBBox?.(); h.classList.add('pop'); } });
   lastHearts = n;
   const ch = L.CHAPTERS[st.def.chapter];
-  $('stageName').textContent = W < 520 ? `${st.index + 1}『${st.def.name}』` : `${ch.name} ${st.index + 1}『${st.def.name}』`;
+  $('stageName').textContent = W < 520 ? `${ch.sub} ${st.index + 1}` : `${ch.name} ${st.index + 1}『${st.def.name}』`;
   $('starCount').querySelector('b').textContent = `${st.starsGot.size}/3`;
 }
 function updateSpool() {
@@ -196,6 +197,7 @@ function updateHint() {
   let text = '';
   for (const h of st.def.hints || []) if (col >= h.c && col < h.c + 14) text = h.text;
   if (st.index >= 3 && save.stages[st.index]?.clear) text = '';
+  if (text && pad.classList.contains('show')) text = text.replace('← → で走る ／ Space で跳ぶ', '◀▶で走る／ジャンプで跳ぶ').replace('（J ／ 糸ボタン）', '（糸ボタン）').replace('もう一度 J で', 'もう一度 糸で');
   if (text !== hintText) { hintText = text; const el = $('hint'); el.textContent = text; el.classList.toggle('off', !text); }
 }
 
@@ -231,7 +233,7 @@ function render(dt) {
   const s = viewScale(); const vw = W / s; const vh = H / s;
   const p = st.player;
   // カメラ
-  const lead = p.face > 0 ? 0.38 : 0.62;
+  const lead = p.face > 0 ? 0.33 : 0.67;
   let tx = p.x + p.w / 2 - vw * lead;
   const lw = st.w * L.TS;
   tx = lw <= vw ? (lw - vw) / 2 : Math.max(0, Math.min(lw - vw, tx));
@@ -248,6 +250,7 @@ function render(dt) {
   const bells = st.bells.filter((b) => !b.clock);
   const rung = bells.filter((b) => b.rung).length;
   A.drawBackground(ctx, ch, cam.x, cam.y, vw, vh, t, {
+    whaleDim: true,
     eye: st.index === 14 ? 0.95 : ch === 2 ? 0.35 : 0,
     cracks: st.index === 14 ? 1 - rung / 3 : ch === 2 ? 0.4 : 0,
     gold: st.index === 14 ? rung / 3 : 0,
@@ -360,7 +363,7 @@ function frame(now) {
 
 // ───────────────────────── クリアと結果 ─────────────────────────
 function finishStage() {
-  mode = 'result';
+  mode = 'result'; hideToast(); updateHud();
   const res = L.stageResult(st);
   const before = L.unlockedColors(save);
   const firstClear = !save.stages[res.index]?.clear;
@@ -464,7 +467,7 @@ $('startBtn').addEventListener('click', () => {
 // ───────────────────────── 一時停止 ─────────────────────────
 function openPause() {
   if (mode !== 'play') return;
-  mode = 'pause';
+  mode = 'pause'; hideToast();
   $('pauseInfo').textContent = `${st.index + 1}『${st.def.name}』 星鈴 ${st.starsGot.size}/3 ・ 被弾 ${st.hits}`;
   $('pause').hidden = false; $('resumeBtn').focus({ preventScroll: true });
 }
@@ -565,6 +568,7 @@ function setupOg() {
   st = L.createLevelState(14);
   const bell = st.bells.reduce((a, b) => (b.x < a.x ? b : a));
   st.ogBell = bell;
+  st.tiles = st.tiles.map((r) => r.replace(/X/g, '.'));
   for (const e of st.enemies) if (e.kind === 'eater') e.dead = true;
   st.player.x = bell.x - 120; st.player.y = 7.4 * L.TS; st.player.onGround = false; st.player.vx = 200; st.player.vy = -120; st.player.face = 1; st.player.anim = 30; st.player.invuln = 0;
   st.thread = { phase: 'hold', t: 0, target: { kind: 'bell', ref: bell }, release: 99 };

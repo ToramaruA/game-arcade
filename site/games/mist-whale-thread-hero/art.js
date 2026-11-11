@@ -129,7 +129,7 @@ function bgMeadow(ctx, P, camX, vw, vh, horizon, t, opts) {
   // 遠くを泳ぐ霧鯨
   const s = Math.max(0.35, Math.min(vw, vh * 1.6) / 1100);
   const wx = vw * 0.68 - ((camX * 0.06) % (vw * 2));
-  if (!opts.noWhale) drawWhale(ctx, wx, horizon - vh * 0.33, s, t, { color: '#e9dff4', shade: '#b9a6d6', grass: false, eye: true });
+  if (!opts.noWhale) { ctx.save(); if (opts.whaleDim) ctx.globalAlpha = 0.45; drawWhale(ctx, wx, horizon - vh * 0.36, s * (opts.whaleDim ? 0.8 : 1), t, { color: opts.whaleDim ? '#b9a6d6' : '#e9dff4', shade: '#8f78b8', grass: false, eye: true }); ctx.restore(); }
   cloudBand(ctx, P.far, camX, 0.12, horizon - 30, vw, 1.2, 3, 0.9);
   cloudBand(ctx, P.mid, camX, 0.25, horizon + 10, vw, 1, 11);
   cloudBand(ctx, P.near, camX, 0.42, horizon + 60, vw, 0.8, 23);
