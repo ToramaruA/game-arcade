@@ -75,3 +75,8 @@ html,body{margin:0;height:100%;background:#f3dcb4;color:var(--ink);font-family:"
 .dex span.got{color:var(--ink);background:#fff1c8;border:1.5px solid var(--ink);font-weight:700}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 .levels button{font-size:12px;padding:8px 2px;line-height:1.3}
+.screen.title{align-items:flex-start}
+.screen.title .card{max-height:none;margin:auto}
+.screen.sheet{background:linear-gradient(rgba(243,220,180,0) 30%,rgba(243,220,180,.95) 55%)}
+.screen.sheet .card{max-height:62%}
+@media (max-width:480px){.tdemo{width:min(36vw,150px)}}

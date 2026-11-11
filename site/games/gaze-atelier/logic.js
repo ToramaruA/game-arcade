@@ -110,7 +110,7 @@ export function drawingDuration(strokes) { let m = 0; for (const s of strokes) f
 
 // ネタバレなしの共有文
 export function shareText({ correct, seconds, tries }) {
-  return correct ? `🎨 まなざしのアトリエ\n顔で描かれた「？？？」を ${seconds.toFixed(1)} 秒で当てた！（${tries}回目）` : '🎨 まなざしのアトリエ\n顔で描かれた「？？？」…当てられなかった。きみは分かる？';
+  return correct ? `🎨 まなざしのアトリエ\n描かれた「？？？」を ${seconds.toFixed(1)} 秒で当てた！（${tries}回目）` : '🎨 まなざしのアトリエ\n描かれた「？？？」…当てられなかった。きみは分かる？';
 }
 
 // ---------- 顔の向き・目線の調整：特徴量 → 画面座標（リッジ回帰） ----------

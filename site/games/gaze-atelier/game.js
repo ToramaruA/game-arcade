@@ -25,10 +25,11 @@ const sfx = {
 
 // ---------- 画面の大きさ ----------
 let W = 0, H = 0, DPR = 1, PS = 300;
+let extraPad = 0;
 function resize() {
   DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
   bg.width = Math.round(W * DPR); bg.height = Math.round(H * DPR);
-  PS = Math.floor(Math.max(220, Math.min(W - 48, H - (W < 700 ? 250 : 300), 600)));
+  PS = Math.floor(Math.max(200, Math.min(W - 48, H - (W < 700 ? 250 : 300) - extraPad, 600)));
   paper.style.width = paper.style.height = `${PS}px`; paper.width = paper.height = Math.round(PS * DPR);
   paperTex = null; bgTex = null;
 }
@@ -125,6 +126,7 @@ function cap(t) { caption.textContent = t; }
 $('bBack').onclick = () => { audio(); titleScreen(); };
 
 function titleScreen() {
+  if (extraPad) { extraPad = 0; resize(); }
   scene = 'title'; timerOff(); setActions([]); cap(''); $('hud').hidden = true;
   const inp = save.mode === 'gaze' ? '🙂 顔で描く' : '☝ 指・マウスで描く';
   show(`<div class="card">
@@ -210,7 +212,7 @@ function levelsScreen() {
   scene = 'levels'; setActions([]); cap(''); $('hud').hidden = true;
   let h = '<div class="card"><h2>お手本なぞり</h2><p class="sub">うすいお手本の上に、自分の線で絵を描こう。お手本をどれだけなぞれたかで★がつく。</p>';
   L.SKIES.forEach((sky, si) => {
-    h += `<div class="sky">${sky.name}${L.skyUnlocked(save, si) ? '' : '　🔒 前のページをぜんぶクリア'}</div><div class="levels">`;
+    h += `<div class="sky">${sky.name}${L.skyUnlocked(save, si) ? '' : '　🔒 前のページを全部★1以上で開く'}</div><div class="levels">`;
     sky.levels.forEach((lv, li) => { const st = save.stars[`${si}-${li}`] || 0, ok = L.levelUnlocked(save, si, li) || params.has('unlock'); h += `<button data-a="lv" data-s="${si}" data-l="${li}" ${ok ? '' : 'disabled'}>${lv.name}<small>${'★'.repeat(st)}${'☆'.repeat(3 - st)}</small></button>`; });
     h += '</div>';
   });
@@ -230,7 +232,7 @@ function stepTrace(dt) {
 }
 function endTrace() {
   if (scene !== 'trace') return;
-  trace.done = true; timerOff(); setActions([]);
+  trace.done = true; timerOff(); setActions([]); $('hInfo').textContent = `「${trace.level.name}」`;
   traceResult = L.scoreTrace(trace);
   const stars = traceResult.stars;
   if (stars > 0) { save = L.recordStars(save, traceSky, traceLv, stars); persist(); sfx.done(); } else sfx.ng();
@@ -270,7 +272,8 @@ function chooseScreen(title, seed, onPick) {
 let pickHandler = null;
 function startDraw(promptId, seed, onDone, who = '') {
   hide(); scene = 'draw'; draw = { promptId, seed, strokes: [], t: -3, cur: null, onDone, lastCount: 4 };
-  hud(who ? `${who}さんの番` : 'お絵描き伝言', `お題：${L.PROMPTS[promptId].name}`);
+  draw.secret = !!who;
+  hud(who ? `${who}さんの番` : 'お絵描き伝言', who ? 'お題はひみつ（描く人だけ）' : `お題：${L.PROMPTS[promptId].name}`);
   cap('3…'); setActions([['描きおわる', 'drawEnd']]); timerOn(1);
 }
 function stepDraw(dt) {
@@ -278,7 +281,7 @@ function stepDraw(dt) {
   if (draw.t < 0) { const c = Math.ceil(-draw.t); if (c !== draw.lastCount) { draw.lastCount = c; cap(`${c}…`); sfx.tick(); } return; }
   if (draw.lastCount > 0) { draw.lastCount = 0; sfx.start(); cap(save.mode === 'gaze' ? '描いて！ 口を「あー」と開けている間だけ線が描ける' : '描いて！ 押している間だけ線が引ける'); }
   timerSet(1 - draw.t / DRAW_SEC);
-  const left = Math.ceil(DRAW_SEC - draw.t); if (left !== draw.left) { draw.left = left; $('hInfo').textContent = `お題：${L.PROMPTS[draw.promptId].name}　残り ${left}秒`; if (left <= 5) sfx.tick(); }
+  const left = Math.ceil(DRAW_SEC - draw.t); if (left !== draw.left) { draw.left = left; $('hInfo').textContent = `${draw.secret ? 'お題はひみつ' : `お題：${L.PROMPTS[draw.promptId].name}`}　残り ${left}秒`; if (left <= 5) sfx.tick(); }
   if (pen.down) { if (!draw.cur) { draw.cur = []; draw.strokes.push(draw.cur); } const l = draw.cur[draw.cur.length - 1]; if (!l || Math.hypot(pen.x - l.x, pen.y - l.y) > 0.003) draw.cur.push({ x: pen.x, y: pen.y, t: draw.t }); }
   else draw.cur = null;
   if (draw.t >= DRAW_SEC) endDraw();
@@ -312,11 +315,12 @@ async function share() {
 // ---------- 受け取って当てる ----------
 let guess = null;
 function guessStart(code) {
+  extraPad = W < 700 ? 40 : 90; resize();
   let d; try { d = L.decodeDrawing(code); } catch { show('<div class="card"><h2>絵が読めませんでした</h2><p>リンクが途中で切れているかもしれません。</p><button class="pri" data-a="title">タイトルへ</button></div>'); return; }
   hide(); scene = 'guess';
   guess = { d, t: 0, tries: 0, done: false, choices: L.guessChoices(d.promptId, d.seed), wrong: [] };
   replay = { strokes: d.strokes, t: 0, dur: Math.max(1, L.drawingDuration(d.strokes)) };
-  hud('友だちの絵が届いた', '顔で描かれた絵。なにに見える？');
+  hud('友だちの絵', 'なにに見える？');
   cap('線が描かれていく…分かったらすぐ答えて！');
   renderGuessActions();
 }
@@ -339,7 +343,8 @@ function guessResult(ok) {
     <p class="sub">${ok ? `${guess.t.toFixed(1)}秒・${guess.tries}回目で正解` : '顔で描くと、こんなにぶれる。'}</p>
     <p class="share">${txt}</p>
     <div class="row"><button class="pri" data-a="relay">自分も描いて送り返す</button><button data-a="copyText">結果をコピー</button></div>
-    <button data-a="title" style="margin-top:8px">タイトルへ</button></div>`, 'clear');
+    <button data-a="title" style="margin-top:8px">タイトルへ</button></div>`, 'clear sheet');
+  actions.innerHTML = ''; actions.hidden = true; replay.t = replay.dur;
 }
 let lastShareText = '';
 
@@ -495,7 +500,7 @@ const demoStrokes = [
 resize();
 if (OG) {
   scene = 'drawn'; replay = { strokes: demoStrokes, t: 99, dur: 7 };
-  hud('お絵描き伝言', '顔で描いた「ねこ」'); cap('友だちは当てられる？'); setActions([['友だちに送る', 'x', 'pri']]);
+  hud('お絵描き伝言', '描いた「ねこ」'); cap('友だちは当てられる？'); setActions([['友だちに送る', 'x', 'pri']]);
 } else if (location.hash.startsWith('#d=')) {
   guessStart(location.hash.slice(3));
 } else titleScreen();
