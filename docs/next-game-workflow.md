@@ -16,7 +16,11 @@
 - 進行中の [GAME] Issue・PR がないことを確認したら、新案を考える前に **open の [CLEF-REVIEW] Issue** を検索する。既存の審査依頼があれば**それを再利用し、新しい審査依頼は作らない**。そのIssueの本文（候補案）と最新のActions作成コメントを読み、下記のClefステップから再開する。
 - openの審査Issueがあるのに結果コメントがまだなければ、処理中として終了し、次回定期実行/PR Merge起動で再開する（自動化の1回の実行の中で長時間待つ必要はない）。
 - 既存審査Issueが複数ある場合は新規作成せず報告する。作成直前にも [GAME] と [CLEF-REVIEW] を再チェックする。
-- コメントの **<!-- clef-game-idea-review:v1 -->** が付いた最新の結果を利用する。結果はGitHub Actionsで出力され、成功時にはJSONの status / selected / ranking / choice_probabilities を含む。本文更新後の古い結果は使わない。
+- **審査は2段階**。Issue本文が従来形式（phase未指定）なら「企画選定」、JSONの `phase: "design"` なら「詳細設計の最終審査」。**同じ [CLEF-REVIEW] Issueを編集して再利用する**。2つ目の審査Issueを新規作成しない。
+- 企画選定は `<!-- clef-game-idea-review:v1 -->`、詳細設計は `<!-- clef-game-design-review:v1 -->` の付いたActionsコメントを使う。結果はJSONで、企画段階は status / selected / ranking / choice_probabilities、詳細設計は status / revision / scores / ready_to_build_probability / weak_areas を含む。
+- **再開時にIssue本文のphaseを最優先で確認する**。phase=designなら元の複数企画の審査をやり直さず、4.8の結果確認・再設計・Issue作成へ直行する。phase未指定なら3.5の結果確認から再開する。作成直後/編集直後でコメント未着なら今回は待機終了し、次回起動時に再開する。
+- 詳細設計の結果を受け取る際は、Issue本文の `revision` と最新の詳細設計コメント内の `revision` が**同一**であることを確認する。一致しない結果や、本文編集以前に書かれた古いコメントを採用しない。改訂時はrevisionを1増やす。
+- 企画選定の結果（候補ごとの採点）と、採用案・不採用理由を詳細設計Issue本文の `selection_record` に保存する。前段階のデータが失われないようにする。
 - APIエラーや結果欠落では推測採点で代替しない。Issueを残して理由を報告する。結果を得られた場合も、[GAME] Issue作成直前に元の [GAME] 重複チェックを必ず実行する。
 
 ## 企画・評価・詳細設計・Issue作成
@@ -57,11 +61,11 @@
      - ルート：schema_version: 1、context:（好み・過去失敗例・企画目標を簡潔に書いた文字列、2000文字以内）、candidates:（2〜6件の配列）。
      - candidatesの各要素は **id: A, B, C... の連番**、title、genre、core_loop、one_minute、highlight、replay、visual、feasibilityを**すべて具体的な文字列**で含める。各フィールド850文字以内、本文全体18000文字以内。
      - 例：{"schema_version":1,"context":"重要なのは遊びの核と繰り返し遊べること","candidates":[{"id":"A","title":"企画A","genre":"探索パズル","core_loop":"毎ターン経路と道具を選ぶ","one_minute":"敵に見つかりそうなので鍵を諦め迂回","highlight":"ギリギリの脱出","replay":"複数のマップと収集物","visual":"俯瞰の彩色マップ","feasibility":"JS+Canvasで実装"},{"id":"B",...}]}
-   - Issue作成がGitHub Actionsの **Clef game idea review** を起動する。**APIトークンはGitHub Secretsにあり、ChatGPTタスクから直接参照できない**。GitHub ActionsがそのIssueに判定コメントを書き込む。
+   - Issue作成がGitHub Actionsの **Clef game planning review** を起動する。**APIトークンはGitHub Secretsにあり、ChatGPTタスクから直接参照できない**。GitHub ActionsがそのIssueに判定コメントを書き込む。
    - Issueのコメントを確認する。結果コメント未着なら今回は「Clef審査待ち」で終了し、次の起動時に再開する。[GAME] Issueを作らない。
    - Clefは候補をchoiceで比較し、gameplay・replay・visual・shareを各0〜4点で評価する。評価の重みは45%・25%・15%・15%。**結果のselectedを第一候補として採用する**。ただし、根拠を伴う明らかな実現不能・既存ゲームとの重複などがあれば、その理由をIssueへ記載し案を再設計する。数値を実証済みの楽しさだとはみなさない。
    - status=reviseなら候補の核を再設計して同じ審査Issueの本文を編集し再審査する（最大1回/起動）。status=errorなら結果を捏造せず終了。status=okでselectedがある場合にのみ4へ進む。
-   - 最終的な[GAME] Issueの「選定の記録」には**Clef審査IssueのURL・採用ID・全候補の点数とAIによる判断の限界**を含める。[GAME] Issueを作成できたら、[CLEF-REVIEW] Issueをcloseする。
+   - 最終的な[GAME] Issueの「選定の記録」には**Clef審査IssueのURL・採用ID・全候補の点数とAIによる判断の限界**を含める。[GAME] Issueを作成できたら、[CLEF-REVIEW] Issueをcloseする（詳細設計審査にも再利用するため**その前には閉じない**）。
    - 並行起動による二重作成は完全に排除できないため、審査依頼作成の直前もopen [CLEF-REVIEW] と [GAME] の両方を確認する。
 4. 選定：最終選定担当がChatGPTの評価と**Clefの独立判定**を照合して1案を選び、採用理由と主な不採用理由を書く。**採用理由は「面白さの説明」に納得できたかで書く**（点数だけで選ばない）。
 4.5 詳細設計：採用した案について、一流のゲームプロデューサーとして**遊べる設計書**まで詰める。抽象的な言葉（「驚き」「やり込み」）で終わらせず、具体例を書く。
@@ -82,8 +86,18 @@
    - 2の3項目（実況・たまらない瞬間・もう1回やりたくなる理由）を、**設計した具体的なステージ・敵・仕掛けの名前を使って**書き直す。
    - 最初の説明から何が良くなったか、何が変わったかを一言で。
    - 再説明が最初より弱くなった・説明できない場合は、作らずに 4.5 に戻るか、案を差し替える。
+4.8 **Clefによる詳細設計の最終審査（必須。制作前のゲート）**：
+   - 4.5〜4.7を終えたら、既存の **[CLEF-REVIEW] Issueの本文をJSON形式で編集**し、`phase: "design"` に切り替える。これは `issues.edited` をトリガーに、同じGitHub ActionsがClefの別の採点基準で再審査する仕組み。**[GAME] Issueをまだ作らない**。
+   - 必須のルートフィールド：`schema_version: 1`、`phase: "design"`、`revision: 1`（再設計のたびに増やす）、`context`（2500文字以内）、`selection_record`（以前の全候補・ChatGPT/ Clefの評価・選定理由を文章で残す。12000文字以内）、`idea_review_url`（その審査Issue自身のGitHub URL）、`selected_idea: {"id":"A", "title":"..."}`、`design`（以下の17項目の文字列）。
+   - `design` に含めるフィールドは**すべて必須**：`title`、`genre`、`player_goal`（勝利条件・目的）、`core_decisions`（毎回の判断とトレードオフ）、`first_30_seconds`（操作・チュートリアル）、`minute_by_minute`（1プレイの流れ）、`short_and_long_loops`、`levels_and_content`（10個以上の実例・量）、`difficulty_progression`、`control_feedback`、`start_screen`、`climax_screen`、`failure_and_retry`、`replay_motivation`、`technical_scope`、`critical_review`（辛口レビューで指摘し直した点）、`fun_explanation`（4.7の具体的説明）。各フィールド3500文字以内、JSON全体42000文字以内。
+   - **プレイの中身を実際の出来事として書く**。美辞麗句・抽象的な「面白い」「やり込み」ではなく、ステージ・敵・障害物・報酬・操作を具体名で書く。モデルが未記載の要素を勝手に補完しないようにする。
+   - Clefは次の5項目をそれぞれ0〜4点で評価：**depth（判断の深さ）**、**longevity（10〜30分の飽きにくさ）**、**clarity（最初の30秒の理解しやすさ）**、**progression（上達・達成感）**、**coherence（ルール・画面・ステージの整合性）**。加えて `ready_to_build` をYes相当の確率（0〜1）で出力する。
+   - 暫定の最低条件は depth≧2.5、longevity≧2.5、clarity≧2、progression≧2、coherence≧2.5、ready_to_build≧0.70。**5項目と確率のすべてを満たしたときだけstatus=ok**（コードで判定）。閾値は未検証の暫定値であり、実際に遊んだときの面白さを保証しない。
+   - 結果の `weak_areas` にある低得点の項目は、**ChatGPTが具体的な問題を分析**して設計を修正する。Clefは点数と確率だけを出すので、修正案を説明したと偽らない。低得点なら同じIssue本文の `revision` を増やし、改善後の設計に更新する（1実行あたり最大1回）。更新直後は新しいコメント待ちで終了し、次回起動で再開する。繰り返しても設計上の根本問題が直らない場合は案の差し替えも検討する。
+   - 最新の詳細設計結果が **status=ok** かつrevision一致である場合のみ5に進む。失敗・未着・revision不一致・エラーなら[GAME] Issueを作らない。
+   - [GAME] Issueの「選定の記録」に、**企画段階と詳細設計段階の両方のClef結果**（5項目の点数と制作可否の確率）、審査IssueのURL、AI判定の限界を残す。詳細設計本文と `selection_record` を[GAME] Issueに引き継ぎ、元データを失わない。
 Issue には 4.5 の内容を「詳細設計」として、4.7 の内容を「この遊びの面白さ」として、4.6 の指摘と直した点を「選定の記録」に書く。
-5. Issue 作成：.github/ISSUE_TEMPLATE/game.md の形式で、タイトル「[GAME] <タイトル>」で1件だけ作る。
+5. Issue 作成：**4.8の最終審査合格後のみ** .github/ISSUE_TEMPLATE/game.md の形式で、タイトル「[GAME] <タイトル>」で1件だけ作る。
    - 「見た目・雰囲気」には、最初の画面の構図・配色・主役の絵・画面に並ぶ情報・画風・演出を、Claude Code が絵を描けるくらい具体的に書く。
    - 機能は、見た目と世界観を損なわない範囲で絞る。ただし**遊びの核と中身の量は削らない**（削るのはおまけの機能）。
    - 「この遊びの面白さ」（4.7）は Issue の上の方に置き、Claude Code が作るときの目標にする。
