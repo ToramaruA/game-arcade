@@ -63,6 +63,7 @@ export function create3D(canvas, deps) {
   const clouds2 = clouds.clone(); clouds2.material = clouds.material.clone(); clouds2.material.opacity = 0.22; clouds2.position.y = -4.5; clouds2.material.color = new THREE.Color(0xb0a0ff); scene.add(clouds2);
 
   const hemi = new THREE.HemisphereLight(0x8090ff, 0x201030, 0.55); scene.add(hemi);
+  const fill = new THREE.DirectionalLight(0x9aa0ff, 0.35); fill.position.set(0, 10, 30); scene.add(fill);
   const moon = new THREE.DirectionalLight(0xbfd0ff, 1.6); moon.castShadow = true;
   moon.shadow.mapSize.set(1024, 1024); moon.shadow.bias = -0.0008; moon.shadow.normalBias = 0.02; scene.add(moon); scene.add(moon.target);
 
@@ -70,8 +71,8 @@ export function create3D(canvas, deps) {
     const c = skyTex.image.getContext('2d'); const g = c.createLinearGradient(0, 0, 0, 256);
     g.addColorStop(0, th.sky[0]); g.addColorStop(0.55, th.sky[1]); g.addColorStop(1, '#3a2a6a'); c.fillStyle = g; c.fillRect(0, 0, 8, 256); skyTex.needsUpdate = true;
     scene.fog = new THREE.FogExp2(th.fog, 0.012);
-    hemi.color.set(th.amb); hemi.intensity = dark ? 0.18 : 0.55;
-    moon.color.set(th.moon); moon.intensity = dark ? 0.25 : 1.6;
+    hemi.color.set(th.amb); hemi.intensity = dark ? 0.2 : 0.75;
+    moon.color.set(th.moon); moon.intensity = dark ? 0.25 : 1.05;
     moonMesh.visible = moonGlow.visible = !dark;
   }
 
@@ -88,15 +89,16 @@ export function create3D(canvas, deps) {
       c.fillStyle = 'rgba(240,210,130,0.75)'; for (let i = 0; i < 26; i++) { c.beginPath(); c.arc(hsh(i, 9) * w, hsh(i, 10) * w, 1.6, 0, 7); c.fill(); }
     });
     floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
-    mats.floor = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.22, metalness: 0.15 });
+    mats.floor = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.5, metalness: 0.1 });
     mats.marble = new THREE.MeshStandardMaterial({ color: th.marble, roughness: 0.45, metalness: 0.05 });
     mats.wallDark = new THREE.MeshStandardMaterial({ color: new THREE.Color(th.marble).multiplyScalar(0.55), roughness: 0.6 });
     mats.capStone = new THREE.MeshStandardMaterial({ color: new THREE.Color(th.floor2).multiplyScalar(1.6), roughness: 0.5, metalness: 0.2 });
     mats.gold = new THREE.MeshStandardMaterial({ color: th.trim, roughness: 0.3, metalness: 0.85, emissive: new THREE.Color(th.trim).multiplyScalar(0.12) });
     mats.rock = new THREE.MeshStandardMaterial({ color: 0x2a2048, roughness: 0.95, flatShading: true });
+    mats.dome = new THREE.MeshStandardMaterial({ color: 0x9ab8ff, roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.12, depthWrite: false });
     mats.glass = new THREE.MeshStandardMaterial({ color: 0xbfd8ff, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.22, depthWrite: false });
     mats.statue = new THREE.MeshStandardMaterial({ color: 0xf2ead6, roughness: 0.6, emissive: 0x3a3020, emissiveIntensity: 0.4 });
-    mats.mirror = new THREE.MeshStandardMaterial({ color: 0x9ab0ff, roughness: 0.02, metalness: 1, emissive: 0x1a2050 });
+    mats.mirror = new THREE.MeshStandardMaterial({ roughness: 0.1, metalness: 0.3, emissive: 0xffffff, emissiveIntensity: 0.55, emissiveMap: canvasTex(128, 160, (c, w, h) => { const g = c.createLinearGradient(0, 0, w, h); g.addColorStop(0, '#3a4aa8'); g.addColorStop(0.5, '#8aa0f0'); g.addColorStop(1, '#2a3080'); c.fillStyle = g; c.fillRect(0, 0, w, h); c.fillStyle = '#fff'; for (let i = 0; i < 20; i++) c.fillRect(hsh(i, 1, 4) * w, hsh(i, 2, 4) * h, 2, 2); c.strokeStyle = 'rgba(255,255,255,0.5)'; c.lineWidth = 10; c.beginPath(); c.moveTo(w * 0.1, h); c.lineTo(w * 0.8, 0); c.stroke(); }), color: 0x6a7ad0 });
     mats.leaf = new THREE.MeshStandardMaterial({ color: 0x1f6a52, roughness: 0.6 });
     mats.flower = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xd8d8ff, emissiveIntensity: 1.2 });
     mats.book = new THREE.MeshStandardMaterial({ map: canvasTex(128, 128, (c, w) => { c.fillStyle = '#3a2238'; c.fillRect(0, 0, w, w); for (let r = 0; r < 4; r++) { let x = 4; for (let i = 0; x < w - 6; i++) { const bw = 8 + hsh(i, r) * 10, bh = 18 + hsh(i, r, 2) * 10; c.fillStyle = ['#7a2a4a', '#2a3a7a', '#3a6a5a', '#6a4a2a', '#4a2a6a'][(i + r) % 5]; c.fillRect(x, r * 32 + 30 - bh, bw - 2, bh); c.fillStyle = '#d4af5a'; c.fillRect(x + 1, r * 32 + 30 - bh * 0.6, bw - 4, 2); x += bw; } c.fillStyle = '#d4af5a'; c.fillRect(0, r * 32 + 30, w, 2); } }), roughness: 0.8 });
@@ -119,11 +121,11 @@ export function create3D(canvas, deps) {
     const g = new THREE.Group();
     const base = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.55, 0.82), mats.wallDark); base.position.y = 0.275; g.add(base);
     const cap = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.05, 0.88), mats.gold); cap.position.y = 0.57; g.add(cap);
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.38, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), mats.glass); dome.position.y = 0.6; dome.scale.y = 1.3; g.add(dome);
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.38, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), mats.dome); dome.position.y = 0.6; dome.scale.y = 1.3; g.add(dome);
     const col = [0xffe0a0, 0x8ad0ff, 0xff8ad0, 0xa0ffc8][k % 4];
     const geo = [new THREE.IcosahedronGeometry(0.12, 0), new THREE.TorusKnotGeometry(0.08, 0.025, 48, 8), new THREE.OctahedronGeometry(0.13), new THREE.ConeGeometry(0.1, 0.25, 6)][k % 4];
-    const obj = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.9, roughness: 0.3, metalness: 0.4 })); obj.position.y = 0.82; obj.userData.spin = true; g.add(obj);
-    const gl = glowSprite(col, 1.1, 0.5); gl.position.y = 0.82; g.add(gl);
+    const obj = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.6, roughness: 0.3, metalness: 0.4 })); obj.position.y = 0.82; obj.userData.spin = true; g.add(obj);
+    const gl = glowSprite(col, 0.7, 0.35); gl.position.y = 0.82; g.add(gl);
     g.position.set(x + 0.5, 0, z + 0.5);
     base.castShadow = true; base.receiveShadow = true;
     return g;
@@ -213,8 +215,8 @@ export function create3D(canvas, deps) {
   function makeItem(it) {
     const g = new THREE.Group();
     if (it.kind === 'key') {
-      const c = crescent(0xfff3c8); c.position.y = 0.75; g.add(c); g.userData.spin = c;
-      const gl = glowSprite(0xffe8a8, 1.5, 0.75); gl.position.y = 0.75; g.add(gl);
+      const c = crescent(0xfff3c8); c.scale.setScalar(1.7); c.position.y = 0.75; g.add(c); g.userData.spin = c;
+      const gl = glowSprite(0xffe8a8, 1.9, 0.85); gl.position.y = 0.75; g.add(gl);
       const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.4, 3, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xffeebb, transparent: true, opacity: 0.06, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })); beam.position.y = 1.5; g.add(beam);
     } else {
       const cush = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.12, 16), new THREE.MeshStandardMaterial({ color: 0x7a2a5a, roughness: 0.8 })); cush.position.y = 0.06; g.add(cush);
@@ -294,7 +296,7 @@ export function create3D(canvas, deps) {
     const movers = (room.movers || []).map((m) => {
       let o;
       if (m.planet) { o = new THREE.Group(); const p = new THREE.Mesh(new THREE.SphereGeometry(0.95, 32, 24), new THREE.MeshStandardMaterial({ color: 0x3fae8f, roughness: 0.5, emissive: 0x0a3028 })); p.castShadow = true; o.add(p); const r = new THREE.Mesh(new THREE.TorusGeometry(1.35, 0.05, 8, 48), mats.gold); r.rotation.x = 1.2; o.add(r); o.userData.planet = true; }
-      else if (m.frame) { o = new THREE.Group(); const f = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.4, 1.9), mats.gold); f.position.y = 0.7; f.castShadow = true; o.add(f); const pc = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.2), new THREE.MeshStandardMaterial({ map: pics[1], side: THREE.DoubleSide })); pc.position.set(0.11, 0.72, 0); pc.rotation.y = Math.PI / 2; o.add(pc); }
+      else if (m.frame) { o = new THREE.Group(); for (let i = 0; i < m.positions[0].length; i++) { const e = new THREE.Group(); const f = new THREE.Mesh(new THREE.BoxGeometry(0.86, 1.1, 0.08), mats.gold); f.position.y = 0.95; f.castShadow = true; e.add(f); const pc = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.92), new THREE.MeshStandardMaterial({ map: pics[(i + 2) % 4], emissive: 0xffffff, emissiveIntensity: 0.25, emissiveMap: pics[(i + 2) % 4] })); pc.position.set(0, 0.95, 0.045); e.add(pc); [-1, 1].forEach((k) => { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.5, 0.05), mats.gold); leg.position.set(k * 0.3, 0.25, -0.1); leg.rotation.x = -0.2; e.add(leg); }); e.position.z = i - (m.positions[0].length - 1) / 2; o.add(e); } }
       else { o = new THREE.Group(); const cells = m.positions[0]; for (let i = 0; i < cells.length; i++) { const s = statue(0, i, 0xe6c79a); s.position.set(0, 0, i); o.add(s); } }
       world.add(o); return { m, o };
     });
@@ -310,7 +312,7 @@ export function create3D(canvas, deps) {
     const rings = Array.from({ length: 6 }, () => { const r = new THREE.Mesh(new THREE.RingGeometry(0.92, 1, 40), new THREE.MeshBasicMaterial({ color: 0xc8e0ff, transparent: true, opacity: 0, depthWrite: false })); r.rotation.x = -Math.PI / 2; r.position.y = 0.04; world.add(r); return r; });
     const decoy = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshStandardMaterial({ color: 0xd8d2c0 })); world.add(decoy);
     // 月の光（影の範囲を部屋に合わせる）
-    moon.position.set(w * 0.8, 14, -6); moon.target.position.set(w / 2, 0, h / 2);
+    moon.position.set(w * 0.25, 16, h + 9); moon.target.position.set(w / 2, 0, h / 2);
     const sc = moon.shadow.camera; sc.left = -w * 0.8; sc.right = w * 0.8; sc.top = h; sc.bottom = -h; sc.near = 1; sc.far = 40; sc.updateProjectionMatrix();
     moonMesh.position.set(w / 2 + 22, 18, -40); moonGlow.position.copy(moonMesh.position); moonMesh.lookAt(w / 2, 0, h / 2);
     // 記憶の光の粒
