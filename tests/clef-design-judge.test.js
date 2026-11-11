@@ -7,7 +7,7 @@ import {
 
 const design=Object.fromEntries(DESIGN_FIELDS.map(f=>[f,'Concrete '+f+' description with interactions, level mechanics and consequences.']));
 const request={
-  schema_version:1,phase:'design',revision:1,context:'Evaluate sustained gameplay, not pitch language.',
+  schema_version:1,phase:'design',revision:1,context:'Evaluate sustained gameplay, not pitch language.',selection_record:'Original candidates and reviewer notes: A over B.',
   idea_review_url:'https://github.com/ToramaruA/game-arcade/issues/60',
   selected_idea:{id:'A',title:'Night Maze'},design,
 };
