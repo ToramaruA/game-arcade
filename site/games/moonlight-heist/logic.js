@@ -54,7 +54,7 @@ export function lineClear(room, x0, y0, x1, y1, ms) {
 
 export function guardSees(room, g, px, py, ms) {
   const dx = px - g.x, dy = py - g.y, d = Math.hypot(dx, dy);
-  if (d > CFG.viewDist) return false;
+  if (d > (room.view || CFG.viewDist)) return false;
   if (d > 0.3) {
     const dot = (dx * g.fx + dy * g.fy) / d;
     if (dot < Math.cos(CFG.viewHalf)) return false;
@@ -200,7 +200,7 @@ function gotoCell(run, g, x, y) {
 
 function stepGuards(run, dt, patrolOnly) {
   const room = run.room, ms = run._ms = moverSet(room, run.t);
-  const sp = run.slow ? 0.8 : 1;
+  const sp = (run.slow ? 0.8 : 1) * (run.room.guardSpeed || 1);
   for (const g of run.guards) {
     g.sawT += dt;
     if (g.mode === 'patrol') {
@@ -367,7 +367,7 @@ export function step(run, input, dt) {
     if (Math.hypot(lp.x - p.x, lp.y - p.y) < l.r) run.lightSeen = true;
   }
   const thr = input.sneak ? CFG.thrSneak : CFG.thrWalk;
-  if (run.time < CFG.grace) { seeing = 0; run.lightSeen = false; }
+  if (run.time < (run.room.grace || CFG.grace)) { seeing = 0; run.lightSeen = false; }
   if (seeing || run.lightSeen) {
     run.unseen = 0;
     run.gauge = Math.min(1, run.gauge + dt / (run.lightSeen && !seeing ? CFG.lightThr : thr));
@@ -485,7 +485,7 @@ export function safeRouteExists(room, phase, horizon = 150, wantPath = false) {
     if (blockedMove(room, Math.floor(x), Math.floor(y), ms)) return false;
     for (const g of tl[Math.min(i, tl.length - 1)]) {
       if (Math.hypot(g.x - x, g.y - y) < nr) return false;
-      if (i * dt >= CFG.grace && guardSees(room, g, x, y, ms)) return false;
+      if (i * dt >= (room.grace || CFG.grace) && guardSees(room, g, x, y, ms)) return false;
     }
     for (const l of room.lights || []) { const lp = lightPos(l, i * dt); if (Math.hypot(lp.x - x, lp.y - y) < l.r + 0.2) return false; }
     return true;

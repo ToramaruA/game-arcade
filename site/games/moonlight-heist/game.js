@@ -81,7 +81,7 @@ function titleScreen() {
   mode = 'title';
   const started = Object.keys(save.rooms).length > 0;
   show('title', `<div class="card">
-    <p class="sub">怪盗団「夜鴉」の見習いルウ、最後の仕事</p>
+    <p class="sub">怪盗団「夜鴉」の怪盗ルウ、最後の仕事</p>
     <h2 class="big">月光美術館と<br>十二の怪盗</h2>
     <p>警備員に見つからずに「夜のかけら」を集めきれば、<br>ルウは団から自由になれる。</p>
     <p class="who fox-l tl">${FOX}<span><b>無線 ― キツネ</b>案内は俺に任せろ。足跡はこっちで照らす。</span></p>
@@ -510,7 +510,7 @@ function coneRays(g, ms, room) {
     const a = base - CFG.viewHalf + (i / N) * CFG.viewHalf * 2;
     const dx = Math.cos(a), dy = Math.sin(a);
     let d = 0.2;
-    for (; d < CFG.viewDist; d += 0.1) if (L.blockedSight(room, Math.floor(g.x + dx * d), Math.floor(g.y + dy * d), ms)) break;
+    for (; d < (room.view || CFG.viewDist); d += 0.1) if (L.blockedSight(room, Math.floor(g.x + dx * d), Math.floor(g.y + dy * d), ms)) break;
     pts.push([g.x + dx * d, g.y + dy * d]);
   }
   return pts;
@@ -612,7 +612,7 @@ function render(t) {
   if (save.opt.showView) for (const g of run.guards) {
     const pts = coneRays(g, ms, room);
     const chase = g.mode === 'chase';
-    const grad = ctx.createRadialGradient(wx(g.x), wy(g.y), 4, wx(g.x), wy(g.y), CFG.viewDist * TS);
+    const grad = ctx.createRadialGradient(wx(g.x), wy(g.y), 4, wx(g.x), wy(g.y), (run.room.view || CFG.viewDist) * TS);
     grad.addColorStop(0, chase ? 'rgba(255,90,100,0.5)' : 'rgba(255,225,150,0.42)'); grad.addColorStop(1, chase ? 'rgba(255,90,100,0.08)' : 'rgba(255,225,150,0.06)');
     ctx.fillStyle = grad; ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(wx(x), wy(y)) : ctx.moveTo(wx(x), wy(y)))); ctx.closePath(); ctx.fill();
   }
