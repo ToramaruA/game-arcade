@@ -1,6 +1,7 @@
 import * as L from './logic.js';
 import { STORY, INTRO, EPILOGUE } from './rooms.js';
 import { drawMemory, drawTitleArt } from './art.js';
+import { create3D } from './render3d.js';
 
 const { ROOMS, CHAPTERS, CFG } = L;
 const $ = (id) => document.getElementById(id);
@@ -232,7 +233,7 @@ function startRoom(ri, ph) {
 let tutorialOn = false;
 function newRun() {
   run = L.createRun(ROOMS[roomIdx], phase, { slow: save.opt.slow });
-  initMotes(run.room); sparks = [];
+  initMotes(run.room); sparks = []; snap3d = true;
   fade = 0; flash = 0;
   updateHud();
 }
@@ -370,9 +371,13 @@ function resize() {
   DPR = Math.min(2, devicePixelRatio || 1);
   W = innerWidth; H = innerHeight;
   cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  if (typeof r3d !== 'undefined' && r3d) r3d.resize(W, H, DPR);
   TS = W < 700 ? Math.max(32, Math.min(48, Math.floor(Math.min(W / 9.5, (H - 260) / 11)))) : Math.max(36, Math.min(56, Math.floor(Math.min(W / 17, (H - 90) / 12))));
 }
 addEventListener('resize', resize);
+let r3d = null, snap3d = true;
+if (!params.has('2d')) { try { r3d = create3D($('gl'), { L, phase: () => phase }); } catch (e) { r3d = null; } }
+if (!r3d) $('gl').hidden = true;
 
 function wx(x) { return x * TS - cam.x; }
 function wy(y) { return y * TS - cam.y; }
@@ -820,7 +825,23 @@ function render(t) {
   const rdt = Math.min(0.05, lastRenderT ? t - lastRenderT : 0.016); lastRenderT = t;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#070b22'; ctx.fillRect(0, 0, W, H);
-  if (!run) { drawBackdrop(t); return; }
+  if (!run) { cv.classList.remove('over'); drawBackdrop(t); return; }
+  if (r3d) {
+    cv.classList.add('over');
+    ctx.clearRect(0, 0, W, H);
+    const ms3 = new Set(L.moverCells(run.room, run.t).map(([x, y]) => `${x},${y}`));
+    try {
+      r3d.update(run, t, rdt, { ri: roomIdx, ch: roomChapter(roomIdx), reduceMotion: reduceMotion(), showView: save.opt.showView, coneRays, ms: ms3, L, shake, snap: snap3d });
+      snap3d = false;
+    } catch (e) { console.warn('3D描画をやめて2Dに切り替え', e); r3d = null; $('gl').hidden = true; cv.classList.remove('over'); }
+    // 画面効果（2Dの上がき）
+    const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+    vg.addColorStop(0, 'rgba(0,0,10,0)'); vg.addColorStop(1, 'rgba(0,0,10,0.5)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+    if (run.gauge > 0.55 && !reduceMotion()) { ctx.fillStyle = `rgba(200,30,50,${(run.gauge - 0.5) * 0.18 + Math.sin(t * 6) * 0.03})`; ctx.fillRect(0, 0, W, H); }
+    if (flash > 0) { ctx.fillStyle = `rgba(255,252,235,${Math.min(0.8, flash) * (reduceMotion() ? 0.3 : 1)})`; ctx.fillRect(0, 0, W, H); }
+    if (fade > 0) { ctx.fillStyle = `rgba(0,0,10,${Math.min(1, fade)})`; ctx.fillRect(0, 0, W, H); }
+    return;
+  }
   drawPlaySky(run.room, t);
   const room = run.room, ch = CHAPTERS[roomChapter(roomIdx)];
   ctx.save();

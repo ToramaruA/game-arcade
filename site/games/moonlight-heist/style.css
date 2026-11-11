@@ -202,3 +202,6 @@ body.radio-on #toast{top:160px}
 .card .mom-l{background:rgba(90,52,24,.55);border:1px solid #e8c48a88}
 .card .mom-l b{color:#ffd9a0}
 .card .mom-l .fox{flex:none;width:38px;height:38px;border-radius:50%;background:#4a2a18;border:2px solid #e8c48a;padding:2px}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;background:#070618}
+#gl[hidden]{display:none}
+#cv.over{background:transparent;pointer-events:none}
