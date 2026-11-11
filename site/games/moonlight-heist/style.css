@@ -196,3 +196,9 @@ body.radio-on #toast{top:160px}
 .st.off{background:none;border:1px solid #6a5a9a;box-shadow:none}
 @media (max-width:480px){.hud-l b{font-size:9px;letter-spacing:.08em}.hud-l span{font-size:13px}.chip{padding:4px 7px;font-size:11px}.hud-r button{width:30px;height:30px}}
 #collect{display:none!important}
+.card .lou-l{background:rgba(40,28,96,.6);border:1px solid #b8a8ff88}
+.card .lou-l b{color:#cfc2ff}
+.card .lou-l .fox{flex:none;width:38px;height:38px;border-radius:50%;background:#2a2060;border:2px solid #b8a8ff;padding:2px}
+.card .mom-l{background:rgba(90,52,24,.55);border:1px solid #e8c48a88}
+.card .mom-l b{color:#ffd9a0}
+.card .mom-l .fox{flex:none;width:38px;height:38px;border-radius:50%;background:#4a2a18;border:2px solid #e8c48a;padding:2px}
