@@ -182,3 +182,17 @@ body.radio-on #toast{top:146px}
 body.radio-on #toast{top:160px}
 #collect{top:44px;width:28px;height:28px}
 .memgot{color:#f1d98a!important;font-size:14px!important;text-shadow:0 0 10px rgba(241,217,138,.6)}
+/* プレイ中の札・チップ */
+#hud{padding:max(8px,env(safe-area-inset-top)) 10px 22px 0}
+.hud-l{padding:6px 18px 7px 12px;background:linear-gradient(90deg,rgba(16,10,44,.92),rgba(40,28,96,.75));border:1px solid var(--line);border-left:0;border-radius:0 999px 999px 0;box-shadow:0 0 18px rgba(140,120,255,.35)}
+.hud-l b{font-size:10px;letter-spacing:.18em;color:#cfc2ff}
+.hud-l span{font-size:15px}
+.hud-r{align-items:center;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:rgba(16,10,44,.75);font-size:12px;color:#f6efff;box-shadow:0 0 12px rgba(140,120,255,.25)}
+.chip output{color:#f1d98a;font-weight:700}
+#hDecoy{letter-spacing:0}
+#hDecoy i{font-style:normal;margin-right:2px}
+.st{display:inline-block;width:9px;height:9px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fffbe8,#d8c8a0);box-shadow:0 0 6px #f1d98a}
+.st.off{background:none;border:1px solid #6a5a9a;box-shadow:none}
+@media (max-width:480px){.hud-l b{font-size:9px;letter-spacing:.08em}.hud-l span{font-size:13px}.chip{padding:4px 7px;font-size:11px}.hud-r button{width:30px;height:30px}}
+#collect{display:none!important}

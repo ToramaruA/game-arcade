@@ -217,7 +217,7 @@ function startRoom(ri, ph) {
   newRun();
   mode = 'play'; paused = false;
   const c = CHAPTERS[roomChapter(ri)];
-  $('hChap').textContent = `${c.sub} ${ri - c.rooms[0] + 1}/5`;
+  $('hChap').textContent = W < 480 ? `☾ ${c.sub}　${ri - c.rooms[0] + 1}/5` : `☾ ${c.sub}・${c.name}　${ri - c.rooms[0] + 1}/5`;
   $('hRoom').textContent = ROOMS[ri].name;
   hideScreen();
   tutorialT = 0;
@@ -236,7 +236,7 @@ function newRun() {
 }
 function updateHud() {
   $('hItems').textContent = `${total() + (run ? run.items.filter((i) => i.got && !(save.rooms[roomIdx]?.opts || []).includes(i.idx) && !(i.kind === 'key' && save.rooms[roomIdx])).length : 0)}/45`;
-  $('hDecoy').textContent = run ? 'おとり ' + '●'.repeat(run.decoys) + '○'.repeat(CFG.decoyCount - run.decoys) : '';
+  $('hDecoy').innerHTML = run ? `<i>おとり</i>${'<em class="st"></em>'.repeat(run.decoys)}${'<em class="st off"></em>'.repeat(CFG.decoyCount - run.decoys)}` : '';
   if (run) $('collectFill').style.height = `${(run.items.filter((i) => i.got).length / run.items.length) * 100}%`;
 }
 let toastTimer = 0;
@@ -366,7 +366,7 @@ function resize() {
   DPR = Math.min(2, devicePixelRatio || 1);
   W = innerWidth; H = innerHeight;
   cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
-  TS = W < 700 ? Math.max(30, Math.min(44, Math.floor(W / 10.5))) : Math.max(36, Math.min(56, Math.floor(Math.min(W / 17, (H - 90) / 12))));
+  TS = W < 700 ? Math.max(32, Math.min(48, Math.floor(Math.min(W / 9.5, (H - 260) / 11)))) : Math.max(36, Math.min(56, Math.floor(Math.min(W / 17, (H - 90) / 12))));
 }
 addEventListener('resize', resize);
 
@@ -575,18 +575,18 @@ function drawGuard(g, t) {
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(cx, wy(g.y) + s * 0.34, s * 0.22, s * 0.07, 0, 0, 7); ctx.fill();
   // ぼんやりした気配
   const au = ctx.createRadialGradient(cx, cy, s * 0.1, cx, cy, s * 0.6);
-  au.addColorStop(0, chase ? 'rgba(255,80,110,0.28)' : 'rgba(150,120,255,0.25)'); au.addColorStop(1, 'rgba(120,100,255,0)');
+  au.addColorStop(0, chase ? 'rgba(255,80,110,0.4)' : 'rgba(190,160,255,0.42)'); au.addColorStop(1, 'rgba(120,100,255,0)');
   ctx.fillStyle = au; ctx.fillRect(cx - s, cy - s, s * 2, s * 2);
   // 衣（すそがゆらぐ）
   const body = ctx.createLinearGradient(cx, cy - s * 0.45, cx, cy + s * 0.35);
-  body.addColorStop(0, '#2a1f55'); body.addColorStop(1, 'rgba(26,18,60,0.15)');
+  body.addColorStop(0, '#4a3a90'); body.addColorStop(1, 'rgba(40,28,90,0.25)');
   ctx.fillStyle = body; ctx.beginPath();
   ctx.moveTo(cx - s * 0.08, cy - s * 0.48);
   ctx.quadraticCurveTo(cx - s * 0.34, cy - s * 0.2, cx - s * 0.3, cy + s * 0.3);
   for (let k = 0; k <= 4; k++) { const xx = cx - s * 0.3 + k * s * 0.15, yy = cy + s * 0.3 + (k % 2 ? -s * 0.08 : 0) + (rm ? 0 : Math.sin(t * 6 + k + g.x) * s * 0.03); ctx.lineTo(xx, yy); }
   ctx.quadraticCurveTo(cx + s * 0.34, cy - s * 0.2, cx + s * 0.08, cy - s * 0.48);
   ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = 'rgba(190,170,255,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.strokeStyle = 'rgba(220,200,255,0.75)'; ctx.lineWidth = 1.5; ctx.stroke();
   // 頭巾の角
   ctx.fillStyle = '#1c1440'; ctx.beginPath(); ctx.moveTo(cx - s * 0.16, cy - s * 0.32); ctx.lineTo(cx - s * 0.22, cy - s * 0.56); ctx.lineTo(cx - s * 0.04, cy - s * 0.4); ctx.fill();
   ctx.beginPath(); ctx.moveTo(cx + s * 0.16, cy - s * 0.32); ctx.lineTo(cx + s * 0.22, cy - s * 0.56); ctx.lineTo(cx + s * 0.04, cy - s * 0.4); ctx.fill();
@@ -647,17 +647,57 @@ function drawLights(room, t) {
 }
 
 let dark = null, dctx = null;
-function drawDarkness(room) {
+// 館の明かり：全体を夜の暗さにして、ルウのまわり・夜守のランタンと視線・かけら・月光だけを照らす
+function drawLighting(room, ms, t) {
   if (!dark || dark.width !== cv.width || dark.height !== cv.height) { dark = document.createElement('canvas'); dark.width = cv.width; dark.height = cv.height; dctx = dark.getContext('2d'); }
   dctx.setTransform(1, 0, 0, 1, 0, 0); dctx.globalCompositeOperation = 'source-over'; dctx.clearRect(0, 0, dark.width, dark.height);
-  dctx.fillStyle = 'rgba(2,4,20,0.72)'; dctx.fillRect(0, 0, dark.width, dark.height);
+  dctx.fillStyle = room.dark ? 'rgba(3,2,16,0.78)' : 'rgba(6,3,24,0.5)'; dctx.fillRect(0, 0, dark.width, dark.height);
   dctx.setTransform(DPR, 0, 0, DPR, 0, 0); dctx.globalCompositeOperation = 'destination-out';
   const hole = (x, y, r, a) => { const g = dctx.createRadialGradient(x, y, r * 0.1, x, y, r); g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(1, 'rgba(0,0,0,0)'); dctx.fillStyle = g; dctx.beginPath(); dctx.arc(x, y, r, 0, 7); dctx.fill(); };
+  // 窓からの月光の帯
+  if (!room.dark) for (let i = 0; i < 3; i++) {
+    const bx = wx(room.rows[0].length * (0.2 + i * 0.3)), by = wy(1);
+    const g = dctx.createLinearGradient(bx, by, bx + TS * 3, by + TS * 7); g.addColorStop(0, 'rgba(0,0,0,0.55)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    dctx.fillStyle = g; dctx.beginPath(); dctx.moveTo(bx, by); dctx.lineTo(bx + TS * 1.4, by); dctx.lineTo(bx + TS * 5, by + TS * 7); dctx.lineTo(bx + TS * 2.6, by + TS * 7); dctx.fill();
+  }
   hole(wx(run.p.x), wy(run.p.y), TS * 3.2, 0.95);
-  for (const g of run.guards) hole(wx(g.x), wy(g.y), TS * 2.5, 0.9);
+  for (const g of run.guards) {
+    hole(wx(g.x + g.fx * 0.36), wy(g.y + g.fy * 0.36), TS * 2.2, 0.9);
+    if (save.opt.showView) { const pts = coneRays(g, ms, room); dctx.fillStyle = 'rgba(0,0,0,0.55)'; dctx.beginPath(); pts.forEach(([x, y], k) => (k ? dctx.lineTo(wx(x), wy(y)) : dctx.moveTo(wx(x), wy(y)))); dctx.closePath(); dctx.fill(); }
+  }
   for (const l of room.lights || []) { const lp = L.lightPos(l, run.t); hole(wx(lp.x), wy(lp.y), l.r * TS * 2.2, 1); }
-  for (const it of run.items) if (!it.got) hole(wx(it.x + 0.5), wy(it.y + 0.5), TS * 1.6, 0.8);
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(dark, 0, 0); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  for (const it of run.items) if (!it.got) hole(wx(it.x + 0.5), wy(it.y + 0.5), TS * (it.kind === 'key' ? 2 : 1.3), 0.85);
+  const info = L.roomInfo(room);
+  if (info.exit) hole(wx(info.exit[0] + 0.5), wy(info.exit[1] + 0.5), TS * (run.exitOpen ? 2.2 : 1.2), run.exitOpen ? 0.9 : 0.5);
+  if (roomIdx === 0 || room.pedestals) L.hintTrail(room, phase).forEach(([x, y], k) => { if (k % 2 === 0) hole(wx(x + 0.5), wy(y + 0.5), TS * 0.7, 0.6); });
+  ctx.save(); ctx.beginPath(); ctx.rect(wx(0), wy(0), room.rows[0].length * TS, room.rows.length * TS); ctx.clip();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(dark, 0, 0); ctx.restore(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  // ランタンのあたたかい灯
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const g of run.guards) { const lx = wx(g.x + g.fx * 0.36), ly = wy(g.y + g.fy * 0.36); const gg = ctx.createRadialGradient(lx, ly, 2, lx, ly, TS * 1.6); gg.addColorStop(0, g.mode === 'chase' ? 'rgba(255,80,100,0.35)' : 'rgba(255,200,120,0.28)'); gg.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gg; ctx.fillRect(lx - TS * 2, ly - TS * 2, TS * 4, TS * 4); }
+  ctx.restore(); void t;
+}
+// 部屋の外：星空と月。部屋のふちは金の線と光で縁取る
+function drawPlaySky(room, t) {
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0a0828'); g.addColorStop(1, '#1e1446'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const ox = -cam.x * 0.08, oy = -cam.y * 0.08;
+  for (let i = 0; i < 140; i++) { const a = 0.25 + 0.5 * (0.5 + 0.5 * Math.sin(t * 1.3 + i)); ctx.fillStyle = `rgba(255,248,225,${a * hash(i, 4, 3)})`; ctx.fillRect(((hash(i, 1, 3) * W * 1.3 + ox) % (W * 1.3) + W * 1.3) % (W * 1.3) - W * 0.15, ((hash(i, 2, 3) * H * 1.3 + oy) % (H * 1.3) + H * 1.3) % (H * 1.3) - H * 0.15, 1.6, 1.6); }
+  const mx = W * 0.82 + ox * 2, my = H * 0.16 + oy * 2, mr = Math.min(W, H) * 0.09;
+  const mg = ctx.createRadialGradient(mx, my, mr * 0.3, mx, my, mr * 5); mg.addColorStop(0, 'rgba(255,246,215,0.35)'); mg.addColorStop(1, 'rgba(255,246,215,0)'); ctx.fillStyle = mg; ctx.fillRect(mx - mr * 5, my - mr * 5, mr * 10, mr * 10);
+  ctx.fillStyle = '#fbf3da'; ctx.beginPath(); ctx.arc(mx, my, mr, 0, 7); ctx.fill();
+  // 雲
+  ctx.fillStyle = 'rgba(110,90,200,0.18)';
+  for (let i = 0; i < 6; i++) { const x = ((i * 0.22 + t * 0.006) % 1.4 - 0.2) * W, y = H * (0.25 + (i % 3) * 0.28) + oy; ctx.beginPath(); ctx.ellipse(x, y, W * 0.22, H * 0.035, 0, 0, 7); ctx.fill(); }
+  void room;
+}
+function drawRoomFrame(room) {
+  const x0 = wx(0), y0 = wy(0) - TS * 0.1, w = room.rows[0].length * TS, h = room.rows.length * TS + TS * 0.1;
+  ctx.save();
+  ctx.shadowColor = 'rgba(160,140,255,0.6)'; ctx.shadowBlur = 40; ctx.strokeStyle = 'rgba(236,214,160,0.75)'; ctx.lineWidth = 2; ctx.strokeRect(x0 - 6, y0 - 6, w + 12, h + 12);
+  ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(236,214,160,0.35)'; ctx.lineWidth = 1; ctx.strokeRect(x0 - 11, y0 - 11, w + 22, h + 22);
+  ctx.fillStyle = '#f1d98a'; ctx.font = `${Math.round(TS * 0.45)}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  [[x0 - 8, y0 - 8, '☾'], [x0 + w + 8, y0 - 8, '☽'], [x0 - 8, y0 + h + 8, '✦'], [x0 + w + 8, y0 + h + 8, '✦']].forEach(([x, y, c]) => { ctx.fillStyle = '#120c30'; ctx.beginPath(); ctx.arc(x, y, TS * 0.28, 0, 7); ctx.fill(); ctx.fillStyle = '#f1d98a'; ctx.fillText(c, x, y + 1); });
+  ctx.textBaseline = 'alphabetic'; ctx.restore();
 }
 
 // ---------- 幻想の演出：記憶の光の粒・足あとの光・かけらの散光 ----------
@@ -675,8 +715,8 @@ function drawMagic(room, t, dt) {
     const a = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(t * 2 + m.ph));
     const px = wx(m.x), py = wy(m.y);
     ctx.fillStyle = m.hue > 0.6 ? `rgba(255,230,170,${a})` : m.hue > 0.3 ? `rgba(190,200,255,${a})` : `rgba(220,180,255,${a})`;
-    ctx.beginPath(); ctx.arc(px, py, m.r, 0, 7); ctx.fill();
-    ctx.fillStyle = `rgba(200,200,255,${a * (m.big ? 0.16 : 0.1)})`; ctx.beginPath(); ctx.arc(px, py, m.r * (m.big ? 6 : 4), 0, 7); ctx.fill();
+    if (!m.big) { ctx.beginPath(); ctx.arc(px, py, m.r, 0, 7); ctx.fill(); }
+    ctx.fillStyle = `rgba(200,200,255,${a * (m.big ? 0.09 : 0.1)})`; ctx.beginPath(); ctx.arc(px, py, m.r * (m.big ? 6 : 4), 0, 7); ctx.fill();
   }
   sparks = sparks.filter((p) => (p.life -= dt * 0.9) > 0);
   for (const p of sparks) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 0.6 * dt; ctx.fillStyle = `rgba(${p.col},${p.life})`; ctx.beginPath(); ctx.arc(wx(p.x), wy(p.y), 1.2 + p.life * 1.8, 0, 7); ctx.fill(); }
@@ -688,6 +728,7 @@ function render(t) {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#070b22'; ctx.fillRect(0, 0, W, H);
   if (!run) { drawBackdrop(t); return; }
+  drawPlaySky(run.room, t);
   const room = run.room, ch = CHAPTERS[roomChapter(roomIdx)];
   ctx.save();
   if (shake > 0) ctx.translate((Math.random() - 0.5) * 6 * shake * 4, (Math.random() - 0.5) * 6 * shake * 4);
@@ -713,9 +754,9 @@ function render(t) {
     const pts = coneRays(g, ms, room);
     const chase = g.mode === 'chase';
     const grad = ctx.createRadialGradient(wx(g.x), wy(g.y), 4, wx(g.x), wy(g.y), (run.room.view || CFG.viewDist) * TS);
-    grad.addColorStop(0, chase ? 'rgba(255,90,110,0.5)' : 'rgba(255,214,130,0.45)'); grad.addColorStop(1, chase ? 'rgba(255,90,110,0.08)' : 'rgba(255,190,110,0.07)');
+    grad.addColorStop(0, chase ? 'rgba(255,90,110,0.55)' : 'rgba(255,165,90,0.5)'); grad.addColorStop(1, chase ? 'rgba(255,90,110,0.1)' : 'rgba(255,130,80,0.1)');
     ctx.fillStyle = grad; ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(wx(x), wy(y)) : ctx.moveTo(wx(x), wy(y)))); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = chase ? 'rgba(255,110,130,0.55)' : 'rgba(255,220,150,0.4)'; ctx.lineWidth = 1.2; ctx.setLineDash([3, 5]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.strokeStyle = chase ? 'rgba(255,110,130,0.75)' : 'rgba(255,140,90,0.7)'; ctx.lineWidth = 1.2; ctx.setLineDash([3, 5]); ctx.stroke(); ctx.setLineDash([]);
   }
   // 音の輪・おとり
   for (const n of run.noise) { ctx.strokeStyle = `rgba(200,225,255,${0.5 * (1 - n.t / 0.8)})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(wx(n.x), wy(n.y), n.r * TS * Math.min(1, n.t / 0.5), 0, 7); ctx.stroke(); }
@@ -759,7 +800,8 @@ function render(t) {
     if (cells.length) { const cx = wx(cells[0][0] + 0.5), cy = wy((cells[0][1] + cells[1][1]) / 2 + 1), r = TS * 0.95; drawPlanet(cx, cy, r, t); }
   }
   drawLights(room, t);
-  if (room.dark) drawDarkness(room);
+  drawLighting(room, ms, t);
+  drawRoomFrame(room);
   // ルウの足もとに光の粒
   if (Math.hypot(run.p.vx, run.p.vy) > 0.3 && (trailT -= rdt) <= 0 && !reduceMotion()) { trailT = 0.07; sparks.push({ x: run.p.x + (Math.random() - 0.5) * 0.3, y: run.p.y + 0.25, vx: (Math.random() - 0.5) * 0.3, vy: -0.4, life: 0.7, col: '170,200,255' }); }
   drawMagic(room, t, rdt);
