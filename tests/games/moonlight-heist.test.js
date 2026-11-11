@@ -234,3 +234,18 @@ test('無線：第1室の手引きは 移動→足跡→警備員 の順で、�
   assert.equal(L.radioText('床が鳴る。Shift で忍び足。', true), '床が鳴る。「忍び足」ボタンで忍び足。');
   assert.equal(L.radioText('Space で投げる', false), 'Space で投げる');
 });
+
+test('ルウの記憶：6つが章末以外の室に1つずつ、クリアで戻る', () => {
+  const { MEMORIES } = L;
+  assert.equal(MEMORIES.length, 6);
+  const rooms = MEMORIES.map((m) => m.room);
+  assert.equal(new Set(rooms).size, 6);
+  for (const ri of rooms) assert.ok(!ROOMS[ri].endEvent, `第${ri + 1}室は章末と重ならない`);
+  assert.deepEqual([...rooms].sort((a, b) => a - b), rooms, '室の順に並ぶ');
+  const s = L.emptySave();
+  assert.ok(L.memoriesUnlocked(s).every((x) => !x));
+  s.rooms[MEMORIES[0].room] = { rank: 'A', time: 1, alerts: 0, opts: [] };
+  assert.deepEqual(L.memoriesUnlocked(s), [true, false, false, false, false, false]);
+  assert.equal(L.memoryIndex(MEMORIES[2].room), 2);
+  assert.equal(L.memoryIndex(0), -1);
+});

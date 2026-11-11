@@ -104,7 +104,13 @@ function roomsScreen() {
   show('rooms', h + '<button data-a="title">もどる</button></div>');
 }
 function albumScreen() {
-  let h = `<div class="card"><h2>アルバム ${total()}/45</h2><p class="sub">夜のかけらと展示品。集めるほど結末が変わる。</p><div class="alb">`;
+  const mu = L.memoriesUnlocked(save);
+  let h = `<div class="card"><h2>アルバム ${total()}/45</h2>`;
+  h += `<div class="chap">ルウの記憶 ${mu.filter(Boolean).length}/${mu.length}</div><div class="alb mems">`;
+  L.MEMORIES.forEach((m, i) => {
+    h += mu[i] ? `<button data-a="mem" data-i="${i}"><b>${i + 1}. ${m.title}</b>もう一度読む</button>` : `<div class="no"><b>${i + 1}. ？？？</b>第${m.room + 1}室をクリアすると戻る</div>`;
+  });
+  h += `</div><div class="chap">夜のかけらと展示品</div><p class="sub">集めるほど結末が変わる。</p><div class="alb">`;
   ROOMS.forEach((room, ri) => {
     const s = save.rooms[ri];
     room.items.forEach((it, k) => {
@@ -133,8 +139,12 @@ function storyLine(l) {
   if (l.startsWith('頭領「')) return `<p class="who boss-l">${CROW}<span><b>頭領</b>${l.slice(2)}</span></p>`;
   return `<p>${l}</p>`;
 }
-function storyScreen(lines, next, title = '') {
-  show('story', `<div class="card"><h2>${title}</h2><div class="lines">${lines.map((l, i) => storyLine(l).replace('<p', `<p style="animation-delay:${i * 0.5}s"`)).join('')}</div><button class="pri" data-a="next">つづける</button></div>`);
+function memoryScreen(mi, next) {
+  const m = L.MEMORIES[mi];
+  storyScreen(m.lines, next, `<small class="memk">ルウの記憶 ${mi + 1}/${L.MEMORIES.length}</small><br>${m.title}`, 'mem');
+}
+function storyScreen(lines, next, title = '', cls = '') {
+  show('story', `<div class="card"><h2>${title}</h2><div class="lines">${lines.map((l, i) => storyLine(l).replace('<p', `<p style="animation-delay:${i * 0.5}s"`)).join('')}</div><button class="pri" data-a="next">つづける</button></div>`, cls);
   storyNext = next;
 }
 let storyNext = null;
@@ -168,6 +178,7 @@ screenEl.addEventListener('click', (e) => {
   else if (a === 'continue') startRoom(firstUnplayed());
   else if (a === 'rooms') { paused = false; roomsScreen(); }
   else if (a === 'album') albumScreen();
+  else if (a === 'mem') memoryScreen(+b.dataset.i, albumScreen);
   else if (a === 'options') optionsScreen('title');
   else if (a === 'options-p') optionsScreen('pause');
   else if (a === 'pause') pauseScreen();
@@ -264,9 +275,11 @@ function handleEvents() {
   }
 }
 function onClear() {
+  const first = !save.rooms[roomIdx];
   save = L.recordClear(save, roomIdx, run); persist(); updateHud();
   const room = ROOMS[roomIdx];
-  const after = () => resultScreen();
+  const mi = L.memoryIndex(roomIdx);
+  const after = first && mi >= 0 ? () => memoryScreen(mi, () => resultScreen()) : () => resultScreen();
   setTimeout(() => {
     if (room.endEvent && room.endEvent !== 'ch3') storyScreen(STORY[room.endEvent], after, `${CHAPTERS[roomChapter(roomIdx)].sub}　おわり`);
     else if (room.endEvent === 'ch3') storyScreen(STORY.ch3, after, '最後の月光');

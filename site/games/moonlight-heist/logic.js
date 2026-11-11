@@ -1,6 +1,6 @@
 // ルール本体。DOM を触らない。警備員AI・視界・音・おとり・保存の形式をここで決める。
-import { ROOMS, CHAPTERS, ENDINGS } from './rooms.js';
-export { ROOMS, CHAPTERS, ENDINGS };
+import { ROOMS, CHAPTERS, ENDINGS, MEMORIES } from './rooms.js';
+export { ROOMS, CHAPTERS, ENDINGS, MEMORIES };
 
 export const CFG = {
   walk: 2.6, sneak: 1.5, dash: 3.8, radius: 0.28,
@@ -625,3 +625,7 @@ export function tutorialCue(run, done, touch) {
   }
   return null;
 }
+
+// ルウの記憶：クリア済みの室に対応する記憶が戻っている。
+export function memoryIndex(ri) { return MEMORIES.findIndex((m) => m.room === ri); }
+export function memoriesUnlocked(save) { return MEMORIES.map((m) => !!save.rooms[m.room]); }

@@ -104,3 +104,11 @@ body.radio-on #toast{top:146px}
 .card .who.tl{font-size:14px}
 @media (prefers-reduced-motion:reduce){.radio-face{animation:none}#radio{transition:none}}
 .card .boss-l .fox{flex:none;width:38px;height:38px;border-radius:50%;background:#2a1020;border:2px solid #d6414f;padding:2px}
+/* ルウの記憶（セピアの回想） */
+.screen.mem{background:radial-gradient(ellipse at 50% 30%,#4a3520ee,#1a1008f4)}
+.mem .card{border-color:#e8c48a;background:linear-gradient(#3a2a18f2,#1e140af2);box-shadow:0 0 0 4px #1a1008,0 0 50px #f0c07a44}
+.mem .card h2{color:#ffe2b0;font-family:"Hiragino Mincho ProN","Yu Mincho",serif}
+.mem .lines p{color:#f6e6c8}
+.memk{font-size:12px;letter-spacing:.2em;color:#d9b47a}
+.alb.mems button{margin:0;padding:6px 8px;text-align:left;font-size:12px;font-weight:400;letter-spacing:0;line-height:1.5;border-color:#e8c48a;background:linear-gradient(#3a2a18,#1e140a);box-shadow:none}
+.alb.mems button b{display:block;color:#ffe2b0;font-size:13px}
