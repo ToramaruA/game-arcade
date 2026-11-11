@@ -61,7 +61,7 @@
      - ルート：schema_version: 1、context:（好み・過去失敗例・企画目標を簡潔に書いた文字列、2000文字以内）、candidates:（2〜6件の配列）。
      - candidatesの各要素は **id: A, B, C... の連番**、title、genre、core_loop、one_minute、highlight、replay、visual、feasibilityを**すべて具体的な文字列**で含める。各フィールド850文字以内、本文全体18000文字以内。
      - 例：{"schema_version":1,"context":"重要なのは遊びの核と繰り返し遊べること","candidates":[{"id":"A","title":"企画A","genre":"探索パズル","core_loop":"毎ターン経路と道具を選ぶ","one_minute":"敵に見つかりそうなので鍵を諦め迂回","highlight":"ギリギリの脱出","replay":"複数のマップと収集物","visual":"俯瞰の彩色マップ","feasibility":"JS+Canvasで実装"},{"id":"B",...}]}
-   - Issue作成がGitHub Actionsの **Clef game idea review** を起動する。**APIトークンはGitHub Secretsにあり、ChatGPTタスクから直接参照できない**。GitHub ActionsがそのIssueに判定コメントを書き込む。
+   - Issue作成がGitHub Actionsの **Clef game planning review** を起動する。**APIトークンはGitHub Secretsにあり、ChatGPTタスクから直接参照できない**。GitHub ActionsがそのIssueに判定コメントを書き込む。
    - Issueのコメントを確認する。結果コメント未着なら今回は「Clef審査待ち」で終了し、次の起動時に再開する。[GAME] Issueを作らない。
    - Clefは候補をchoiceで比較し、gameplay・replay・visual・shareを各0〜4点で評価する。評価の重みは45%・25%・15%・15%。**結果のselectedを第一候補として採用する**。ただし、根拠を伴う明らかな実現不能・既存ゲームとの重複などがあれば、その理由をIssueへ記載し案を再設計する。数値を実証済みの楽しさだとはみなさない。
    - status=reviseなら候補の核を再設計して同じ審査Issueの本文を編集し再審査する（最大1回/起動）。status=errorなら結果を捏造せず終了。status=okでselectedがある場合にのみ4へ進む。
