@@ -1,4 +1,4 @@
-// カメラで顔と目を読み取り、目線の特徴量とまばたきを返す（MediaPipe Face Landmarker）。
+// カメラで顔を読み取り、顔の向き（鼻の先の向き）・口の開き・目の特徴量を返す（MediaPipe Face Landmarker）。
 // 映像はこのブラウザの中だけで使い、どこにも送らず保存もしない。部品は vendor/ に同梱（Apache-2.0）。
 const V = (p) => new URL(`vendor/${p}`, import.meta.url).href;
 
@@ -13,7 +13,7 @@ export async function createGaze(video) {
   let lm;
   try { lm = await FaceLandmarker.createFromOptions(fileset, opts('GPU')); } catch { lm = await FaceLandmarker.createFromOptions(fileset, opts('CPU')); }
 
-  const state = { ok: false, f: null, blink: false, pts: null, lastT: 0 };
+  const state = { ok: false, f: null, head: null, blink: false, mouth: false, pts: null, lastT: 0 };
   let running = true, lastVideoT = -1;
   const loop = () => {
     if (!running) return;
@@ -27,6 +27,8 @@ export async function createGaze(video) {
           const bs = r.faceBlendshapes?.[0]?.categories || [];
           const sc = (n) => bs.find((c) => c.categoryName === n)?.score ?? 0;
           state.blink = (sc('eyeBlinkLeft') + sc('eyeBlinkRight')) / 2 > 0.5;
+          state.mouth = sc('jawOpen') > 0.35;
+          state.head = [state.f[4], state.f[5], L[1].x, L[1].y];
         } else state.ok = false;
         state.lastT = performance.now();
       } catch { state.ok = false; }

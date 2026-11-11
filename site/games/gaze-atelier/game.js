@@ -94,17 +94,17 @@ paper.addEventListener('pointermove', (e) => { Object.assign(ptr, toPaper(e.clie
 paper.addEventListener('pointerup', () => { ptr.pressed = false; });
 paper.addEventListener('pointercancel', () => { ptr.pressed = false; });
 paper.addEventListener('pointerleave', () => { ptr.inside = false; });
-let gaze = null, predict = null, smooth = L.smoother(), gate = L.blinkGate();
+let gaze = null, predict = null, smooth = L.smoother(), gate = L.blinkGate(0.12);
 const wob = { a: hash(1, 1) * 9, b: hash(2, 2) * 9 };
 function updatePen(dt, t) {
   if (save.mode === 'gaze' && gaze && predict) {
     const st = gaze.state;
     pen.active = st.ok;
-    if (st.ok && st.f) { const q = predict(st.f); pen.rawX = q.x; pen.rawY = q.y; const sm = smooth(clamp01(q.x), clamp01(q.y), Math.max(dt, 1 / 120)); pen.x = sm.x; pen.y = sm.y; }
-    pen.blink = gate(st.blink || !st.ok, dt);
+    if (st.ok && st.head) { const q = predict(st.head); pen.rawX = q.x; pen.rawY = q.y; const sm = smooth(clamp01(q.x), clamp01(q.y), Math.max(dt, 1 / 120)); pen.x = sm.x; pen.y = sm.y; }
+    pen.blink = gate(st.mouth || !st.ok, dt);
     pen.down = st.ok && !pen.blink;
   } else {
-    // 指・マウス：目で描くのと同じくらいの「ゆらぎ」を足す（目かくしモード）
+    // 指・マウス：顔で描くのと同じくらいの「ゆらぎ」を足す
     const k = 0.008;
     const nx = Math.sin(t * 5.3 + wob.a) * k + Math.sin(t * 11.7) * k * 0.5, ny = Math.cos(t * 4.7 + wob.b) * k + Math.sin(t * 9.1 + 1) * k * 0.5;
     pen.x = clamp01(ptr.x + nx); pen.y = clamp01(ptr.y + ny);
@@ -126,13 +126,13 @@ $('bBack').onclick = () => { audio(); titleScreen(); };
 
 function titleScreen() {
   scene = 'title'; timerOff(); setActions([]); cap(''); $('hud').hidden = true;
-  const inp = save.mode === 'gaze' ? '👁 目で描く' : '☝ 指・マウスで描く';
+  const inp = save.mode === 'gaze' ? '🙂 顔で描く' : '☝ 指・マウスで描く';
   show(`<div class="card">
-    <div class="tdemo"><canvas id="tdemo" width="360" height="360" aria-label="目で描いた絵の見本"></canvas></div>
-    <p class="title-sub">目でかく スケッチブック</p>
+    <div class="tdemo"><canvas id="tdemo" width="360" height="360" aria-label="顔で描いた絵の見本"></canvas></div>
+    <p class="title-sub">顔でかく スケッチブック</p>
     <h2 class="title-logo"><span class="c0">ま</span><span class="c1">な</span><span class="c2">ざ</span><span class="c3">し</span><span class="c4">の</span><br>アトリエ</h2>
-    <p>目で絵を描く。ぶれた線で描いたお題を、友だちが当てる。</p>
-    <p class="eye-badge">👁 カメラで目線を読んで描く（指・マウスでも遊べる）</p>
+    <p>顔を動かして絵を描く。ぶれた線で描いたお題を、友だちが当てる。</p>
+    <p class="eye-badge">🙂 カメラで顔の向きを読んで、鼻の先で描く（指・マウスでも遊べる）</p>
     <div class="col">
       <button class="pri" data-a="relay">ともだちと：お絵描き伝言</button>
       <button data-a="trace">ひとりで：点つなぎ</button>
@@ -140,21 +140,21 @@ function titleScreen() {
       <button data-a="atelier">アトリエ　${save.drawn.length}/100</button>
       <button data-a="input">描きかた：${inp}</button>
     </div>
-    <p class="note">目で描くときはカメラを使います。映像はこの端末の中だけで使い、どこにも送らず保存もしません。</p>
+    <p class="note">顔で描くときはカメラを使います。映像はこの端末の中だけで使い、どこにも送らず保存もしません。</p>
     <p class="arcade"><a href="/">Game Arcade</a></p></div>`, 'title');
 }
 
-// ---------- 描きかたの選択と、目線の調整 ----------
+// ---------- 描きかたの選択と、顔の調整 ----------
 let afterInput = null;
 function inputScreen(next) {
   afterInput = next;
   show(`<div class="card"><h2>描きかた</h2>
     <p>どちらで描く？（あとで変えられます）</p>
     <div class="col">
-      <button class="pri" data-a="useGaze">👁 目で描く（カメラを使う）</button>
+      <button class="pri" data-a="useGaze">🙂 顔で描く（カメラを使う）</button>
       <button data-a="usePointer">☝ 指・マウスで描く</button>
     </div>
-    <p class="note">目で描く：9つの的を順に見つめ、動く的を目で追って調整（約20秒）。目を動かすと筆が動き、目をぎゅっと閉じると筆が上がります。<br>映像はどこにも送らず、保存もしません。<br>指・マウス：押している間だけ描けます。目で描くのと同じくらい、線が少しゆれます。</p></div>`);
+    <p class="note">顔で描く：鼻の先で5つの的を順に指して調整（約10秒）。顔を動かすと筆が動き、口を「あー」と開けている間は筆が上がります。<br>映像はどこにも送らず、保存もしません。<br>指・マウス：押している間だけ描けます。顔で描くのと同じくらい、線が少しゆれます。</p></div>`);
 }
 async function startGaze() {
   show('<div class="card"><h2>カメラを準備中…</h2><p class="sub">はじめてのときは、カメラの使用を「許可」してください。</p></div>');
@@ -166,47 +166,36 @@ async function startGaze() {
   } catch (e) {
     console.warn(e);
     save.mode = 'pointer'; persist();
-    show(`<div class="card"><h2>カメラが使えませんでした</h2><p>カメラの許可がないか、この端末では目の読み取りが動きませんでした。</p><p>指・マウスで遊べます。</p><button class="pri" data-a="afterInput">指・マウスで続ける</button></div>`);
+    show(`<div class="card"><h2>カメラが使えませんでした</h2><p>カメラの許可がないか、この端末では顔の読み取りが動きませんでした。</p><p>指・マウスで遊べます。</p><button class="pri" data-a="afterInput">指・マウスで続ける</button></div>`);
   }
 }
-// 調整：9つの点を順に見つめる → 動く点を目で追う（いろいろな位置のデータを集める）
-const CAL = [[0.5, 0.5], [0.1, 0.1], [0.5, 0.1], [0.9, 0.1], [0.9, 0.5], [0.9, 0.9], [0.5, 0.9], [0.1, 0.9], [0.1, 0.5]];
-const FIX = 1.5, PURSUIT = 7;
-const pursuitAt = (u) => ({ x: 0.5 + Math.sin(u * Math.PI * 2 * 1.5) * 0.4, y: 0.5 + Math.sin(u * Math.PI * 2) * 0.38 });
+// 調整：鼻の先で、まんなか → 四すみ の的を順に指す（顔の向きと画面の位置を対応づける）
+const CAL = [[0.5, 0.5], [0.12, 0.12], [0.88, 0.12], [0.88, 0.88], [0.12, 0.88], [0.5, 0.5]];
+const FIX = 1.6;
 let cal = null;
 function calibrate(next) {
   if (next) afterInput = next;
-  hide(); scene = 'calib'; hud('目線の調整', '1/2 点を見つめる'); timerOff(); setActions([]);
-  cal = { i: 0, t: 0, phase: 'fix', samples: [] };
-  cap('的の真ん中を、顔を動かさずに目で見つめてね');
+  hide(); scene = 'calib'; hud('顔の調整', '鼻の先で的を指す'); timerOff(); setActions([]);
+  cal = { i: 0, t: 0, samples: [] };
+  cap('顔ごと向けて、鼻の先で的を指してね（目は画面を見たままでOK）');
 }
-function calTarget() {
-  if (cal.phase === 'fix') { const [x, y] = CAL[Math.min(cal.i, CAL.length - 1)]; return { x, y }; }
-  return pursuitAt(Math.min(1, cal.t / PURSUIT));
-}
+function calTarget() { const [x, y] = CAL[Math.min(cal.i, CAL.length - 1)]; return { x, y }; }
 function stepCalib(dt) {
   const c = cal; c.t += dt;
-  const st = gaze?.state, good = st?.ok && !st.blink && st.f;
-  if (c.phase === 'fix') {
-    if (c.t > 0.6 && good) c.samples.push({ f: st.f.slice(), x: CAL[c.i][0], y: CAL[c.i][1] });
-    if (c.t > FIX) { c.i++; c.t = 0; sfx.link(c.i); if (c.i >= CAL.length) { c.phase = 'pursuit'; c.t = 0; hud('目線の調整', '2/2 動く的を目で追う'); cap('こんどは、動く的を目で追いかけてね'); } }
-  } else {
-    // 目は的より少し遅れて動くので、0.15秒前の位置を答えにする
-    if (c.t > 0.8 && good) { const q = pursuitAt(Math.max(0, (c.t - 0.15) / PURSUIT)); c.samples.push({ f: st.f.slice(), x: q.x, y: q.y }); }
-    if (c.t > PURSUIT) finishCalib();
-  }
+  const st = gaze?.state;
+  if (c.t > 0.8 && st?.ok && st.head) c.samples.push({ f: st.head.slice(), x: CAL[c.i][0], y: CAL[c.i][1] });
+  if (c.t > FIX) { c.i++; c.t = 0; sfx.link(c.i); if (c.i >= CAL.length) finishCalib(); }
 }
 function finishCalib() {
-  predict = L.fitGaze(cal.samples, 0.01); smooth = L.smoother(); gate = L.blinkGate();
-  if (!predict || cal.samples.length < 40) {
+  predict = L.fitGaze(cal.samples, 0.02); smooth = L.smoother(1.5, 4, 1, 0.004); gate = L.blinkGate(0.12);
+  if (!predict || cal.samples.length < 15) {
     show(`<div class="card"><h2>うまく読み取れませんでした</h2><p>顔が画面の正面に入るようにして、明るい場所でもう一度。</p><div class="row"><button class="pri" data-a="recal">もう一度</button><button data-a="usePointer">指・マウスにする</button></div></div>`);
     return;
   }
   sfx.done(); scene = 'calibcheck';
-  const e = predict.error, q = e < 0.07 ? 'とてもよい' : e < 0.12 ? 'まあまあ' : 'ずれ大きめ';
-  hud('目線の調整', `たしかめ：精度「${q}」`);
-  cap(e < 0.12 ? '筆先が、見ているところについてくる？' : 'ずれが大きめ。顔をもう少し近づけて、明るい場所でもう一度がおすすめ');
-  setActions([['ついてくる！', 'afterInput', 'pri'], ['もう一度調整', 'recal']]);
+  hud('顔の調整', 'ためし描き');
+  cap('顔を動かすと筆が動く？ 口を「あー」と開けると筆が上がる');
+  setActions([['動く！', 'afterInput', 'pri'], ['もう一度調整', 'recal']]);
 }
 function needInput(next) {
   if (save.mode === 'gaze' && gaze && predict) return next();
@@ -219,7 +208,7 @@ function needInput(next) {
 let trace = null, traceSky = 0, traceLv = 0, linkFx = [];
 function levelsScreen() {
   scene = 'levels'; setActions([]); cap(''); $('hud').hidden = true;
-  let h = '<div class="card"><h2>点つなぎ</h2><p class="sub">番号の点を順に見つめて、絵を完成させよう。</p>';
+  let h = '<div class="card"><h2>点つなぎ</h2><p class="sub">番号の点を順にたどって、絵を完成させよう。</p>';
   L.SKIES.forEach((sky, si) => {
     h += `<div class="sky">${sky.name}${L.skyUnlocked(save, si) ? '' : '　🔒 前のページをぜんぶクリア'}</div><div class="levels">`;
     sky.levels.forEach((lv, li) => { const st = save.stars[`${si}-${li}`] || 0, ok = L.levelUnlocked(save, si, li) || params.has('unlock'); h += `<button data-a="lv" data-s="${si}" data-l="${li}" ${ok ? '' : 'disabled'}>${li + 1}<small>${'★'.repeat(st)}${'☆'.repeat(3 - st)}</small></button>`; });
@@ -232,15 +221,15 @@ function startTrace(si, li) {
   trace = L.createTrace(lv); linkFx = []; scene = 'trace';
   hud(`${L.SKIES[si].name} ${li + 1}`, lv.name); timerOff(); setActions([]);
   const first = si === 0 && li === 0;
-  cap(first ? (save.mode === 'gaze' ? '黄色い輪の点を見つめると、線がつながる' : '黄色い輪の点まで指でなぞると、線がつながる') : 'つぎの点へ');
+  cap(first ? (save.mode === 'gaze' ? '鼻の先で黄色い輪の点に合わせると、線がつながる' : '黄色い輪の点まで指でなぞると、線がつながる') : 'つぎの点へ');
 }
 function stepTrace(dt) {
   if (!pen.active) return;
   const gazeMode = save.mode === 'gaze' && predict;
   const radius = L.STAR_RADIUS * (gazeMode ? 1.6 : 1);
   const r = L.stepTrace(trace, pen, dt, radius);
-  // 目で描くとき：次の点を見つめているあいだに、ずれを少しずつ直す
-  if (gazeMode && !trace.done && trace.dwell > 0.08 && pen.rawX !== undefined) { const b = trace.level.stars[trace.next]; L.nudgeBias(predict, { x: pen.rawX, y: pen.rawY }, { x: b[0], y: b[1] }, Math.min(0.05, dt * 1.5)); }
+  // 顔で描くとき：次の点に合わせているあいだに、ずれを少しずつ直す
+  if (gazeMode && !trace.done && trace.dwell > 0.08 && pen.rawX !== undefined) { const b = trace.level.stars[trace.next]; L.nudgeBias(predict, { x: pen.rawX, y: pen.rawY }, { x: b[0], y: b[1] }, Math.min(0.03, dt)); }
   if (r === 'link' || r === 'done') { const s = trace.level.stars[trace.next - (r === 'done' ? 1 : 1)]; linkFx.push({ x: s[0], y: s[1], t: 0 }); sfx.link(trace.next); }
   if (r === 'done') {
     const stars = L.rateTrace(trace); save = L.recordStars(save, traceSky, traceLv, stars); persist(); sfx.done();
@@ -294,7 +283,7 @@ function startDraw(promptId, seed, onDone, who = '') {
 function stepDraw(dt) {
   draw.t += dt;
   if (draw.t < 0) { const c = Math.ceil(-draw.t); if (c !== draw.lastCount) { draw.lastCount = c; cap(`${c}…`); sfx.tick(); } return; }
-  if (draw.lastCount > 0) { draw.lastCount = 0; sfx.start(); cap(save.mode === 'gaze' ? '描いて！ 目をぎゅっと閉じると筆が上がる' : '描いて！ 押している間だけ線が引ける'); }
+  if (draw.lastCount > 0) { draw.lastCount = 0; sfx.start(); cap(save.mode === 'gaze' ? '描いて！ 口を「あー」と開けると筆が上がる' : '描いて！ 押している間だけ線が引ける'); }
   timerSet(1 - draw.t / DRAW_SEC);
   const left = Math.ceil(DRAW_SEC - draw.t); if (left !== draw.left) { draw.left = left; $('hInfo').textContent = `お題：${L.PROMPTS[draw.promptId].name}　残り ${left}秒`; if (left <= 5) sfx.tick(); }
   if (pen.down) { if (!draw.cur) { draw.cur = []; draw.strokes.push(draw.cur); } const l = draw.cur[draw.cur.length - 1]; if (!l || Math.hypot(pen.x - l.x, pen.y - l.y) > 0.003) draw.cur.push({ x: pen.x, y: pen.y, t: draw.t }); }
@@ -317,12 +306,12 @@ function relayDone(d) {
   hud('お絵描き伝言', `お題：${L.PROMPTS[d.promptId].name}`);
   const url = location.href.split('#')[0] + '#d=' + L.encodeDrawing(d);
   lastShare = url;
-  cap(`できた！ 目で描いた「${L.PROMPTS[d.promptId].name}」`);
+  cap(`できた！ ${save.mode === 'gaze' ? '顔で' : ''}描いた「${L.PROMPTS[d.promptId].name}」`);
   setActions([['友だちに送る', 'share', 'pri'], ['もう一枚', 'relay'], ['タイトル', 'title']]);
 }
 let lastShare = '';
 async function share() {
-  const text = 'まなざしのアトリエ：目で描いた絵、なにに見える？';
+  const text = 'まなざしのアトリエ：顔で描いた絵、なにに見える？';
   try { if (navigator.share) { await navigator.share({ title: 'まなざしのアトリエ', text, url: lastShare }); return; } } catch { /* キャンセル */ }
   try { await navigator.clipboard.writeText(lastShare); cap('リンクをコピーした！ 友だちに送ってね'); } catch { show(`<div class="card"><h2>このリンクを送ってね</h2><p class="share">${lastShare}</p><button class="pri" data-a="closeCard">とじる</button></div>`); }
 }
@@ -334,7 +323,7 @@ function guessStart(code) {
   hide(); scene = 'guess';
   guess = { d, t: 0, tries: 0, done: false, choices: L.guessChoices(d.promptId, d.seed), wrong: [] };
   replay = { strokes: d.strokes, t: 0, dur: Math.max(1, L.drawingDuration(d.strokes)) };
-  hud('友だちの絵が届いた', '目で描かれた絵。なにに見える？');
+  hud('友だちの絵が届いた', '顔で描かれた絵。なにに見える？');
   cap('線が描かれていく…分かったらすぐ答えて！');
   renderGuessActions();
 }
@@ -354,7 +343,7 @@ function guessResult(ok) {
   const name = L.PROMPTS[guess.d.promptId].name, txt = L.shareText({ correct: ok, seconds: guess.t, tries: guess.tries });
   lastShareText = txt;
   show(`<div class="card"><h2>${ok ? '伝わった！' : '答えは…'}</h2><p style="font-size:26px;margin:4px 0">「${name}」</p>
-    <p class="sub">${ok ? `${guess.t.toFixed(1)}秒・${guess.tries}回目で正解` : '目で描くと、こんなにぶれる。'}</p>
+    <p class="sub">${ok ? `${guess.t.toFixed(1)}秒・${guess.tries}回目で正解` : '顔で描くと、こんなにぶれる。'}</p>
     <p class="share">${txt}</p>
     <div class="row"><button class="pri" data-a="relay">自分も描いて送り返す</button><button data-a="copyText">結果をコピー</button></div>
     <button data-a="title" style="margin-top:8px">タイトルへ</button></div>`, 'clear');
@@ -367,7 +356,7 @@ function partySetup() {
   show(`<div class="card names"><h2>交代モード</h2><p class="sub">ひとりが描いて、ほかの人が声で当てる。3周で結果発表。</p>
     ${[0, 1, 2, 3].map((i) => `<input id="pn${i}" placeholder="${i < 2 ? `プレイヤー${i + 1}` : `プレイヤー${i + 1}（いなければ空欄）`}" maxlength="8">`).join('')}
     <div class="row"><button class="pri" data-a="partyGo">はじめる</button><button data-a="title">もどる</button></div>
-    <p class="note">目で描く場合は、描く人が変わるたびに目線を調整します（約20秒）。</p></div>`);
+    <p class="note">顔で描く場合は、描く人が変わるたびに顔の調整をします（約10秒）。</p></div>`);
 }
 function partyNext() {
   const p = party, d = L.partyDrawer(p);
@@ -473,7 +462,7 @@ function render(t) {
   if (!paperTex) paperTex = makePaper();
   pctx.setTransform(1, 0, 0, 1, 0, 0); pctx.drawImage(paperTex, 0, 0);
   if (scene === 'calib') {
-    const { x, y } = calTarget(), k = cal.phase === 'fix' ? Math.min(1, cal.t / FIX) : Math.min(1, cal.t / PURSUIT);
+    const { x, y } = calTarget(), k = Math.min(1, cal.t / FIX);
     [['#ff5a5f', 0.05], ['#fffdf7', 0.036], ['#2bb3ff', 0.024], ['#3a3a55', 0.01]].forEach(([c, r]) => { pctx.fillStyle = c; pctx.beginPath(); pctx.arc(x * s, y * s, s * r, 0, 7); pctx.fill(); });
     pctx.strokeStyle = '#ffb400'; pctx.lineWidth = 4; pctx.beginPath(); pctx.arc(x * s, y * s, s * 0.05, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2); pctx.stroke();
   } else if (scene === 'trace' || scene === 'tracedone') drawTrace(s, t);
@@ -493,7 +482,7 @@ function render(t) {
   }
 }
 
-// タイトル画面の飾り：目で描いた風の「ねこ」
+// タイトル画面の飾り：顔で描いた風の「ねこ」
 function wobbleShape(fn, n, t0, dur, seed) {
   const pts = []; for (let i = 0; i <= n; i++) { const u = i / n, [x, y] = fn(u); pts.push({ x: x + (hash(i, seed, 3) - 0.5) * 0.03 + Math.sin(u * 17 + seed) * 0.01, y: y + (hash(i, seed, 4) - 0.5) * 0.03 + Math.cos(u * 13 + seed) * 0.01, t: t0 + u * dur }); } return pts;
 }
@@ -512,10 +501,10 @@ const demoStrokes = [
 resize();
 if (OG) {
   scene = 'drawn'; replay = { strokes: demoStrokes, t: 99, dur: 7 };
-  hud('お絵描き伝言', '目で描いた「ねこ」'); cap('友だちは当てられる？'); setActions([['友だちに送る', 'x', 'pri']]);
+  hud('お絵描き伝言', '顔で描いた「ねこ」'); cap('友だちは当てられる？'); setActions([['友だちに送る', 'x', 'pri']]);
 } else if (location.hash.startsWith('#d=')) {
   guessStart(location.hash.slice(3));
 } else titleScreen();
-if (save.mode === 'gaze') save.mode = 'gaze'; // 目で描く設定でも、カメラは遊び始めるときに起動する
+// 顔で描く設定でも、カメラは遊び始めるときに起動する
 window.__atelier = { L, pen, scene: () => scene, setPointer: (x, y, down) => { ptr.x = x; ptr.y = y; ptr.pressed = down; ptr.inside = true; ptr.touch = false; } };
 requestAnimationFrame(frame);
