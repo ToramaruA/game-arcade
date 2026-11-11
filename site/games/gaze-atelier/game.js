@@ -100,7 +100,7 @@ function updatePen(dt, t) {
   if (save.mode === 'gaze' && gaze && predict) {
     const st = gaze.state;
     pen.active = st.ok;
-    if (st.ok && st.f) { const q = predict(st.f); const sm = smooth(clamp01(q.x), clamp01(q.y)); pen.x = sm.x; pen.y = sm.y; }
+    if (st.ok && st.f) { const q = predict(st.f); pen.rawX = q.x; pen.rawY = q.y; const sm = smooth(clamp01(q.x), clamp01(q.y), Math.max(dt, 1 / 120)); pen.x = sm.x; pen.y = sm.y; }
     pen.blink = gate(st.blink || !st.ok, dt);
     pen.down = st.ok && !pen.blink;
   } else {
@@ -154,7 +154,7 @@ function inputScreen(next) {
       <button class="pri" data-a="useGaze">👁 目で描く（カメラを使う）</button>
       <button data-a="usePointer">☝ 指・マウスで描く</button>
     </div>
-    <p class="note">目で描く：画面の5つの光る点を順に見て調整（約10秒）。目を動かすと筆が動き、目をぎゅっと閉じると筆が上がります。<br>映像はどこにも送らず、保存もしません。<br>指・マウス：押している間だけ描けます。目で描くのと同じくらい、線が少しゆれます。</p></div>`);
+    <p class="note">目で描く：9つの的を順に見つめ、動く的を目で追って調整（約20秒）。目を動かすと筆が動き、目をぎゅっと閉じると筆が上がります。<br>映像はどこにも送らず、保存もしません。<br>指・マウス：押している間だけ描けます。目で描くのと同じくらい、線が少しゆれます。</p></div>`);
 }
 async function startGaze() {
   show('<div class="card"><h2>カメラを準備中…</h2><p class="sub">はじめてのときは、カメラの使用を「許可」してください。</p></div>');
@@ -169,28 +169,43 @@ async function startGaze() {
     show(`<div class="card"><h2>カメラが使えませんでした</h2><p>カメラの許可がないか、この端末では目の読み取りが動きませんでした。</p><p>指・マウスで遊べます。</p><button class="pri" data-a="afterInput">指・マウスで続ける</button></div>`);
   }
 }
-const CAL = [[0.5, 0.5], [0.12, 0.12], [0.88, 0.12], [0.88, 0.88], [0.12, 0.88]];
+// 調整：9つの点を順に見つめる → 動く点を目で追う（いろいろな位置のデータを集める）
+const CAL = [[0.5, 0.5], [0.1, 0.1], [0.5, 0.1], [0.9, 0.1], [0.9, 0.5], [0.9, 0.9], [0.5, 0.9], [0.1, 0.9], [0.1, 0.5]];
+const FIX = 1.5, PURSUIT = 7;
+const pursuitAt = (u) => ({ x: 0.5 + Math.sin(u * Math.PI * 2 * 1.5) * 0.4, y: 0.5 + Math.sin(u * Math.PI * 2) * 0.38 });
 let cal = null;
 function calibrate(next) {
   if (next) afterInput = next;
-  hide(); scene = 'calib'; hud('目線の調整', ''); timerOff(); setActions([]);
-  cal = { i: 0, t: 0, samples: [] };
-  cap('光る点を、顔を動かさずに目で見つめてください');
+  hide(); scene = 'calib'; hud('目線の調整', '1/2 点を見つめる'); timerOff(); setActions([]);
+  cal = { i: 0, t: 0, phase: 'fix', samples: [] };
+  cap('的の真ん中を、顔を動かさずに目で見つめてね');
+}
+function calTarget() {
+  if (cal.phase === 'fix') { const [x, y] = CAL[Math.min(cal.i, CAL.length - 1)]; return { x, y }; }
+  return pursuitAt(Math.min(1, cal.t / PURSUIT));
 }
 function stepCalib(dt) {
   const c = cal; c.t += dt;
-  const st = gaze?.state;
-  if (c.t > 0.7 && st?.ok && !st.blink && st.f) c.samples.push({ f: st.f.slice(), x: CAL[c.i][0], y: CAL[c.i][1] });
-  if (c.t > 1.8) { c.i++; c.t = 0; sfx.link(c.i); if (c.i >= CAL.length) finishCalib(); }
+  const st = gaze?.state, good = st?.ok && !st.blink && st.f;
+  if (c.phase === 'fix') {
+    if (c.t > 0.6 && good) c.samples.push({ f: st.f.slice(), x: CAL[c.i][0], y: CAL[c.i][1] });
+    if (c.t > FIX) { c.i++; c.t = 0; sfx.link(c.i); if (c.i >= CAL.length) { c.phase = 'pursuit'; c.t = 0; hud('目線の調整', '2/2 動く的を目で追う'); cap('こんどは、動く的を目で追いかけてね'); } }
+  } else {
+    // 目は的より少し遅れて動くので、0.15秒前の位置を答えにする
+    if (c.t > 0.8 && good) { const q = pursuitAt(Math.max(0, (c.t - 0.15) / PURSUIT)); c.samples.push({ f: st.f.slice(), x: q.x, y: q.y }); }
+    if (c.t > PURSUIT) finishCalib();
+  }
 }
 function finishCalib() {
-  predict = L.fitGaze(cal.samples, 0.002); smooth = L.smoother(); gate = L.blinkGate();
-  if (!predict || cal.samples.length < 12) {
+  predict = L.fitGaze(cal.samples, 0.01); smooth = L.smoother(); gate = L.blinkGate();
+  if (!predict || cal.samples.length < 40) {
     show(`<div class="card"><h2>うまく読み取れませんでした</h2><p>顔が画面の正面に入るようにして、明るい場所でもう一度。</p><div class="row"><button class="pri" data-a="recal">もう一度</button><button data-a="usePointer">指・マウスにする</button></div></div>`);
     return;
   }
-  sfx.done(); scene = 'calibcheck'; hud('目線の調整', 'たしかめ');
-  cap('光る筆先が、見ているところについてくる？');
+  sfx.done(); scene = 'calibcheck';
+  const e = predict.error, q = e < 0.07 ? 'とてもよい' : e < 0.12 ? 'まあまあ' : 'ずれ大きめ';
+  hud('目線の調整', `たしかめ：精度「${q}」`);
+  cap(e < 0.12 ? '筆先が、見ているところについてくる？' : 'ずれが大きめ。顔をもう少し近づけて、明るい場所でもう一度がおすすめ');
   setActions([['ついてくる！', 'afterInput', 'pri'], ['もう一度調整', 'recal']]);
 }
 function needInput(next) {
@@ -221,7 +236,11 @@ function startTrace(si, li) {
 }
 function stepTrace(dt) {
   if (!pen.active) return;
-  const r = L.stepTrace(trace, pen, dt);
+  const gazeMode = save.mode === 'gaze' && predict;
+  const radius = L.STAR_RADIUS * (gazeMode ? 1.6 : 1);
+  const r = L.stepTrace(trace, pen, dt, radius);
+  // 目で描くとき：次の点を見つめているあいだに、ずれを少しずつ直す
+  if (gazeMode && !trace.done && trace.dwell > 0.08 && pen.rawX !== undefined) { const b = trace.level.stars[trace.next]; L.nudgeBias(predict, { x: pen.rawX, y: pen.rawY }, { x: b[0], y: b[1] }, Math.min(0.05, dt * 1.5)); }
   if (r === 'link' || r === 'done') { const s = trace.level.stars[trace.next - (r === 'done' ? 1 : 1)]; linkFx.push({ x: s[0], y: s[1], t: 0 }); sfx.link(trace.next); }
   if (r === 'done') {
     const stars = L.rateTrace(trace); save = L.recordStars(save, traceSky, traceLv, stars); persist(); sfx.done();
@@ -248,7 +267,7 @@ function drawTrace(s, t) {
     const [x, y] = k.split(',').map(Number);
     const reached = S.slice(0, trace.next).some((q) => q[0] === x && q[1] === y), isNext = !trace.done && S[trace.next][0] === x && S[trace.next][1] === y;
     const pulse = isNext && !reduceMotion() ? 1 + Math.sin(t * 6) * 0.15 : 1;
-    if (isNext) { pctx.fillStyle = 'rgba(255,180,0,0.25)'; pctx.beginPath(); pctx.arc(x * s, y * s, s * L.STAR_RADIUS * pulse, 0, 7); pctx.fill(); pctx.strokeStyle = '#ffb400'; pctx.lineWidth = 3; pctx.beginPath(); pctx.arc(x * s, y * s, s * L.STAR_RADIUS * (1 - trace.dwell / L.DWELL) * pulse, 0, 7); pctx.stroke(); }
+    if (isNext) { pctx.fillStyle = 'rgba(255,180,0,0.25)'; pctx.beginPath(); pctx.arc(x * s, y * s, s * L.STAR_RADIUS * (save.mode === 'gaze' && predict ? 1.6 : 1) * pulse, 0, 7); pctx.fill(); pctx.strokeStyle = '#ffb400'; pctx.lineWidth = 3; pctx.beginPath(); pctx.arc(x * s, y * s, s * L.STAR_RADIUS * (save.mode === 'gaze' && predict ? 1.6 : 1) * (1 - trace.dwell / L.DWELL) * pulse, 0, 7); pctx.stroke(); }
     pctx.fillStyle = reached ? '#ff5a5f' : '#3a3a55'; pctx.beginPath(); pctx.arc(x * s, y * s, s * (isNext ? 0.016 : 0.012), 0, 7); pctx.fill();
     pctx.fillStyle = '#3a3a55'; pctx.font = `800 ${Math.round(s * 0.032)}px "Hiragino Maru Gothic ProN",sans-serif`; pctx.textAlign = 'center';
     pctx.fillText(i === 0 ? 'スタート' : String(i + 1), x * s, y * s - s * 0.03);
@@ -348,7 +367,7 @@ function partySetup() {
   show(`<div class="card names"><h2>交代モード</h2><p class="sub">ひとりが描いて、ほかの人が声で当てる。3周で結果発表。</p>
     ${[0, 1, 2, 3].map((i) => `<input id="pn${i}" placeholder="${i < 2 ? `プレイヤー${i + 1}` : `プレイヤー${i + 1}（いなければ空欄）`}" maxlength="8">`).join('')}
     <div class="row"><button class="pri" data-a="partyGo">はじめる</button><button data-a="title">もどる</button></div>
-    <p class="note">目で描く場合は、描く人が変わるたびに目線を調整します（約10秒）。</p></div>`);
+    <p class="note">目で描く場合は、描く人が変わるたびに目線を調整します（約20秒）。</p></div>`);
 }
 function partyNext() {
   const p = party, d = L.partyDrawer(p);
@@ -454,7 +473,7 @@ function render(t) {
   if (!paperTex) paperTex = makePaper();
   pctx.setTransform(1, 0, 0, 1, 0, 0); pctx.drawImage(paperTex, 0, 0);
   if (scene === 'calib') {
-    const [x, y] = CAL[Math.min(cal.i, CAL.length - 1)], k = Math.min(1, cal.t / 1.8);
+    const { x, y } = calTarget(), k = cal.phase === 'fix' ? Math.min(1, cal.t / FIX) : Math.min(1, cal.t / PURSUIT);
     [['#ff5a5f', 0.05], ['#fffdf7', 0.036], ['#2bb3ff', 0.024], ['#3a3a55', 0.01]].forEach(([c, r]) => { pctx.fillStyle = c; pctx.beginPath(); pctx.arc(x * s, y * s, s * r, 0, 7); pctx.fill(); });
     pctx.strokeStyle = '#ffb400'; pctx.lineWidth = 4; pctx.beginPath(); pctx.arc(x * s, y * s, s * 0.05, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2); pctx.stroke();
   } else if (scene === 'trace' || scene === 'tracedone') drawTrace(s, t);

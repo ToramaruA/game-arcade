@@ -44,16 +44,36 @@ test('線データを圧縮して共有リンクにし、元に戻せる', () =>
   assert.throws(() => L.decodeDrawing(''));
 });
 
-test('目線の調整：特徴量から画面の位置をほぼ再現できる', () => {
-  const truth = (f) => ({ x: 0.5 + (f[0] - 0.5) * 3 + f[2] * 2, y: 0.5 + (f[1] - 0.5) * 2.5 + f[3] * 1.5 });
-  const samples = [];
-  for (const [u, v, hx, hy] of [[0.5, 0.5, 0, 0], [0.4, 0.4, -0.05, -0.04], [0.6, 0.4, 0.05, -0.04], [0.6, 0.6, 0.05, 0.04], [0.4, 0.6, -0.05, 0.04]]) {
-    for (let k = 0; k < 15; k++) { const f = [u + (k % 3 - 1) * 0.004, v + (k % 5 - 2) * 0.003, hx + (k % 2) * 0.002, hy]; samples.push({ f, ...truth([u, v, hx, hy]) }); }
+test('目線の調整：両目と頭の向きの特徴量から画面の位置をほぼ再現できる（2乗の曲がりも）', () => {
+  const truth = ([lu, lv, ru, rv, yaw, pitch]) => { const u = (lu + ru) / 2, v = (lv + rv) / 2; return { x: 0.5 + u * 3 + u * u * 4 + yaw * 1.5, y: 0.5 + v * 2.5 + pitch * 1.2 }; };
+  const samples = []; let k = 0;
+  for (let gx = 0; gx < 5; gx++) for (let gy = 0; gy < 5; gy++) for (let r = 0; r < 4; r++) {
+    const u = (gx - 2) * 0.05, v = (gy - 2) * 0.06, yaw = ((k * 7) % 5 - 2) * 0.02, pitch = ((k * 3) % 5 - 2) * 0.02; k++;
+    const f = [u + 0.003, v, u - 0.003, v + 0.002, yaw, pitch, 0, 0];
+    samples.push({ f, ...truth(f) });
   }
-  const p = L.fitGaze(samples, 1e-5);
-  const q = p([0.55, 0.45, 0.02, -0.02]), t = truth([0.55, 0.45, 0.02, -0.02]);
-  assert.ok(Math.hypot(q.x - t.x, q.y - t.y) < 0.08, JSON.stringify({ q, t }));
+  const p = L.fitGaze(samples, 1e-6);
+  const f = [0.07, -0.04, 0.066, -0.038, 0.01, -0.02, 0, 0], q = p(f), t = truth(f);
+  assert.ok(Math.hypot(q.x - t.x, q.y - t.y) < 0.03, JSON.stringify({ q, t }));
+  assert.ok(p.error < 0.03, '当てはまりの誤差が小さい');
   assert.equal(L.fitGaze(samples.slice(0, 2)), null);
+});
+
+test('ずれ直し：狙いの点を見ているとき、補正が狙いの方へ少しずつ寄る（上限つき）', () => {
+  const p = L.fitGaze([{ f: [0, 0, 0, 0, 0, 0, 0, 0], x: 0.5, y: 0.5 }, { f: [0.1, 0, 0.1, 0, 0, 0, 0, 0], x: 0.8, y: 0.5 }, { f: [0, 0.1, 0, 0.1, 0, 0, 0, 0], x: 0.5, y: 0.8 }, { f: [0.1, 0.1, 0.1, 0.1, 0, 0, 0, 0], x: 0.8, y: 0.8 }], 1e-4);
+  for (let i = 0; i < 10; i++) L.nudgeBias(p, { x: 0.4, y: 0.5 }, { x: 0.5, y: 0.5 }, 0.1);
+  assert.ok(p.bias.x > 0.05 && p.bias.x < 0.1);
+  for (let i = 0; i < 200; i++) L.nudgeBias(p, { x: 0, y: 0 }, { x: 1, y: 1 }, 0.5);
+  assert.ok(p.bias.x <= 0.25 && p.bias.y <= 0.25, '上限');
+});
+
+test('なめらかにする：止まっているときの震えを消し、大きく動けば追う', () => {
+  const sm = L.smoother();
+  let o; for (let i = 0; i < 60; i++) o = sm(0.5 + (i % 2 ? 0.004 : -0.004), 0.5, 1 / 30);
+  const a = sm(0.503, 0.5, 1 / 30), b = sm(0.497, 0.5, 1 / 30);
+  assert.deepEqual(a, b, '小さな震えでは筆先が動かない');
+  for (let i = 0; i < 20; i++) o = sm(0.9, 0.5, 1 / 30);
+  assert.ok(o.x > 0.85, `大きく動けば追う（${o.x.toFixed(2)}）`);
 });
 
 test('まばたき：短いまばたきでは筆を上げず、長く閉じると上げる', () => {

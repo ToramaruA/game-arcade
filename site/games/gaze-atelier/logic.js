@@ -114,16 +114,42 @@ export function shareText({ correct, seconds, tries }) {
 }
 
 // ---------- 目線の調整：特徴量 → 画面座標（リッジ回帰） ----------
+// 特徴量を標準化し、黒目の位置の2乗・積（目の端での曲がり）も足して回帰する。
 // samples: [{f:[...特徴], x, y}]  戻り値 predict(f) → {x,y}
+export function expand(f) {
+  const n = Math.min(4, f.length), out = f.slice();
+  // 先頭の目の特徴（左右の目の u,v）の平均について 2乗と積を足す
+  const u = n >= 4 ? (f[0] + f[2]) / 2 : f[0], v = n >= 4 ? (f[1] + f[3]) / 2 : f[1];
+  out.push(u * u, v * v, u * v);
+  return out;
+}
 export function fitGaze(samples, lambda = 1e-3) {
   if (samples.length < 3) return null;
-  const d = samples[0].f.length + 1;
+  const X = samples.map((s0) => expand(s0.f));
+  const k = X[0].length, n = X.length;
+  const mean = new Array(k).fill(0), sd = new Array(k).fill(0);
+  for (const v of X) for (let i = 0; i < k; i++) mean[i] += v[i] / n;
+  for (const v of X) for (let i = 0; i < k; i++) sd[i] += (v[i] - mean[i]) ** 2 / n;
+  for (let i = 0; i < k; i++) sd[i] = Math.sqrt(sd[i]) || 1;
+  const z = (v) => [...v.map((x, i) => (x - mean[i]) / sd[i]), 1];
+  const d = k + 1;
   const A = Array.from({ length: d }, () => new Array(d).fill(0)), bx = new Array(d).fill(0), by = new Array(d).fill(0);
-  for (const s of samples) { const v = [...s.f, 1]; for (let i = 0; i < d; i++) { for (let j = 0; j < d; j++) A[i][j] += v[i] * v[j]; bx[i] += v[i] * s.x; by[i] += v[i] * s.y; } }
-  for (let i = 0; i < d - 1; i++) A[i][i] += lambda * samples.length;
+  samples.forEach((s0, si) => { const v = z(X[si]); for (let i = 0; i < d; i++) { for (let j = 0; j < d; j++) A[i][j] += v[i] * v[j]; bx[i] += v[i] * s0.x; by[i] += v[i] * s0.y; } });
+  for (let i = 0; i < d - 1; i++) A[i][i] += lambda * n;
   const wx = solve(A.map((r) => r.slice()), bx.slice()), wy = solve(A.map((r) => r.slice()), by.slice());
   if (!wx || !wy) return null;
-  return (f) => { const v = [...f, 1]; let x = 0, y = 0; for (let i = 0; i < d; i++) { x += wx[i] * v[i]; y += wy[i] * v[i]; } return { x, y }; };
+  const predict = (f) => { const v = z(expand(f)); let x = 0, y = 0; for (let i = 0; i < d; i++) { x += wx[i] * v[i]; y += wy[i] * v[i]; } return { x: x + predict.bias.x, y: y + predict.bias.y }; };
+  predict.bias = { x: 0, y: 0 };
+  // 当てはまりの悪さ（平均の誤差、画面に対する割合）
+  let err = 0; samples.forEach((s0) => { const q = predict(s0.f); err += Math.hypot(q.x - s0.x, q.y - s0.y); }); predict.error = err / n;
+  return predict;
+}
+// 遊びながらのずれ直し：狙いの点（target）を見ているはずのときに、ずれの一部を補正に足す
+export function nudgeBias(predict, raw, target, rate = 0.08, max = 0.25) {
+  if (!predict) return;
+  const b = predict.bias;
+  b.x = Math.max(-max, Math.min(max, b.x + (target.x - raw.x) * rate));
+  b.y = Math.max(-max, Math.min(max, b.y + (target.y - raw.y) * rate));
 }
 function solve(A, b) {
   const n = b.length;
@@ -135,13 +161,20 @@ function solve(A, b) {
   }
   return b.map((v, i) => v / A[i][i]);
 }
-// なめらかにする（ゆらぎは少し残す）：速いときは追従、遅いときは強くならす
-export function smoother(minAlpha = 0.18, maxAlpha = 0.6) {
-  let px = null, py = null;
-  return (x, y) => {
-    if (px === null) { px = x; py = y; return { x, y }; }
-    const d = Math.hypot(x - px, y - py), a = Math.min(maxAlpha, minAlpha + d * 4);
-    px += (x - px) * a; py += (y - py) * a; return { x: px, y: py };
+// なめらかにする：One Euro フィルター（止まっているときは強くならし、速く動くときは素直に追う）
+// さらに、ほぼ止まっている間は筆先を固定する（見つめているときの震えを消す）
+export function smoother(minCutoff = 1.2, beta = 6, dCutoff = 1.0, hold = 0.012) {
+  let px = null, py = null, dx = 0, dy = 0, hx = null, hy = null;
+  const alpha = (cut, dt) => { const r = 2 * Math.PI * cut * dt; return r / (r + 1); };
+  return (x, y, dt = 1 / 30) => {
+    if (px === null) { px = hx = x; py = hy = y; return { x, y }; }
+    const ad = alpha(dCutoff, dt);
+    dx += ((x - px) / dt - dx) * ad; dy += ((y - py) / dt - dy) * ad;
+    const cut = minCutoff + beta * Math.hypot(dx, dy);
+    const a = alpha(cut, dt);
+    px += (x - px) * a; py += (y - py) * a;
+    if (Math.hypot(px - hx, py - hy) > hold) { hx = px; hy = py; }
+    return { x: hx, y: hy };
   };
 }
 // まばたき：目を閉じた時間が minClosed 秒を超えたら「筆を上げる」
@@ -180,13 +213,13 @@ export const STAR_RADIUS = 0.075; // 星に「着いた」とみなす距離（�
 export const DWELL = 0.25; // 星を見つめる時間（秒）
 export function createTrace(level) { return { level, next: 1, t: 0, dwell: 0, path: [], dev: 0, devN: 0, done: false }; }
 // 1コマ進める。p は今の筆先（0..1）。戻り値 'link' / 'done' / null
-export function stepTrace(tr, p, dt) {
+export function stepTrace(tr, p, dt, radius = STAR_RADIUS) {
   if (tr.done) return null;
   tr.t += dt;
   const S = tr.level.stars, a = S[tr.next - 1], b = S[tr.next];
   tr.path.push({ x: p.x, y: p.y });
   tr.dev += segDist(p, a, b); tr.devN++;
-  if (Math.hypot(p.x - b[0], p.y - b[1]) < STAR_RADIUS) {
+  if (Math.hypot(p.x - b[0], p.y - b[1]) < radius) {
     tr.dwell += dt;
     if (tr.dwell >= DWELL) { tr.dwell = 0; tr.next++; if (tr.next >= S.length) { tr.done = true; return 'done'; } return 'link'; }
   } else tr.dwell = Math.max(0, tr.dwell - dt * 2);
