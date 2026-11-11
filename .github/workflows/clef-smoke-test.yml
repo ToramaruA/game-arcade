@@ -1,0 +1,33 @@
+name: Clef API smoke test
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/clef-smoke-test.mjs'
+      - '.github/workflows/clef-smoke-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  clef-smoke:
+    # Secrets are only used for this trusted same-repository test branch,
+    # or by an authorized manual dispatch after merge. Never on fork PRs.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.head_ref == 'chore/clef-smoke-20261111')
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Call Clef once and validate decision response
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/clef-smoke-test.mjs
