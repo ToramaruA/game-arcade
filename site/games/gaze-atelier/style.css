@@ -74,3 +74,4 @@ html,body{margin:0;height:100%;background:#f3dcb4;color:var(--ink);font-family:"
 .dex span{font-size:12px;padding:3px 8px;border-radius:999px;background:#f2ede0;color:#b8b0a0;border:1.5px dashed #d8cfba}
 .dex span.got{color:var(--ink);background:#fff1c8;border:1.5px solid var(--ink);font-weight:700}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.levels button{font-size:12px;padding:8px 2px;line-height:1.3}

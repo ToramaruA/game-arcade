@@ -84,18 +84,29 @@ test('まばたき：短いまばたきでは筆を上げず、長く閉じる�
   assert.equal(g(true, 0.1), true);
 });
 
-test('星座なぞり：15面、星を順に見つめるとつながり、星の数がつく', () => {
+test('お手本なぞり：15面、お手本は紙の中。筆が下りている間だけ線が残る', () => {
   assert.equal(L.SKIES.length, 3);
-  for (const s of L.SKIES) { assert.equal(s.levels.length, 5); for (const lv of s.levels) for (const [x, y] of lv.stars) assert.ok(x >= 0.05 && x <= 0.95 && y >= 0.05 && y <= 0.95); }
-  const lv = L.SKIES[0].levels[0], tr = L.createTrace(lv);
-  let out = [];
-  for (let i = 1; i < lv.stars.length; i++) { const [x, y] = lv.stars[i]; for (let k = 0; k < 30; k++) { const r = L.stepTrace(tr, { x, y }, 0.02); if (r) out.push(r); } }
-  assert.deepEqual(out, ['link', 'done']);
-  assert.equal(L.rateTrace(tr), 3, '速くてきれいなら星3');
-  const slow = L.createTrace(lv); slow.done = true; slow.t = 99; slow.dev = 10; slow.devN = 10;
-  assert.equal(L.rateTrace(slow), 1);
-  const tr2 = L.createTrace(lv);
-  assert.equal(L.stepTrace(tr2, { x: 0.9, y: 0.9 }, 5), null, '星から離れていればつながらない');
+  for (const pg of L.SKIES) { assert.equal(pg.levels.length, 5); for (const lv of pg.levels) for (const st of lv.strokes) for (const [x, y] of st) assert.ok(x >= 0.05 && x <= 0.95 && y >= 0.05 && y <= 0.95, lv.name); }
+  const tr = L.createTrace(L.SKIES[0].levels[0]);
+  L.stepTrace(tr, { x: 0.2, y: 0.2, down: false }, 0.1);
+  assert.equal(tr.strokes.length, 0, '筆が上がっていれば描かない');
+  L.stepTrace(tr, { x: 0.2, y: 0.2, down: true }, 0.1); L.stepTrace(tr, { x: 0.3, y: 0.3, down: true }, 0.1);
+  L.stepTrace(tr, { x: 0.3, y: 0.3, down: false }, 0.1); L.stepTrace(tr, { x: 0.5, y: 0.5, down: true }, 0.1);
+  assert.equal(tr.strokes.length, 2, '筆を上げると線が分かれる');
+});
+
+test('お手本なぞり：お手本どおりなら★3、半分なら★1、ずれた線は★0', () => {
+  const lv = L.SKIES[0].levels[0];
+  const draw = (pts) => { const tr = L.createTrace(lv); for (const [x, y] of pts) L.stepTrace(tr, { x, y, down: true }, 0.05); return L.scoreTrace(tr); };
+  const T = L.sampleTemplate(lv);
+  const full = draw(T.map(([x, y], i) => [x + Math.sin(i) * 0.01, y + Math.cos(i) * 0.01]));
+  assert.equal(full.stars, 3); assert.ok(full.coverage > 0.95);
+  const half = draw(T.slice(0, Math.floor(T.length * 0.55)));
+  assert.equal(half.stars, 1);
+  const off = draw([[0.1, 0.1], [0.15, 0.12], [0.12, 0.18]]);
+  assert.equal(off.stars, 0);
+  const tr = L.createTrace(lv); let r = null; for (let k = 0; k < 1000 && !r; k++) r = L.stepTrace(tr, { x: 0.5, y: 0.5, down: false }, 0.1);
+  assert.equal(r, 'done'); assert.ok(tr.t >= L.LIMIT, '制限時間で終わる');
 });
 
 test('星座の解放：前の面に星があれば次が開く。夜空は全面クリアで開く', () => {

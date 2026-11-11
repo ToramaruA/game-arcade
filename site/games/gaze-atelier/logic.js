@@ -1,5 +1,5 @@
 // まなざしのアトリエ：ルール本体（DOM を触らない）。
-// お題と答え合わせ、線データの圧縮と共有、星座なぞりの採点、顔の向きの調整（回帰）、交代モードの点数。
+// お題と答え合わせ、線データの圧縮と共有、お手本なぞりの採点、顔の向きの調整（回帰）、交代モードの点数。
 
 // ---------- お題100種（最初が表示名、残りは受け付ける言い方） ----------
 const RAW = {
@@ -183,60 +183,69 @@ export function blinkGate(minClosed = 0.18) {
   return (closed, dt) => { closedFor = closed ? closedFor + dt : 0; return closedFor >= minClosed; };
 }
 
-// ---------- 点つなぎ（番号の点を順に見つめてつなぐ） ----------
-// 各面：星（0..1 の座標）を順につなぐ。par は星3の目安秒
-const SKY = (name, theme, levels) => ({ name, theme, levels });
+// ---------- ひとり：お手本なぞり（うすいお手本の上に、自分の線で絵を描く） ----------
+// 形は 0..1 の座標の線（点の列）で表す。描いた線がお手本をどれだけ覆ったか・どれだけ近いかで星が決まる
+const P = (n, f) => Array.from({ length: n + 1 }, (_, i) => f(i / n));
+const circle = (cx, cy, r, a0 = 0, a1 = Math.PI * 2, ry = r) => P(Math.max(12, Math.round(48 * (a1 - a0) / (Math.PI * 2))), (u) => [cx + Math.cos(a0 + (a1 - a0) * u) * r, cy + Math.sin(a0 + (a1 - a0) * u) * ry]);
+const line = (...pts) => pts;
+const heart = () => P(60, (u) => { const t = u * Math.PI * 2; const x = 16 * Math.sin(t) ** 3, y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t); return [0.5 + x / 40, 0.47 - y / 40]; });
+const star5 = (cx, cy, R, r) => P(10, (u) => { const k = Math.round(u * 10), a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r : R; return [cx + Math.cos(a) * rr, cy + Math.sin(a) * rr]; });
+const spiral = () => P(80, (u) => { const a = u * Math.PI * 5, r = 0.03 + u * 0.3; return [0.5 + Math.cos(a) * r, 0.5 + Math.sin(a) * r]; });
+const PAGE = (name, levels) => ({ name, levels });
 export const SKIES = [
-  SKY('はじめのページ', 'winter', [
-    { name: 'やま', stars: [[0.25, 0.6], [0.5, 0.3], [0.75, 0.6]], par: 6 },
-    { name: 'しかく', stars: [[0.25, 0.25], [0.75, 0.25], [0.75, 0.75], [0.25, 0.75], [0.25, 0.25]], par: 9 },
-    { name: 'いなずま', stars: [[0.2, 0.2], [0.8, 0.2], [0.6, 0.5], [0.4, 0.5], [0.2, 0.8], [0.8, 0.8]], par: 11 },
-    { name: 'ちょうちょ', stars: [[0.3, 0.2], [0.3, 0.8], [0.5, 0.5], [0.7, 0.2], [0.7, 0.8]], par: 10 },
-    { name: 'ゆきの結晶', stars: [[0.5, 0.15], [0.5, 0.85], [0.5, 0.5], [0.2, 0.3], [0.8, 0.7], [0.5, 0.5], [0.2, 0.7], [0.8, 0.3]], par: 14 },
+  PAGE('はじめのページ', [
+    { name: 'まる', strokes: [circle(0.5, 0.5, 0.28)], par: 10 },
+    { name: 'おやま', strokes: [line([0.12, 0.75], [0.35, 0.3], [0.5, 0.52], [0.66, 0.25], [0.88, 0.75])], par: 10 },
+    { name: 'なみなみ', strokes: [P(40, (u) => [0.12 + u * 0.76, 0.5 + Math.sin(u * Math.PI * 4) * 0.14])], par: 12 },
+    { name: 'ハート', strokes: [heart()], par: 14 },
+    { name: 'おほしさま', strokes: [star5(0.5, 0.53, 0.34, 0.14)], par: 16 },
   ]),
-  SKY('もようのページ', 'summer', [
-    { name: 'ことり', stars: [[0.5, 0.15], [0.5, 0.85], [0.5, 0.45], [0.2, 0.35], [0.5, 0.45], [0.8, 0.35]], par: 11 },
-    { name: 'へび', stars: [[0.2, 0.2], [0.35, 0.35], [0.45, 0.55], [0.55, 0.75], [0.75, 0.8], [0.85, 0.65]], par: 11 },
-    { name: 'やじるし', stars: [[0.15, 0.5], [0.85, 0.5], [0.65, 0.3], [0.85, 0.5], [0.65, 0.7]], par: 10 },
-    { name: 'ダイヤ', stars: [[0.5, 0.15], [0.75, 0.5], [0.5, 0.85], [0.25, 0.5], [0.5, 0.15]], par: 10 },
-    { name: 'おうち', stars: [[0.2, 0.75], [0.5, 0.2], [0.8, 0.7], [0.2, 0.75], [0.5, 0.5], [0.5, 0.2]], par: 13 },
+  PAGE('なかよしのページ', [
+    { name: 'さかな', strokes: [circle(0.45, 0.5, 0.25, -2.5, 2.5, 0.16), line([0.25, 0.42], [0.12, 0.3], [0.12, 0.7], [0.25, 0.58]), circle(0.58, 0.46, 0.025)], par: 18 },
+    { name: 'おうち', strokes: [line([0.2, 0.45], [0.5, 0.18], [0.8, 0.45]), line([0.27, 0.42], [0.27, 0.82], [0.73, 0.82], [0.73, 0.42]), line([0.43, 0.82], [0.43, 0.6], [0.57, 0.6], [0.57, 0.82])], par: 20 },
+    { name: 'かさ', strokes: [circle(0.5, 0.5, 0.32, Math.PI, Math.PI * 2, 0.26), line([0.18, 0.5], [0.82, 0.5]), line([0.5, 0.5], [0.5, 0.8]), circle(0.45, 0.8, 0.05, 0, Math.PI)], par: 18 },
+    { name: 'うずまき', strokes: [spiral()], par: 18 },
+    { name: 'はな', strokes: [...[0, 1, 2, 3, 4].map((k) => circle(0.5 + Math.cos(k * 1.2566 - 1.57) * 0.17, 0.42 + Math.sin(k * 1.2566 - 1.57) * 0.17, 0.09)), circle(0.5, 0.42, 0.07), line([0.5, 0.6], [0.5, 0.88])], par: 26 },
   ]),
-  SKY('むずかしいページ', 'aurora', [
-    { name: 'ひしゃく', stars: [[0.15, 0.3], [0.3, 0.35], [0.45, 0.4], [0.6, 0.45], [0.6, 0.7], [0.85, 0.72], [0.85, 0.45]], par: 13 },
-    { name: 'ダブリュー', stars: [[0.1, 0.35], [0.3, 0.7], [0.5, 0.4], [0.7, 0.7], [0.9, 0.35]], par: 11 },
-    { name: 'おほしさま', stars: [[0.5, 0.1], [0.62, 0.42], [0.92, 0.45], [0.68, 0.62], [0.78, 0.92], [0.5, 0.72], [0.22, 0.92], [0.32, 0.62], [0.08, 0.45], [0.38, 0.42], [0.5, 0.1]], par: 20 },
-    { name: 'うずまき', stars: [[0.5, 0.5], [0.6, 0.45], [0.6, 0.6], [0.4, 0.62], [0.35, 0.4], [0.6, 0.3], [0.78, 0.55], [0.6, 0.8], [0.25, 0.75], [0.18, 0.35]], par: 18 },
-    { name: 'ふね', stars: [[0.1, 0.4], [0.3, 0.75], [0.7, 0.75], [0.9, 0.4], [0.5, 0.55], [0.1, 0.4], [0.5, 0.15], [0.5, 0.55]], par: 17 },
+  PAGE('いきもののページ', [
+    { name: 'ねこ', strokes: [circle(0.5, 0.56, 0.27), line([0.3, 0.38], [0.3, 0.16], [0.44, 0.31]), line([0.56, 0.31], [0.7, 0.16], [0.7, 0.38]), circle(0.4, 0.53, 0.025), circle(0.6, 0.53, 0.025), line([0.45, 0.66], [0.5, 0.7], [0.55, 0.66])], par: 26 },
+    { name: 'かたつむり', strokes: [P(60, (u) => { const a = u * Math.PI * 4, r = 0.03 + u * 0.2; return [0.55 + Math.cos(a) * r, 0.48 + Math.sin(a) * r]; }), line([0.15, 0.72], [0.85, 0.72]), line([0.2, 0.72], [0.2, 0.55], [0.15, 0.42]), line([0.22, 0.56], [0.27, 0.43])], par: 24 },
+    { name: 'ことり', strokes: [circle(0.48, 0.55, 0.22, 0, Math.PI * 2, 0.17), circle(0.66, 0.36, 0.1), line([0.75, 0.35], [0.85, 0.38], [0.75, 0.41]), circle(0.68, 0.34, 0.015), line([0.4, 0.5], [0.52, 0.62], [0.32, 0.6])], par: 24 },
+    { name: 'ちょうちょ', strokes: [circle(0.33, 0.38, 0.15), circle(0.67, 0.38, 0.15), circle(0.36, 0.66, 0.1), circle(0.64, 0.66, 0.1), line([0.5, 0.25], [0.5, 0.78]), line([0.5, 0.25], [0.42, 0.12]), line([0.5, 0.25], [0.58, 0.12])], par: 28 },
+    { name: 'くじら', strokes: [circle(0.45, 0.55, 0.3, Math.PI * 0.95, Math.PI * 2.05, 0.2), line([0.16, 0.6], [0.75, 0.6]), line([0.75, 0.55], [0.88, 0.4], [0.8, 0.55], [0.92, 0.6]), line([0.42, 0.32], [0.38, 0.2]), line([0.42, 0.32], [0.48, 0.2]), circle(0.27, 0.5, 0.02)], par: 28 },
   ]),
 ];
-export const STAR_RADIUS = 0.075; // 星に「着いた」とみなす距離（画面の短辺に対する割合）
-export const DWELL = 0.25; // 星を見つめる時間（秒）
-export function createTrace(level) { return { level, next: 1, t: 0, dwell: 0, path: [], dev: 0, devN: 0, done: false }; }
-// 1コマ進める。p は今の筆先（0..1）。戻り値 'link' / 'done' / null
-export function stepTrace(tr, p, dt, radius = STAR_RADIUS) {
+export const LIMIT = 40; // 1枚の制限時間（秒）
+export const NEAR = 0.05; // お手本に「重なった」とみなす距離
+// お手本の線を、細かい点の列にする（覆った割合を数えるため）
+export function sampleTemplate(level, step = 0.01) {
+  const out = [];
+  for (const s of level.strokes) for (let i = 1; i < s.length; i++) {
+    const [ax, ay] = s[i - 1], [bx, by] = s[i], n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / step));
+    for (let k = 0; k < n; k++) out.push([ax + (bx - ax) * k / n, ay + (by - ay) * k / n]);
+  }
+  return out;
+}
+export function createTrace(level) { return { level, t: 0, strokes: [], cur: null, done: false, samples: sampleTemplate(level), hit: null }; }
+// 1コマ進める。筆が下りているときだけ線を足す
+export function stepTrace(tr, p, dt) {
   if (tr.done) return null;
   tr.t += dt;
-  const S = tr.level.stars, a = S[tr.next - 1], b = S[tr.next];
-  tr.path.push({ x: p.x, y: p.y });
-  tr.dev += segDist(p, a, b); tr.devN++;
-  if (Math.hypot(p.x - b[0], p.y - b[1]) < radius) {
-    tr.dwell += dt;
-    if (tr.dwell >= DWELL) { tr.dwell = 0; tr.next++; if (tr.next >= S.length) { tr.done = true; return 'done'; } return 'link'; }
-  } else tr.dwell = Math.max(0, tr.dwell - dt * 2);
+  if (p.down) { if (!tr.cur) { tr.cur = []; tr.strokes.push(tr.cur); } const l = tr.cur[tr.cur.length - 1]; if (!l || Math.hypot(p.x - l.x, p.y - l.y) > 0.004) tr.cur.push({ x: p.x, y: p.y, t: tr.t }); }
+  else tr.cur = null;
+  if (tr.t >= LIMIT) { tr.done = true; return 'done'; }
   return null;
 }
-function segDist(p, a, b) {
-  const vx = b[0] - a[0], vy = b[1] - a[1], l2 = vx * vx + vy * vy || 1e-9;
-  const k = Math.max(0, Math.min(1, ((p.x - a[0]) * vx + (p.y - a[1]) * vy) / l2));
-  return Math.hypot(p.x - (a[0] + vx * k), p.y - (a[1] + vy * k));
-}
-// 星の数：時間（par 以内で+1、1.6倍以内で+1）と、線のきれいさ（平均のずれ 0.06 未満で+1）。クリアで最低1
-export function rateTrace(tr) {
-  let s = 1;
-  if (tr.t <= tr.level.par) s++;
-  else if (tr.t <= tr.level.par * 1.6) s += 0.5;
-  if (tr.devN && tr.dev / tr.devN < 0.06) s++;
-  return Math.min(3, Math.floor(s));
+// 覆った割合（お手本の点のうち、近くに自分の線があるもの）と、自分の線のずれ（お手本からの平均の距離）
+export function scoreTrace(tr) {
+  const pts = tr.strokes.flat();
+  const T = tr.samples;
+  if (!pts.length) return { coverage: 0, dev: 1, stars: 0, hit: T.map(() => false) };
+  const hit = T.map(([x, y]) => pts.some((q) => Math.abs(q.x - x) < NEAR && Math.abs(q.y - y) < NEAR && Math.hypot(q.x - x, q.y - y) < NEAR));
+  const coverage = hit.filter(Boolean).length / T.length;
+  let dev = 0; for (const q of pts) { let m = 9; for (const [x, y] of T) { const d = Math.hypot(q.x - x, q.y - y); if (d < m) m = d; } dev += m; } dev /= pts.length;
+  const stars = coverage >= 0.85 && dev < 0.035 ? 3 : coverage >= 0.7 && dev < 0.06 ? 2 : coverage >= 0.45 ? 1 : 0;
+  return { coverage, dev, stars, hit };
 }
 
 // ---------- 交代モード ----------

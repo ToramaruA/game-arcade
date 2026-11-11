@@ -94,14 +94,14 @@ paper.addEventListener('pointermove', (e) => { Object.assign(ptr, toPaper(e.clie
 paper.addEventListener('pointerup', () => { ptr.pressed = false; });
 paper.addEventListener('pointercancel', () => { ptr.pressed = false; });
 paper.addEventListener('pointerleave', () => { ptr.inside = false; });
-let gaze = null, predict = null, smooth = L.smoother(), gate = L.blinkGate(0.12);
+let gaze = null, predict = null, smooth = L.smoother(), gate = L.blinkGate(0.06);
 const wob = { a: hash(1, 1) * 9, b: hash(2, 2) * 9 };
 function updatePen(dt, t) {
   if (save.mode === 'gaze' && gaze && predict) {
     const st = gaze.state;
     pen.active = st.ok;
     if (st.ok && st.head) { const q = predict(st.head); pen.rawX = q.x; pen.rawY = q.y; const sm = smooth(clamp01(q.x), clamp01(q.y), Math.max(dt, 1 / 120)); pen.x = sm.x; pen.y = sm.y; }
-    pen.blink = gate(st.mouth || !st.ok, dt);
+    pen.blink = !gate(st.ok && st.mouth, dt);
     pen.down = st.ok && !pen.blink;
   } else {
     // 指・マウス：顔で描くのと同じくらいの「ゆらぎ」を足す
@@ -135,7 +135,7 @@ function titleScreen() {
     <p class="eye-badge">🙂 カメラで顔の向きを読んで、鼻の先で描く（指・マウスでも遊べる）</p>
     <div class="col">
       <button class="pri" data-a="relay">ともだちと：お絵描き伝言</button>
-      <button data-a="trace">ひとりで：点つなぎ</button>
+      <button data-a="trace">ひとりで：お手本なぞり</button>
       <button data-a="party">みんなで：交代モード（2〜4人）</button>
       <button data-a="atelier">アトリエ　${save.drawn.length}/100</button>
       <button data-a="input">描きかた：${inp}</button>
@@ -154,7 +154,7 @@ function inputScreen(next) {
       <button class="pri" data-a="useGaze">🙂 顔で描く（カメラを使う）</button>
       <button data-a="usePointer">☝ 指・マウスで描く</button>
     </div>
-    <p class="note">顔で描く：鼻の先で5つの的を順に指して調整（約10秒）。顔を動かすと筆が動き、口を「あー」と開けている間は筆が上がります。<br>映像はどこにも送らず、保存もしません。<br>指・マウス：押している間だけ描けます。顔で描くのと同じくらい、線が少しゆれます。</p></div>`);
+    <p class="note">顔で描く：鼻の先で5つの的を順に指して調整（約10秒）。顔を動かすと筆が動き、口を「あー」と開けている間だけ線が描けます。<br>映像はどこにも送らず、保存もしません。<br>指・マウス：押している間だけ描けます。顔で描くのと同じくらい、線が少しゆれます。</p></div>`);
 }
 async function startGaze() {
   show('<div class="card"><h2>カメラを準備中…</h2><p class="sub">はじめてのときは、カメラの使用を「許可」してください。</p></div>');
@@ -187,14 +187,14 @@ function stepCalib(dt) {
   if (c.t > FIX) { c.i++; c.t = 0; sfx.link(c.i); if (c.i >= CAL.length) finishCalib(); }
 }
 function finishCalib() {
-  predict = L.fitGaze(cal.samples, 0.02); smooth = L.smoother(1.5, 4, 1, 0.004); gate = L.blinkGate(0.12);
+  predict = L.fitGaze(cal.samples, 0.02); smooth = L.smoother(1.5, 4, 1, 0.004); gate = L.blinkGate(0.06);
   if (!predict || cal.samples.length < 15) {
     show(`<div class="card"><h2>うまく読み取れませんでした</h2><p>顔が画面の正面に入るようにして、明るい場所でもう一度。</p><div class="row"><button class="pri" data-a="recal">もう一度</button><button data-a="usePointer">指・マウスにする</button></div></div>`);
     return;
   }
   sfx.done(); scene = 'calibcheck';
   hud('顔の調整', 'ためし描き');
-  cap('顔を動かすと筆が動く？ 口を「あー」と開けると筆が上がる');
+  cap('顔を動かすと筆が動く？ 口を「あー」と開けている間だけ線が描ける');
   setActions([['動く！', 'afterInput', 'pri'], ['もう一度調整', 'recal']]);
 }
 function needInput(next) {
@@ -205,64 +205,57 @@ function needInput(next) {
 }
 
 // ---------- 星座なぞり ----------
-let trace = null, traceSky = 0, traceLv = 0, linkFx = [];
+let trace = null, traceSky = 0, traceLv = 0, linkFx = [], traceResult = null;
 function levelsScreen() {
   scene = 'levels'; setActions([]); cap(''); $('hud').hidden = true;
-  let h = '<div class="card"><h2>点つなぎ</h2><p class="sub">番号の点を順にたどって、絵を完成させよう。</p>';
+  let h = '<div class="card"><h2>お手本なぞり</h2><p class="sub">うすいお手本の上に、自分の線で絵を描こう。お手本をどれだけなぞれたかで★がつく。</p>';
   L.SKIES.forEach((sky, si) => {
     h += `<div class="sky">${sky.name}${L.skyUnlocked(save, si) ? '' : '　🔒 前のページをぜんぶクリア'}</div><div class="levels">`;
-    sky.levels.forEach((lv, li) => { const st = save.stars[`${si}-${li}`] || 0, ok = L.levelUnlocked(save, si, li) || params.has('unlock'); h += `<button data-a="lv" data-s="${si}" data-l="${li}" ${ok ? '' : 'disabled'}>${li + 1}<small>${'★'.repeat(st)}${'☆'.repeat(3 - st)}</small></button>`; });
+    sky.levels.forEach((lv, li) => { const st = save.stars[`${si}-${li}`] || 0, ok = L.levelUnlocked(save, si, li) || params.has('unlock'); h += `<button data-a="lv" data-s="${si}" data-l="${li}" ${ok ? '' : 'disabled'}>${lv.name}<small>${'★'.repeat(st)}${'☆'.repeat(3 - st)}</small></button>`; });
     h += '</div>';
   });
   show(h + '<button data-a="title">もどる</button></div>');
 }
 function startTrace(si, li) {
   hide(); traceSky = si; traceLv = li; const lv = L.SKIES[si].levels[li];
-  trace = L.createTrace(lv); linkFx = []; scene = 'trace';
-  hud(`${L.SKIES[si].name} ${li + 1}`, lv.name); timerOff(); setActions([]);
-  const first = si === 0 && li === 0;
-  cap(first ? (save.mode === 'gaze' ? '鼻の先で黄色い輪の点に合わせると、線がつながる' : '黄色い輪の点まで指でなぞると、線がつながる') : 'つぎの点へ');
+  trace = L.createTrace(lv); linkFx = []; traceResult = null; scene = 'trace';
+  hud(`${L.SKIES[si].name} ${li + 1}`, `「${lv.name}」`); timerOn(1); setActions([['できた！', 'traceEnd', 'pri']]);
+  cap(save.mode === 'gaze' ? 'うすいお手本を、口を開けながら顔でなぞってね' : 'うすいお手本を、指でなぞって描いてね');
 }
 function stepTrace(dt) {
-  if (!pen.active) return;
-  const gazeMode = save.mode === 'gaze' && predict;
-  const radius = L.STAR_RADIUS * (gazeMode ? 1.6 : 1);
-  const r = L.stepTrace(trace, pen, dt, radius);
-  // 顔で描くとき：次の点に合わせているあいだに、ずれを少しずつ直す
-  if (gazeMode && !trace.done && trace.dwell > 0.08 && pen.rawX !== undefined) { const b = trace.level.stars[trace.next]; L.nudgeBias(predict, { x: pen.rawX, y: pen.rawY }, { x: b[0], y: b[1] }, Math.min(0.03, dt)); }
-  if (r === 'link' || r === 'done') { const s = trace.level.stars[trace.next - (r === 'done' ? 1 : 1)]; linkFx.push({ x: s[0], y: s[1], t: 0 }); sfx.link(trace.next); }
-  if (r === 'done') {
-    const stars = L.rateTrace(trace); save = L.recordStars(save, traceSky, traceLv, stars); persist(); sfx.done();
-    scene = 'tracedone';
-    setTimeout(() => {
-      const last = traceLv === 4, nextOk = !last || traceSky < 2;
-      show(`<div class="card"><p class="sub">${L.SKIES[traceSky].name} ${traceLv + 1}</p><h2>「${trace.level.name}」</h2>
-        <div class="big-stars">${'★'.repeat(stars)}<span class="off">${'★'.repeat(3 - stars)}</span></div>
-        <p class="sub">時間 ${trace.t.toFixed(1)}秒（目安 ${trace.level.par}秒）・線のきれいさ ${Math.max(0, Math.round(100 - (trace.dev / Math.max(1, trace.devN)) * 900))}点</p>
-        <div class="row">${nextOk ? '<button class="pri" data-a="nextLv">つぎの絵へ</button>' : ''}<button data-a="retryLv">もう一度</button><button data-a="trace">ページえらび</button></div></div>`, 'clear');
-    }, 700);
-  }
+  const r = L.stepTrace(trace, pen, dt);
+  timerSet(1 - trace.t / L.LIMIT);
+  const left = Math.ceil(L.LIMIT - trace.t); if (left !== trace.left) { trace.left = left; $('hInfo').textContent = `「${trace.level.name}」　残り ${left}秒`; if (left <= 5) sfx.tick(); }
+  if (r === 'done') endTrace();
+}
+function endTrace() {
+  if (scene !== 'trace') return;
+  trace.done = true; timerOff(); setActions([]);
+  traceResult = L.scoreTrace(trace);
+  const stars = traceResult.stars;
+  if (stars > 0) { save = L.recordStars(save, traceSky, traceLv, stars); persist(); sfx.done(); } else sfx.ng();
+  scene = 'tracedone';
+  setTimeout(() => {
+    const last = traceLv === 4, nextOk = stars > 0 && (!last || traceSky < 2);
+    show(`<div class="card"><p class="sub">${L.SKIES[traceSky].name} ${traceLv + 1}</p><h2>「${trace.level.name}」</h2>
+      <div class="big-stars">${'★'.repeat(stars)}<span class="off">${'★'.repeat(3 - stars)}</span></div>
+      <p class="sub">なぞれた割合 ${Math.round(traceResult.coverage * 100)}%・線のずれ ${Math.round(traceResult.dev * 1000) / 10}%（★1：45%以上、★2：70%以上、★3：85%以上でずれ少なめ）</p>
+      ${stars ? '' : '<p>もう少しお手本をなぞってみよう！</p>'}
+      <div class="row">${nextOk ? '<button class="pri" data-a="nextLv">つぎの絵へ</button>' : ''}<button data-a="retryLv" class="${nextOk ? '' : 'pri'}">もう一度</button><button data-a="trace">えらびなおす</button></div></div>`, 'clear sheet');
+  }, 900);
 }
 function drawTrace(s, t) {
-  const S = trace.level.stars;
-  pctx.save(); pctx.lineCap = 'round';
-  for (let i = 1; i < trace.next; i++) { const a = S[i - 1], b = S[i]; paintStroke(pctx, [{ x: a[0], y: a[1], t: 0 }, { x: b[0], y: b[1], t: 0 }], s, Infinity, null, i); }
-  if (!trace.done) { const a = S[trace.next - 1], b = S[trace.next]; pctx.setLineDash([s * 0.01, s * 0.016]); pctx.strokeStyle = 'rgba(80,80,110,0.35)'; pctx.lineWidth = s * 0.004; pctx.beginPath(); pctx.moveTo(a[0] * s, a[1] * s); pctx.lineTo(b[0] * s, b[1] * s); pctx.stroke(); pctx.setLineDash([]); }
-  pctx.restore();
-  // 番号つきの点
-  const first = new Map();
-  S.forEach(([x, y], i) => { const k = `${x},${y}`; if (!first.has(k)) first.set(k, i); });
-  first.forEach((i, k) => {
-    const [x, y] = k.split(',').map(Number);
-    const reached = S.slice(0, trace.next).some((q) => q[0] === x && q[1] === y), isNext = !trace.done && S[trace.next][0] === x && S[trace.next][1] === y;
-    const pulse = isNext && !reduceMotion() ? 1 + Math.sin(t * 6) * 0.15 : 1;
-    if (isNext) { pctx.fillStyle = 'rgba(255,180,0,0.25)'; pctx.beginPath(); pctx.arc(x * s, y * s, s * L.STAR_RADIUS * (save.mode === 'gaze' && predict ? 1.6 : 1) * pulse, 0, 7); pctx.fill(); pctx.strokeStyle = '#ffb400'; pctx.lineWidth = 3; pctx.beginPath(); pctx.arc(x * s, y * s, s * L.STAR_RADIUS * (save.mode === 'gaze' && predict ? 1.6 : 1) * (1 - trace.dwell / L.DWELL) * pulse, 0, 7); pctx.stroke(); }
-    pctx.fillStyle = reached ? '#ff5a5f' : '#3a3a55'; pctx.beginPath(); pctx.arc(x * s, y * s, s * (isNext ? 0.016 : 0.012), 0, 7); pctx.fill();
-    pctx.fillStyle = '#3a3a55'; pctx.font = `800 ${Math.round(s * 0.032)}px "Hiragino Maru Gothic ProN",sans-serif`; pctx.textAlign = 'center';
-    pctx.fillText(i === 0 ? 'スタート' : String(i + 1), x * s, y * s - s * 0.03);
-  });
-  linkFx = linkFx.filter((f) => (f.t += 1 / 60) < 0.5);
-  linkFx.forEach((f) => { for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2, r = s * (0.02 + f.t * 0.12); pctx.fillStyle = CRAYON[k]; pctx.globalAlpha = 1 - f.t / 0.5; pctx.beginPath(); pctx.arc(f.x * s + Math.cos(a) * r, f.y * s + Math.sin(a) * r, s * 0.008, 0, 7); pctx.fill(); } pctx.globalAlpha = 1; });
+  const lv = trace.level;
+  // お手本：うすい灰色の点線（覆ったところは消えていく）
+  pctx.save(); pctx.lineCap = 'round'; pctx.lineJoin = 'round';
+  pctx.strokeStyle = 'rgba(80,80,110,0.22)'; pctx.lineWidth = s * 0.03; pctx.setLineDash([s * 0.012, s * 0.018]);
+  for (const st of lv.strokes) { pctx.beginPath(); st.forEach(([x, y], i) => (i ? pctx.lineTo(x * s, y * s) : pctx.moveTo(x * s, y * s))); pctx.stroke(); }
+  pctx.setLineDash([]); pctx.restore();
+  // 自分の線
+  trace.strokes.forEach((st, i) => paintStroke(pctx, st, s, Infinity, null, i));
+  // 結果：なぞれた所に色の点
+  if (traceResult) traceResult.hit.forEach((h, i) => { if (!h || i % 3) return; const [x, y] = trace.samples[i]; pctx.fillStyle = 'rgba(52,194,122,0.7)'; pctx.beginPath(); pctx.arc(x * s, y * s, s * 0.006, 0, 7); pctx.fill(); });
+  void t;
 }
 function star4(ctx, x, y, r) { ctx.beginPath(); for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2 - Math.PI / 2, rr = i % 2 ? r * 0.38 : r; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } ctx.closePath(); ctx.fill(); }
 
@@ -283,7 +276,7 @@ function startDraw(promptId, seed, onDone, who = '') {
 function stepDraw(dt) {
   draw.t += dt;
   if (draw.t < 0) { const c = Math.ceil(-draw.t); if (c !== draw.lastCount) { draw.lastCount = c; cap(`${c}…`); sfx.tick(); } return; }
-  if (draw.lastCount > 0) { draw.lastCount = 0; sfx.start(); cap(save.mode === 'gaze' ? '描いて！ 口を「あー」と開けると筆が上がる' : '描いて！ 押している間だけ線が引ける'); }
+  if (draw.lastCount > 0) { draw.lastCount = 0; sfx.start(); cap(save.mode === 'gaze' ? '描いて！ 口を「あー」と開けている間だけ線が描ける' : '描いて！ 押している間だけ線が引ける'); }
   timerSet(1 - draw.t / DRAW_SEC);
   const left = Math.ceil(DRAW_SEC - draw.t); if (left !== draw.left) { draw.left = left; $('hInfo').textContent = `お題：${L.PROMPTS[draw.promptId].name}　残り ${left}秒`; if (left <= 5) sfx.tick(); }
   if (pen.down) { if (!draw.cur) { draw.cur = []; draw.strokes.push(draw.cur); } const l = draw.cur[draw.cur.length - 1]; if (!l || Math.hypot(pen.x - l.x, pen.y - l.y) > 0.003) draw.cur.push({ x: pen.x, y: pen.y, t: draw.t }); }
@@ -422,6 +415,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'lv') startTrace(+b.dataset.s, +b.dataset.l);
   else if (a === 'nextLv') { let s = traceSky, l = traceLv + 1; if (l > 4) { s++; l = 0; } startTrace(s, l); }
   else if (a === 'retryLv') startTrace(traceSky, traceLv);
+  else if (a === 'traceEnd') endTrace();
   else if (a === 'pick') pickHandler && pickHandler(+b.dataset.i);
   else if (a === 'drawEnd') endDraw();
   else if (a === 'share') share();
