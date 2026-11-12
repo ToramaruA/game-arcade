@@ -45,7 +45,7 @@ test('各面に明記した仕掛けが入っていて、6種類の敵が全部�
   const all = new Set();
   for (let i = 0; i < 15; i++) s(i).enemies.forEach((e) => all.add(e.kind));
   for (let i = 0; i < 15; i++) if (s(i).fray) all.add('fray');
-  assert.deepEqual([...all].sort(), ['bee', 'eater', 'fray', 'lamp', 'moth', 'serpent']);
+  assert.deepEqual([...all].sort(), ['bee', 'eater', 'fray', 'lamp', 'moth', 'serpent', 'window']);
 });
 
 test('左右に走れて、壁で止まる', () => {
@@ -164,7 +164,7 @@ test('鎧蜂：身構えてから突進する。牙灯：点線の予告のあ�
   st.enemies.forEach((e) => { if (e !== bee) e.dead = true; });
   st.player.x = bee.x - 3 * TS; st.player.y = bee.y - 20; st.player.invuln = 99;
   const seen = [];
-  for (let i = 0; i < 90; i++) { run(st, 1); if (seen[seen.length - 1] !== bee.state) seen.push(bee.state); }
+  for (let i = 0; i < 160; i++) { run(st, 1); if (seen[seen.length - 1] !== bee.state) seen.push(bee.state); }
   assert.ok(seen.indexOf('warn') >= 0 && seen.indexOf('warn') < seen.indexOf('charge'), `身構え→突進: ${seen}`);
 
   const s2 = L.createLevelState(6);
@@ -374,4 +374,30 @@ test('雲の舟：岸から糸で引き寄せ、乗ったままフックへ投�
   assert.ok(ship.x > home, '舟がフックの方へ進んだ');
   assert.ok(st.player.x > px + 80, 'ミオも一緒に運ばれた');
   assert.equal(st.falls, 0);
+});
+
+test('窓の顔：近づくと窓から顔を出し（予告）、見つめた場所へ腕を伸ばす。糸をかけると引っ込む', () => {
+  const st = L.createLevelState(1);
+  const win = st.enemies.find((e) => e.kind === 'window');
+  st.enemies.forEach((e) => { if (e !== win) e.dead = true; });
+  st.player.x = win.x - 2 * TS; st.player.y = 10 * TS; st.player.invuln = 0;
+  win.cool = 0;
+  const seen = [];
+  let hit = false;
+  for (let i = 0; i < 120; i++) { run(st, 1); if (seen[seen.length - 1] !== win.state) seen.push(win.state); if (st.hits > 0) { hit = true; break; } }
+  assert.ok(seen.indexOf('peek') >= 0 && seen.indexOf('peek') < seen.indexOf('reach'), `顔を出す→腕: ${seen}`);
+  assert.ok(hit, '立ち止まっていると腕に捕まる');
+  // 顔を出している間に糸をかけると引っ込む
+  const s2 = L.createLevelState(1);
+  const w2 = s2.enemies.find((e) => e.kind === 'window');
+  s2.enemies.forEach((e) => { if (e !== w2) e.dead = true; });
+  s2.player.x = w2.x - 3 * TS; s2.player.y = 10 * TS; s2.player.face = 1; s2.player.invuln = 99;
+  w2.cool = 0;
+  for (let i = 0; i < 60 && w2.out < 0.6; i++) run(s2, 1);
+  assert.equal(L.pickTarget(s2, 1)?.ref, w2, '顔は糸の標的になる');
+  run(s2, 10, { threadPressed: true });
+  assert.equal(w2.state, 'flinch');
+  run(s2, 40);
+  assert.equal(w2.state, 'shut');
+  assert.ok(w2.cool > 1, 'しばらく出てこない');
 });

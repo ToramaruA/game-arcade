@@ -13,6 +13,7 @@ export const PALETTE = [
   // 第三章：夢の底（深紅と骨と金の縫い目）
   '#0a0408', '#1e0610', '#3a0a18', '#6a1424', '#a82038', '#e8dcc8', '#b8a890', '#7a6a5a', '#ff4a5a', '#ffd0c0',
   // 敵など
+  '#3a2418', '#5a3a28', '#c8c0b0', '#8a8070', '#0e1a24', '#16303a', '#24484a', '#3a5a50', '#6a7a5a', '#a8b090', '#d8e0b0',
   '#e8503a', '#ff8a3a', '#ffd36a', '#c9963a', '#bfe4ff', '#4f8ac4', '#ff2a1a', '#a06ad6', '#2a1440', '#ff5a8a', '#7fc8e8', '#1a3a5a',
 ];
 const RGB = PALETTE.map((h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]);

@@ -162,6 +162,9 @@ function handleEvents() {
       case 'crumble': audio.play('crumble'); { const [c, r] = ev.k.split(',').map(Number); burst(c * L.TS + 20, r * L.TS + 6, '#f0a845', 4, 80, 0.8, 4); } break;
       case 'clock': audio.play('clock', ev.open); break;
       case 'dock': audio.play('dock'); break;
+      case 'peek': audio.play('peek'); break;
+      case 'grab': audio.play('grab'); shake = reduce ? 0 : Math.max(shake, 0.15); break;
+      case 'flinch': audio.play('flinch'); toast('引っ込んだ…', 700); break;
       case 'clear': audio.play('clear'); clearTimer = 0.9; burst(st.exit.x, st.exit.y - 100, '#ffe680', 40, 260, 1.2, 3); break;
       default: break;
     }
@@ -268,6 +271,7 @@ function renderScene(dt) {
   ctx.setTransform(1, 0, 0, 1, ox, oy);
   const c0 = Math.floor(cam.x / L.TS) - 1; const c1 = Math.ceil((cam.x + vw) / L.TS) + 1;
   const r0 = Math.floor(cam.y / L.TS) - 1; const r1 = Math.ceil((cam.y + vh) / L.TS) + 1;
+  P.drawWindowHouses(ctx, st, t);
   P.drawTiles(ctx, st, ch, c0, c1, r0, r1, t);
   const dir = (held.right ? 1 : 0) - (held.left ? 1 : 0) || p.face;
   const preview = !st.thread && p.dying <= 0 ? L.pickTarget(st, dir) : null;
@@ -307,10 +311,10 @@ function renderTitle() {
   P.drawTitleWhale(ctx, Math.round(w * 0.6), Math.round(h * 0.42), ws, t);
   // 手前の鯨の背（地面）
   ctx.fillStyle = '#120c1c'; ctx.fillRect(0, Math.round(h * 0.86) - 1, w, h);
-  ctx.fillStyle = '#9fc0d4'; ctx.fillRect(0, Math.round(h * 0.86), w, h);
-  ctx.fillStyle = '#4fb08a'; ctx.fillRect(0, Math.round(h * 0.86), w, 3);
-  ctx.fillStyle = '#2f7a68'; for (let x = 0; x < w; x += 3) ctx.fillRect(x, Math.round(h * 0.86) - 1 - (x % 9 === 0 ? 1 : 0), 1, 1);
-  ctx.fillStyle = '#7896b4'; for (let x = 4; x < w; x += 23) ctx.fillRect(x, Math.round(h * 0.86) + 7 + (x % 3), 4, 1);
+  ctx.fillStyle = '#5a7488'; ctx.fillRect(0, Math.round(h * 0.86), w, h);
+  ctx.fillStyle = '#3a6a50'; ctx.fillRect(0, Math.round(h * 0.86), w, 3);
+  ctx.fillStyle = '#24484a'; for (let x = 0; x < w; x += 3) ctx.fillRect(x, Math.round(h * 0.86) - 1 - (x % 9 === 0 ? 1 : 0), 1, 1);
+  ctx.fillStyle = '#3e5468'; for (let x = 4; x < w; x += 23) ctx.fillRect(x, Math.round(h * 0.86) + 7 + (x % 3), 4, 1);
   // 主人公が星鈴へ糸を投げる（大きく）
   const sc = h > 260 ? 3 : 2;
   const hx = Math.round(Math.min(w * 0.14, 50)); const jump = Math.round(Math.abs(Math.sin(t * 2.2)) * 6);
@@ -491,6 +495,7 @@ const FOES = [
   { kind: 'lamp', name: '牙灯', text: '赤い点線のあとに光線。糸で引くと向きが変わる。光線は敵も消す。' },
   { kind: 'serpent', name: '海蛇', text: '霧の川の波紋から跳ねる。縛ると2.6秒、背中が橋になる。' },
   { kind: 'eater', name: '糸喰い', text: '糸の近くに寄ると食いちぎる。しばらく糸が使えない。' },
+  { kind: 'window', name: '窓の顔', text: '近づくと窓からぬっと顔を出し、見つめた場所へ長い腕を伸ばす。糸をかけると引っ込む。' },
   { kind: 'fray', name: '夢のほつれ', text: '最後の面で後ろから迫る。鐘を鳴らすと押し返せる。' },
 ];
 

@@ -95,6 +95,7 @@ function makeEnemy(o, variant, i, st) {
       return { ...base, kind: 'serpent', r: 18, x0: o.c * TS, x1: (c1 + 1) * TS, surf: o.r * TS, s: 0, state: 'wait', timer: 0.8 + phase * 1.2 };
     }
     case 'e': return { ...base, kind: 'eater', r: 18 };
+    case 'v': return { ...base, kind: 'window', r: 14, state: 'shut', cool: 0.4 + phase, out: 0, arm: 0, tx: x, ty: y };
     default: return null;
   }
 }
@@ -281,6 +282,7 @@ export function threadCandidates(st) {
       if (e.s > 0.12 && e.s < 1 && e.state === 'leap') { const hd = serpentHead(e); out.push({ kind: 'enemy', ref: e, x: hd.x, y: hd.y }); }
       continue;
     }
+    if (e.kind === 'window') { if (e.out > 0.35 && e.state !== 'flinch') out.push({ kind: 'enemy', ref: e, x: e.x, y: e.y }); continue; }
     out.push({ kind: 'enemy', ref: e, x: e.x, y: e.y });
   }
   return out;
@@ -379,6 +381,7 @@ function attach(st) {
       t.ref.target = Math.max(t.ref.xmin, Math.min(t.ref.xmax, pcx(p) - t.ref.w / 2)); th.ship = t.ref; break;
     case 'enemy': {
       const e = t.ref;
+      if (e.kind === 'window') { e.state = 'flinch'; e.timer = 0.5; e.cool = WINDOW.flinchCool; e.arm = 0; th.release = 0.2; emit(st, 'flinch'); break; }
       e.bound = e.kind === 'serpent' ? THREAD.serpentBind : THREAD.bind;
       e.drag = null; emit(st, 'bind');
       break;
@@ -632,7 +635,7 @@ function respawn(st, full) {
   for (const h of st.hooks) { h.gone = false; h.fade = 0; }
   for (const e of st.enemies) {
     if (e.dead && !full) continue;
-    Object.assign(e, { x: e.spawn.x, y: e.spawn.y, state: e.spawn.state, timer: e.spawn.timer, face: e.spawn.face, bound: 0, drag: null, stun: 0, cool: 1, vx: 0, vy: 0, dead: false, s: 0, beam: null });
+    Object.assign(e, { x: e.spawn.x, y: e.spawn.y, state: e.spawn.state, timer: e.spawn.timer, face: e.spawn.face, bound: 0, drag: null, stun: 0, cool: 1, vx: 0, vy: 0, dead: false, s: 0, beam: null, out: 0, arm: 0 });
   }
   if (st.fray) { st.fray.x = st.checkpoint.x - 9 * TS; st.fray.delay = 1.2; }
   emit(st, 'respawn', { full });
@@ -677,6 +680,11 @@ export function enemyTouches(st, e, p) {
     return false;
   }
   if (e.kind === 'lamp') return false;
+  if (e.kind === 'window') {
+    if (e.state !== 'reach' || e.arm < 0.2) return false;
+    const h = windowHand(e);
+    return segDist(cx, cy, e.x, e.y, h.x, h.y) < 18;
+  }
   return Math.abs(e.x - cx) < e.r + 8 && Math.abs(e.y - cy) < e.r + 16;
 }
 
@@ -697,7 +705,7 @@ function updateEnemies(st, dt) {
       if (ch === '^' || ch === '~' || e.y > ROWS * TS) { killEnemy(st, e); continue; }
       if (isSolidTile(st, Math.floor(e.x / TS), Math.floor(e.y / TS))) { e.x -= sx; e.y -= sy; e.drag.left = 0; }
       for (const o of st.enemies) {
-        if (o === e || o.dead || o.kind === 'serpent') continue;
+        if (o === e || o.dead || o.kind === 'serpent' || o.kind === 'window') continue;
         if (Math.hypot(o.x - e.x, o.y - e.y) < e.r + o.r) { killEnemy(st, o); killEnemy(st, e); break; }
       }
       if (e.dead) continue;
@@ -717,14 +725,46 @@ function updateEnemies(st, dt) {
       case 'lamp': updateLamp(st, e, dt); break;
       case 'serpent': updateSerpent(st, e, dt); break;
       case 'eater': updateEater(st, e, dt, px, py); break;
+      case 'window': updateWindow(st, e, dt, px, py); break;
       default: break;
     }
     // 光線に入った敵は消える
     for (const l of st.enemies) {
-      if (l === e || l.kind !== 'lamp' || l.state !== 'fire' || !l.beam || e.kind === 'serpent') continue;
+      if (l === e || l.kind !== 'lamp' || l.state !== 'fire' || !l.beam || e.kind === 'serpent' || e.kind === 'window') continue;
       const b = l.beam;
       if (e.x > b.x0 && e.x < b.x1 && Math.abs(e.y - b.y) < e.r) killEnemy(st, e);
     }
+  }
+}
+
+// 窓の顔：近づくと窓からぬっと顔を出し、見つめてから長い腕を伸ばす
+export const WINDOW = { sense: 4.6 * TS, senseY: 4 * TS, peek: 0.95, reach: 0.6, reachLen: 3.8 * TS, cool: 2.4, flinchCool: 3.2 };
+export function windowHand(e) {
+  const dx = e.tx - e.x; const dy = e.ty - e.y; const d = Math.hypot(dx, dy) || 1;
+  const len = Math.min(d + 10, WINDOW.reachLen) * e.arm;
+  return { x: e.x + dx / d * len, y: e.y + dy / d * len };
+}
+function updateWindow(st, e, dt, px, py) {
+  e.cool = Math.max(0, e.cool - dt);
+  switch (e.state) {
+    case 'shut': case 'idle': case 'hover': case 'stun':
+      e.state = 'shut'; e.out = Math.max(0, e.out - dt * 3); e.arm = 0;
+      if (e.cool <= 0 && st.player.dying <= 0 && Math.abs(px - e.x) < WINDOW.sense && Math.abs(py - e.y) < WINDOW.senseY) { e.state = 'peek'; e.timer = WINDOW.peek; emit(st, 'peek', { x: e.x }); }
+      break;
+    case 'peek':
+      e.timer -= dt; e.out = Math.min(1, e.out + dt / (WINDOW.peek * 0.8)); e.tx = px; e.ty = py; e.face = px < e.x ? -1 : 1;
+      if (e.timer <= 0) { e.state = 'reach'; e.timer = WINDOW.reach; emit(st, 'grab'); }
+      break;
+    case 'reach': {
+      e.timer -= dt; const u = 1 - Math.max(0, e.timer) / WINDOW.reach; e.arm = Math.sin(Math.min(1, u) * Math.PI);
+      if (e.timer <= 0) { e.state = 'shut'; e.arm = 0; e.cool = WINDOW.cool; }
+      break;
+    }
+    case 'flinch':
+      e.timer -= dt; e.out = Math.max(0, e.out - dt * 4); e.arm = 0;
+      if (e.timer <= 0) e.state = 'shut';
+      break;
+    default: e.state = 'shut';
   }
 }
 

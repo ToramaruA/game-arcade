@@ -253,53 +253,81 @@ function buildObjects() {
     g.fillStyle = '#4a4060'; g.fillRect(25, 1, 2, 17);
     g.fillStyle = '#f0c8a0'; g.beginPath(); g.moveTo(27, 2); g.quadraticCurveTo(40, 9, 27, 16); g.fill();
   }, { inner: (g) => { g.fillStyle = '#d8283c'; g.fillRect(30, 8, 3, 2); } });
-  // 敵
-  S.moth = [0, 1].map((fr) => makeSprite(26, 20, (g) => {
-    const f = fr ? 0.6 : 1;
+  // 敵（悪夢の住人たち）
+  const eye = (g, x, y, r, pupil = OUT) => { g.fillStyle = '#e8dcc8'; g.beginPath(); g.ellipse(x, y, r, r * 0.8, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = pupil; g.beginPath(); g.ellipse(x, y, r * 0.42, r * 0.5, 0, 0, Math.PI * 2); g.fill(); };
+  // 影蛾：翅に人の目の模様
+  S.moth = [0, 1].map((fr) => makeSprite(28, 22, (g) => {
+    const f = fr ? 0.55 : 1;
     for (const sx of [-1, 1]) {
-      g.fillStyle = '#e8503a'; g.beginPath(); g.ellipse(13 + sx * 6.5, 7, 6.5, 5 * f, sx * 0.35, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#c86848'; g.beginPath(); g.ellipse(13 + sx * 5, 13, 4.5, 3.6 * f, -sx * 0.4, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#ffd36a'; g.beginPath(); g.ellipse(13 + sx * 7, 7, 2.2, 2.2 * f, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#6a1424'; g.beginPath(); g.ellipse(14 + sx * 7, 8, 7.5, 6 * f, sx * 0.35, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#e8503a'; g.beginPath(); g.ellipse(14 + sx * 6.5, 8, 5.5, 4.3 * f, sx * 0.35, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#3a0a18'; g.beginPath(); g.ellipse(14 + sx * 5, 15, 4.5, 3.6 * f, -sx * 0.4, 0, Math.PI * 2); g.fill();
+      if (!fr) eye(g, 14 + sx * 7, 8, 2.6);
     }
-    g.fillStyle = '#2a1440'; g.beginPath(); g.ellipse(13, 10, 2.2, 6.5, 0, 0, Math.PI * 2); g.fill();
-    g.fillRect(10, 1, 1, 3); g.fillRect(15, 1, 1, 3); g.fillRect(9, 1, 1, 1); g.fillRect(16, 1, 1, 1);
+    g.fillStyle = '#120c1c'; g.beginPath(); g.ellipse(14, 11, 2.2, 7, 0, 0, Math.PI * 2); g.fill();
+    g.fillRect(11, 1, 1, 4); g.fillRect(16, 1, 1, 4); g.fillRect(10, 1, 1, 1); g.fillRect(17, 1, 1, 1);
+  }, { inner: (g) => { g.fillStyle = '#ff4a5a'; if (fr === 0) { g.fillRect(6, 7, 1, 1); g.fillRect(21, 7, 1, 1); } g.fillStyle = '#e8dcc8'; g.fillRect(13, 6, 1, 1); g.fillRect(15, 6, 1, 1); } }));
+  S.mothHot = makeSprite(28, 22, (g) => g.drawImage(S.moth[0], 0, 0), { outline: null, inner: (g) => { g.fillStyle = '#ff2a1a'; g.fillRect(13, 6, 1, 1); g.fillRect(15, 6, 1, 1); g.fillRect(6, 7, 3, 2); g.fillRect(20, 7, 3, 2); } });
+  // 仮面蜂：鎧の胴に陶器の仮面
+  S.bee = [0, 1].map((fr) => makeSprite(28, 20, (g) => {
+    g.fillStyle = '#c8c0b0'; g.beginPath(); g.ellipse(10, fr ? 3 : 4, 5, fr ? 1.8 : 4, -0.4, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#3a2a2a'; g.beginPath(); g.ellipse(9, 11, 8.5, 6.5, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#a8641c'; g.fillRect(4, 6, 2, 11); g.fillRect(9, 5, 2, 12); g.fillRect(14, 6, 2, 10);
+    g.fillStyle = '#6a4630'; g.beginPath(); g.moveTo(1, 11); g.lineTo(-2, 14); g.lineTo(2, 13); g.fill();
+    g.fillStyle = '#e8dcc8'; g.beginPath(); g.ellipse(21, 10, 6, 7, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#3a2a2a'; for (let k = 0; k < 4; k++) g.fillRect(5 + k * 4, 16, 1, 4);
   }, { inner: (g) => {
-    g.fillStyle = '#2a1440'; g.fillRect(6, 7, 1, 1); g.fillRect(19, 7, 1, 1);
-    g.fillStyle = '#ffd36a'; g.fillRect(12, 6, 1, 1); g.fillRect(14, 6, 1, 1);
-    g.fillStyle = '#4a4060'; g.fillRect(12, 9, 3, 1); g.fillRect(12, 12, 3, 1);
+    g.fillStyle = OUT; g.fillRect(19, 7, 2, 3); g.fillRect(23, 7, 2, 3);
+    g.fillStyle = '#8a8070'; g.fillRect(19, 13, 6, 1); g.fillRect(25, 12, 1, 1); g.fillRect(18, 12, 1, 1);
+    g.fillStyle = '#8a8070'; g.fillRect(22, 4, 1, 2); g.fillRect(23, 6, 1, 1);
   } }));
-  S.mothHot = makeSprite(26, 20, (g) => g.drawImage(S.moth[0], 0, 0), { outline: null, inner: (g) => { g.fillStyle = '#ff2a1a'; g.fillRect(12, 6, 1, 1); g.fillRect(14, 6, 1, 1); g.fillStyle = '#ff8a3a'; g.fillRect(5, 6, 3, 3); g.fillRect(18, 6, 3, 3); } });
-  S.bee = [0, 1].map((fr) => makeSprite(26, 18, (g) => {
-    g.fillStyle = 'rgba(191,228,255,1)'; g.beginPath(); g.ellipse(10, fr ? 3 : 4, 4, fr ? 2 : 4, -0.4, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#c9963a'; g.beginPath(); g.ellipse(9, 10, 8, 6, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#3a2a2a'; g.fillRect(5, 5, 2, 11); g.fillRect(10, 4, 2, 12);
-    g.fillStyle = '#6a4630'; g.beginPath(); g.moveTo(1, 10); g.lineTo(-2, 12); g.lineTo(2, 12); g.fill();
-    g.fillStyle = '#a8641c'; g.beginPath(); g.ellipse(19, 9, 5, 5, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#f0b030'; g.beginPath(); g.moveTo(18, 4); g.lineTo(25, 0); g.lineTo(21, 6); g.fill();
-    g.fillStyle = '#3a2a2a'; g.fillRect(6, 15, 1, 3); g.fillRect(11, 15, 1, 3); g.fillRect(15, 14, 1, 3);
-  }, { inner: (g) => { g.fillStyle = '#ffe27a'; g.fillRect(7, 7, 3, 1); g.fillStyle = OUT; g.fillRect(21, 8, 2, 2); } }));
-  S.lamp = [false, true].map((hot) => makeSprite(20, 28, (g) => {
-    g.fillStyle = '#2a2238'; g.fillRect(9, 0, 2, 5);
-    g.fillStyle = '#2a2238'; g.fillRect(4, 4, 12, 3);
-    g.fillStyle = hot ? '#ffd0c0' : '#bfe4ff'; g.beginPath(); g.ellipse(10, 13, 8, 8, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#2a2238'; g.fillRect(4, 20, 12, 3);
-    g.fillStyle = '#f4f1e8'; for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(5 + i * 3, 23); g.lineTo(6.5 + i * 3, 27); g.lineTo(8 + i * 3, 23); g.fill(); }
-  }, { inner: (g) => { g.fillStyle = hot ? '#ff2a1a' : '#4f8ac4'; g.fillRect(11, 11, 3, hot ? 4 : 2); g.fillStyle = hot ? '#ff8a3a' : '#7fc8e8'; g.fillRect(6, 9, 1, 8); g.fillRect(15, 9, 1, 8); } }));
-  S.eater = [0, 1].map((fr) => makeSprite(22, 22, (g) => {
+  // 牙灯：血走った一つ目と縫われた口
+  S.lamp = [false, true].map((hot) => makeSprite(22, 30, (g) => {
+    g.fillStyle = '#2a2238'; g.fillRect(10, 0, 2, 5); g.fillRect(5, 4, 12, 3);
+    g.fillStyle = hot ? '#ffd0c0' : '#c8c0b0'; g.beginPath(); g.ellipse(11, 14, 9, 9, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#2a2238'; g.fillRect(5, 22, 12, 3);
+    g.fillStyle = '#f4f1e8'; for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(6 + i * 3, 25); g.lineTo(7.5 + i * 3, 29); g.lineTo(9 + i * 3, 25); g.fill(); }
+    eye(g, 11, 12, 5.5, hot ? '#ff2a1a' : '#120c1c');
+  }, { inner: (g) => {
+    g.fillStyle = '#ff4a5a'; g.fillRect(6, 11, 2, 1); g.fillRect(15, 13, 2, 1); g.fillRect(9, 8, 1, 1);
+    g.fillStyle = OUT; g.fillRect(7, 19, 9, 1); for (let x = 7; x <= 15; x += 2) g.fillRect(x, 18, 1, 3);
+    if (hot) { g.fillStyle = '#fff'; g.fillRect(11, 11, 1, 1); }
+  } }));
+  // 糸喰い：歯だらけの毛玉と細い指
+  S.eater = [0, 1].map((fr) => makeSprite(26, 26, (g) => {
+    g.fillStyle = '#120c1c';
+    for (let k = 0; k < 4; k++) { const a = -0.6 + k * 0.4; g.fillRect(Math.round(13 + Math.cos(a) * 11), Math.round(15 + Math.sin(a) * 11), 2, 4 + fr); }
     g.fillStyle = '#2a1440'; g.beginPath();
-    for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; const r = 8 + (i % 2 ? 2.5 : 0); g.lineTo(11 + Math.cos(a) * r, 11 + Math.sin(a) * r); }
+    for (let i = 0; i < 18; i++) { const a = i / 18 * Math.PI * 2; const r = 8.5 + (i % 2 ? 2.8 : 0); g.lineTo(13 + Math.cos(a) * r, 12 + Math.sin(a) * r); }
     g.fill();
-    g.fillStyle = '#ff5a8a'; g.beginPath(); g.ellipse(13, 13, 5, fr ? 4.5 : 1.8, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#6a1424'; g.beginPath(); g.ellipse(13, 14, 7, fr ? 5 : 2.2, 0, 0, Math.PI * 2); g.fill();
   }, { inner: (g) => {
-    g.fillStyle = '#ffe27a'; g.fillRect(8, 6, 2, 2); g.fillRect(14, 6, 2, 2); g.fillStyle = OUT; g.fillRect(9, 7, 1, 1); g.fillRect(15, 7, 1, 1);
-    g.fillStyle = '#f4f1e8'; if (fr) { for (let i = 0; i < 4; i++) { g.fillRect(9 + i * 2, 9, 1, 2); g.fillRect(9 + i * 2, 16, 1, 1); } }
+    g.fillStyle = '#e8dcc8'; for (let i = 0; i < 6; i++) { g.fillRect(8 + i * 2, fr ? 10 : 12, 1, 2); g.fillRect(8 + i * 2, fr ? 17 : 15, 1, 1); }
+    g.fillStyle = '#ffe27a'; g.fillRect(9, 6, 1, 1); g.fillRect(17, 5, 1, 1); g.fillRect(13, 4, 1, 1);
   } }));
-  S.serpHead = makeSprite(18, 14, (g) => {
-    g.fillStyle = '#7fc8e8'; g.beginPath(); g.ellipse(8, 7, 8, 5.5, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#bfe4ff'; g.beginPath(); g.moveTo(3, 3); g.lineTo(6, -1); g.lineTo(9, 3); g.fill();
-  }, { inner: (g) => { g.fillStyle = '#f4f1e8'; g.fillRect(10, 4, 3, 3); g.fillStyle = OUT; g.fillRect(11, 5, 2, 2); g.fillStyle = '#1a3a5a'; g.fillRect(12, 9, 4, 1); } });
-  S.serpSeg = makeSprite(12, 12, (g) => { g.fillStyle = '#7fc8e8'; g.beginPath(); g.ellipse(6, 6, 5, 5, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#4f8ac4'; g.fillRect(3, 7, 6, 2); }, { inner: (g) => { g.fillStyle = '#bfe4ff'; g.fillRect(4, 3, 2, 1); } });
-  S.serpSegBound = makeSprite(12, 12, (g) => { g.fillStyle = '#bfe4ff'; g.beginPath(); g.ellipse(6, 6, 5, 5, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#f0b030'; g.fillRect(5, 1, 2, 10); });
+  // 海蛇：白い鱗にところどころ目
+  S.serpHead = makeSprite(20, 16, (g) => {
+    g.fillStyle = '#c8c0b0'; g.beginPath(); g.ellipse(9, 8, 9, 6, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#8a8070'; g.beginPath(); g.moveTo(3, 4); g.lineTo(5, -1); g.lineTo(8, 3); g.lineTo(10, -1); g.lineTo(12, 3); g.fill();
+    g.fillStyle = '#6a1424'; g.fillRect(9, 10, 10, 3);
+  }, { inner: (g) => { g.fillStyle = '#e8dcc8'; g.fillRect(11, 5, 3, 3); g.fillStyle = '#ff2a1a'; g.fillRect(12, 6, 1, 1); g.fillStyle = '#e8dcc8'; for (let x = 10; x < 18; x += 2) g.fillRect(x, 10, 1, 1); } });
+  S.serpSeg = makeSprite(12, 12, (g) => { g.fillStyle = '#c8c0b0'; g.beginPath(); g.ellipse(6, 6, 5, 5, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#8a8070'; g.fillRect(3, 7, 6, 2); }, { inner: (g) => { g.fillStyle = '#e8dcc8'; g.fillRect(4, 3, 2, 1); } });
+  S.serpSegEye = makeSprite(12, 12, (g) => { g.fillStyle = '#c8c0b0'; g.beginPath(); g.ellipse(6, 6, 5, 5, 0, 0, Math.PI * 2); g.fill(); eye(g, 6, 5, 2.6); });
+  S.serpSegBound = makeSprite(12, 12, (g) => { g.fillStyle = '#e8dcc8'; g.beginPath(); g.ellipse(6, 6, 5, 5, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#f0b030'; g.fillRect(5, 1, 2, 10); });
+  // 窓の顔：傾いた家の壁と窓、ぬっと出る顔、長い腕
+  S.facade = makeSprite(40, 50, (g) => {
+    g.fillStyle = '#3a2418'; g.beginPath(); g.moveTo(3, 14); g.lineTo(38, 10); g.lineTo(37, 50); g.lineTo(4, 50); g.closePath(); g.fill();
+    g.fillStyle = '#1e0610'; g.beginPath(); g.moveTo(0, 15); g.lineTo(21, 0); g.lineTo(40, 11); g.lineTo(38, 13); g.lineTo(21, 4); g.lineTo(2, 17); g.closePath(); g.fill();
+    g.fillStyle = '#5a3a28'; for (let y = 18; y < 50; y += 5) g.fillRect(5, y, 31, 1);
+    g.fillStyle = '#5a3a28'; g.fillRect(9, 17, 22, 22);
+    g.fillStyle = '#0a0408'; g.fillRect(11, 19, 18, 18);
+  }, { inner: (g) => { g.fillStyle = '#5a3a28'; g.fillRect(19, 19, 2, 18); g.fillRect(11, 27, 18, 2); g.fillStyle = '#3a2418'; g.fillRect(8, 39, 24, 2); } });
+  S.face = makeSprite(18, 26, (g) => {
+    g.fillStyle = '#c8c0b0'; g.beginPath(); g.ellipse(9, 13, 7.5, 12, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#e8dcc8'; g.beginPath(); g.ellipse(8, 10, 5, 7, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#0a0408'; g.beginPath(); g.ellipse(6, 10, 2.2, 3, 0, 0, Math.PI * 2); g.ellipse(12, 10, 2.2, 3, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#0a0408'; g.beginPath(); g.moveTo(3, 18); g.quadraticCurveTo(9, 23, 15, 18); g.quadraticCurveTo(9, 20, 3, 18); g.fill();
+  }, { inner: (g) => { g.fillStyle = '#fff'; g.fillRect(6, 10, 1, 1); g.fillRect(12, 10, 1, 1); g.fillStyle = '#e8dcc8'; for (let x = 5; x < 14; x += 2) g.fillRect(x, 19, 1, 1); g.fillStyle = '#8a8070'; g.fillRect(4, 4, 1, 3); g.fillRect(14, 15, 1, 2); } });
 }
 
 function glow(ctx, x, y, r, color) {
@@ -336,8 +364,8 @@ export function targetRing(ctx, x, y, t, dim) {
 // ───────────────────────── 章ごとのタイル ─────────────────────────
 export const CH = [
   { // 夜明けの雲海・鯨の背
-    skin: '#9fc0d4', skinD: '#7896b4', skinL: '#d6e8f0', deep: '#56708e', top: '#4fb08a', topD: '#2f7a68', barn: '#e8e0cc', barnD: '#b0a890', plank: '#f0c8a0', plankD: '#c86848',
-    thorn: '#2f7a68', thornTip: '#f49a7a', mist: '#f4f1e8', mistD: '#e0b8b0',
+    skin: '#5a7488', skinD: '#3e5468', skinL: '#8aa4b4', deep: '#1a2430', top: '#3a6a50', topD: '#24484a', barn: '#c8c0b0', barnD: '#8a8070', plank: '#5a3a28', plankD: '#3a2418',
+    thorn: '#16303a', thornTip: '#a8b090', mist: '#a8b090', mistD: '#3a5a50',
   },
   { // 光る森
     skin: '#103026', skinD: '#0a1f18', skinL: '#184a38', deep: '#06120e', top: '#2fa06a', topD: '#1b6a4a', barn: '#5ff0d0', barnD: '#3fd8d0', plank: '#6a4630', plankD: '#3a2a2a',
@@ -541,6 +569,18 @@ export function drawObjects(ctx, st, t, preview) {
   for (const s of st.stars) if (!s.got) drawStarBell(ctx, X(s.x), X(s.y) + (Math.floor(t * 3 + s.id) % 2), t);
 }
 
+// 窓の顔の家（背景側に描く）
+export function drawWindowHouses(ctx, st, t) {
+  buildObjects();
+  for (const e of st.enemies) {
+    if (e.kind !== 'window') continue;
+    const x = X(e.x); const y = X(e.y);
+    blit(ctx, S.facade, x - 20, y - 28);
+    // 窓の奥の気配：閉じている間もときどき目が光る
+    if (e.out <= 0 && Math.floor(t * 0.7 + e.id) % 4 === 0 && Math.floor(t * 8) % 9) { ctx.fillStyle = '#ffe27a'; ctx.fillRect(x - 4, y - 2, 1, 1); ctx.fillRect(x + 3, y - 2, 1, 1); }
+  }
+}
+
 // ───────────────────────── 敵 ─────────────────────────
 export function warnMark(ctx, x, y, t) {
   if (Math.floor(t * 10) % 2) return;
@@ -564,13 +604,13 @@ export function drawEnemy(ctx, e, t) {
   switch (e.kind) {
     case 'moth': {
       const img = e.state === 'warn' ? S.mothHot : S.moth[e.bound > 0 ? 0 : Math.floor(t * (e.state === 'dive' ? 20 : 8)) % 2];
-      blit(ctx, img, x - 13, y - 10, flip);
+      blit(ctx, img, x - 14, y - 11, flip);
       break;
     }
     case 'bee': {
       const dx = e.state === 'warn' ? (Math.floor(t * 30) % 2 ? 1 : -1) : 0;
       if (e.state === 'charge') { ctx.fillStyle = 'rgba(255,226,122,.7)'; for (let i = 0; i < 3; i++) ctx.fillRect(x - e.face * (14 + i * 4) - 4, y - 4 + i * 4, 6, 1); }
-      blit(ctx, S.bee[Math.floor(t * 20) % 2], x - 13 + dx, y - 9 + (e.state === 'warn' ? 1 : 0), flip);
+      blit(ctx, S.bee[Math.floor(t * 20) % 2], x - 14 + dx, y - 10 + (e.state === 'warn' ? 1 : 0), flip);
       break;
     }
     case 'lamp': {
@@ -578,7 +618,7 @@ export function drawEnemy(ctx, e, t) {
       if (e.beam && e.state === 'warn') { ctx.fillStyle = '#ff2a1a'; const by = X(e.beam.y); for (let xx = X(e.beam.x0); xx < X(e.beam.x1); xx += 4) if ((xx + Math.floor(t * 20)) % 8 < 4) ctx.fillRect(xx, by, 2, 1); }
       if (e.beam && e.state === 'fire') { const by = X(e.beam.y); const x0 = X(e.beam.x0); const w = X(e.beam.x1) - x0; ctx.fillStyle = '#ff2a1a'; ctx.fillRect(x0, by - 3, w, 7); ctx.fillStyle = '#ffd0c0'; ctx.fillRect(x0, by - 2, w, 5); ctx.fillStyle = '#fff'; ctx.fillRect(x0, by - 1, w, 2); }
       glow(ctx, x, y, 14, hot ? '#ff2a1a' : '#7fc8e8');
-      blit(ctx, S.lamp[hot ? 1 : 0], x - 10, y - 14, flip);
+      blit(ctx, S.lamp[hot ? 1 : 0], x - 11, y - 15, flip);
       break;
     }
     case 'serpent': {
@@ -593,13 +633,38 @@ export function drawEnemy(ctx, e, t) {
       const [u0, u1] = serpentSpan(e);
       if (u1 <= u0) return;
       const seg = e.bound > 0 ? S.serpSegBound : S.serpSeg;
-      for (let u = u0; u <= u1; u += 0.045) { const sx = X(e.x0 + u * (e.x1 - e.x0)); const sy = X(serpentY(e, u)); ctx.drawImage(seg, sx - 6, sy - 6); }
-      if (e.s < 1) { const hd = serpentHead(e); blit(ctx, S.serpHead, X(hd.x) - 9, X(hd.y) - 8); }
+      let n = 0;
+      for (let u = u0; u <= u1; u += 0.045) { const sx = X(e.x0 + u * (e.x1 - e.x0)); const sy = X(serpentY(e, u)); ctx.drawImage(e.bound > 0 ? seg : (n++ % 4 === 2 && Math.floor(t * 3 + n) % 5 ? S.serpSegEye : seg), sx - 6, sy - 6); }
+      if (e.s < 1) { const hd = serpentHead(e); blit(ctx, S.serpHead, X(hd.x) - 10, X(hd.y) - 8); }
       return;
     }
     case 'eater': {
-      blit(ctx, S.eater[e.alert || e.state === 'chew' ? Math.floor(t * 8) % 2 : 0], x - 11, y - 11, flip);
+      blit(ctx, S.eater[e.alert || e.state === 'chew' ? Math.floor(t * 8) % 2 : 0], x - 13, y - 12, flip);
       break;
+    }
+    case 'window': {
+      // 顔は窓の中から少しずつせり出す（窓枠で切り抜く）
+      const wx = x - 9; const wy = y - 9;
+      if (e.out > 0) {
+        ctx.save(); ctx.beginPath(); ctx.rect(wx, wy - 26, 18, 44); ctx.clip();
+        const fy = wy + 18 - Math.round(e.out * 22);
+        blit(ctx, S.face, wx, fy, false);
+        ctx.restore();
+      }
+      if (e.state === 'reach' || e.arm > 0) {
+        const hx = X(e.x + (e.tx - e.x)); void hx;
+        const dx = e.tx - e.x; const dy = e.ty - e.y; const d = Math.hypot(dx, dy) || 1;
+        const len = Math.min(d + 10, 3.8 * TS) * e.arm;
+        const ex = X(e.x + dx / d * len); const ey = X(e.y + dy / d * len);
+        ctx.fillStyle = OUT; pxLine(ctx, x, y + 4, ex, ey, 5);
+        ctx.fillStyle = '#c8c0b0'; pxLine(ctx, x, y + 4, ex, ey, 3);
+        ctx.fillStyle = '#8a8070'; pxLine(ctx, x, y + 5, ex, ey + 1, 1);
+        // 骨ばった指
+        const a = Math.atan2(dy, dx);
+        for (let k = -2; k <= 2; k++) { const b = a + k * 0.35; ctx.fillStyle = OUT; pxLine(ctx, ex, ey, ex + Math.cos(b) * 7, ey + Math.sin(b) * 7, 3); ctx.fillStyle = '#e8dcc8'; pxLine(ctx, ex, ey, ex + Math.cos(b) * 6, ey + Math.sin(b) * 6, 1); }
+      }
+      if (e.state === 'peek' && e.out > 0.3) warnMark(ctx, x, y - 30, t);
+      return;
     }
     default: break;
   }
@@ -614,15 +679,24 @@ export function drawFray(ctx, f, top, bottom, t) {
   if (f.dying > 0) ctx.globalAlpha = Math.max(0, f.dying / 2.5);
   for (let y = top; y < bottom; y += 2) {
     const j = Math.round(Math.sin(y * 0.2 + t * 6) * 3 + (hash(Math.floor(y / 4)) - 0.5) * 6);
-    ctx.fillStyle = '#3a0a18'; ctx.fillRect(x - 400, y, 400 + j - 8, 2);
-    ctx.fillStyle = '#a82038'; ctx.fillRect(x + j - 8, y, 6, 2);
-    ctx.fillStyle = '#ff4a5a'; ctx.fillRect(x + j - 2, y, 2, 2);
+    ctx.fillStyle = '#1e0610'; ctx.fillRect(x - 400, y, 400 + j - 8, 2);
+    ctx.fillStyle = '#6a1424'; ctx.fillRect(x + j - 8, y, 6, 2);
+    ctx.fillStyle = '#a82038'; ctx.fillRect(x + j - 2, y, 2, 2);
   }
-  ctx.fillStyle = '#ff4a5a';
-  for (let i = 0; i < 8; i++) { const y = top + Math.floor(((i * 37 + t * 14) % (bottom - top))); for (let k = 0; k < 10; k++) ctx.fillRect(x + k, y + Math.round(Math.sin(t * 4 + i + k * 0.5) * 2), 1, 1); }
-  for (let i = 0; i < 3; i++) {
-    const y = Math.round(top + (bottom - top) * (0.25 + i * 0.25) + Math.sin(t * 2 + i) * 4);
-    ctx.fillStyle = '#ffd0c0'; pxEllipse(ctx, x - 18, y, 6, 3); ctx.fillStyle = OUT; ctx.fillRect(x - 17, y - 2, 3, 4);
+  // 伸びてくる白い手
+  for (let i = 0; i < 6; i++) {
+    const y = Math.round(top + ((i * 53 + 20) % Math.max(1, bottom - top)));
+    const reach = 6 + Math.round((Math.sin(t * 3 + i * 1.7) * 0.5 + 0.5) * 14);
+    ctx.fillStyle = OUT; ctx.fillRect(x - 4, y - 2, reach + 4, 5);
+    ctx.fillStyle = '#c8c0b0'; ctx.fillRect(x - 4, y - 1, reach + 3, 3);
+    for (let k = -1; k <= 1; k++) { ctx.fillStyle = OUT; ctx.fillRect(x + reach - 1, y + k * 3 - 1, 6, 3); ctx.fillStyle = '#e8dcc8'; ctx.fillRect(x + reach, y + k * 3, 5, 1); }
+  }
+  // 目
+  for (let i = 0; i < 5; i++) {
+    const y = Math.round(top + (bottom - top) * (0.12 + i * 0.2) + Math.sin(t * 2 + i) * 4);
+    const ex = x - 22 - (i % 2) * 14; const open = Math.floor(t * 2 + i * 1.3) % 6 ? 3 : 1;
+    ctx.fillStyle = '#e8dcc8'; pxEllipse(ctx, ex, y, 7, open); ctx.fillStyle = OUT; ctx.fillRect(ex - 1, y - open + 1, 3, open * 2 - 1);
+    ctx.fillStyle = '#ff2a1a'; ctx.fillRect(ex, y, 1, 1);
   }
   ctx.restore();
 }
@@ -636,7 +710,7 @@ export function drawThread(ctx, from, to, color, phase, prog) {
 
 // ───────────────────────── 背景 ─────────────────────────
 const SKY = [
-  ['#163a5a', '#1f5a78', '#2f8296', '#5fb0b0', '#f0c8a0', '#f49a7a'],
+  ['#0a0e16', '#0e1a24', '#16303a', '#24484a', '#3a5a50', '#6a7a5a'],
   ['#06120e', '#0a1f18', '#0e1c2a', '#103026', '#184a38', '#103026'],
   ['#0a0408', '#1e0610', '#3a0a18', '#6a1424', '#3a0a18', '#1e0610'],
 ];
@@ -667,20 +741,32 @@ function layer(ch, idx, h) {
   const g = c.getContext('2d');
   const R = (n) => hash(ch * 1000 + idx * 100 + n);
   if (ch === 0) {
-    if (idx === 0) { // 遠くを泳ぐ空鯨たち
-      g.save(); g.imageSmoothingEnabled = false; g.scale(0.5, 0.5); g.drawImage(whaleSprite('#2f8296'), 60, 30); g.drawImage(whaleSprite('#2f8296'), 400, 90); g.restore();
-      g.fillStyle = '#f0c8a0'; for (let x = 0; x < W; x += 1) { const hh = 10 + Math.round(Math.sin(x * 0.05) * 4 + Math.sin(x * 0.13) * 2); g.fillRect(x, h - hh - 30, 1, hh + 30); }
-    } else if (idx === 1) { // 雲海の峰
-      for (let i = 0; i < 9; i++) { g.fillStyle = '#e0b8b0'; pxDome(g, i * 40 + R(i) * 20, h - 22, 24 + R(i + 9) * 16, 12 + R(i + 3) * 10); }
-      g.fillStyle = '#e0b8b0'; g.fillRect(0, h - 22, W, 22);
-      for (let i = 0; i < 9; i++) { g.fillStyle = '#f4f1e8'; pxDome(g, i * 40 + R(i) * 20 - 4, h - 26, 16 + R(i + 9) * 10, 8 + R(i + 3) * 7); }
-      // 古い機織りの塔の島
-      const ix = 210; g.fillStyle = '#56708e'; pxEllipse(g, ix, h - 40, 26, 6); g.fillRect(ix - 6, h - 76, 12, 36); g.fillRect(ix - 10, h - 80, 20, 4);
-      g.fillStyle = '#d8283c'; g.fillRect(ix + 6, h - 74, 10, 3); g.fillRect(ix + 6, h - 66, 7, 3);
-      g.fillStyle = '#ffd890'; g.fillRect(ix - 2, h - 70, 4, 5);
-    } else { // 手前の雲
-      for (let i = 0; i < 7; i++) { g.fillStyle = '#f4f1e8'; pxDome(g, i * 52 + R(i) * 24, h, 30 + R(i + 4) * 14, 16 + R(i + 7) * 10); }
-      g.fillStyle = '#f0c8a0'; for (let i = 0; i < 7; i++) g.fillRect(Math.floor(i * 52 + R(i) * 24) - 20, h - 3, 40, 3);
+    if (idx === 0) { // 遠くを泳ぐ空鯨たち（背に町の影）
+      g.save(); g.imageSmoothingEnabled = false; g.scale(0.5, 0.5); g.drawImage(whaleSprite('#16303a'), 60, 30); g.drawImage(whaleSprite('#16303a'), 400, 90); g.restore();
+      g.fillStyle = '#16303a'; for (let k = 0; k < 5; k++) { g.fillRect(52 + k * 7, 20 - (k % 2) * 3, 5, 6 + (k % 2) * 3); g.fillRect(222 + k * 6, 50 - (k % 3), 4, 5 + (k % 2) * 2); }
+      g.fillStyle = '#d8e0b0'; for (let k = 0; k < 5; k++) if (k % 2 === 0) g.fillRect(54 + k * 7, 23 - (k % 2) * 3, 1, 1);
+      g.fillStyle = '#24484a'; for (let x = 0; x < W; x += 1) { const hh = 10 + Math.round(Math.sin(x * 0.05) * 4 + Math.sin(x * 0.13) * 2); g.fillRect(x, h - hh - 30, 1, hh + 30); }
+    } else if (idx === 1) { // 鯨の背の眠る町：傾いた家々と灯る窓
+      g.fillStyle = '#16303a'; g.fillRect(0, h - 26, W, 26);
+      for (let i = 0; i < 10; i++) {
+        const x = Math.floor(i * 32 + R(i) * 10); const hh = 22 + Math.floor(R(i + 9) * 30); const ww = 14 + Math.floor(R(i + 3) * 10);
+        const lean = Math.round((R(i + 5) - 0.5) * 4);
+        g.fillStyle = '#0e1a24';
+        for (let y = 0; y < hh; y++) g.fillRect(x + Math.round(lean * y / hh), h - 26 - y, ww, 1);
+        for (let y = 0; y < 8; y++) g.fillRect(x + lean - 2 + y, h - 26 - hh - y, Math.max(1, ww + 4 - y * 2), 1);
+        g.fillRect(x + lean + ww - 5, h - 26 - hh - 12, 3, 6);
+        for (let k = 0; k < 4; k++) {
+          const wx = x + 3 + (k % 2) * (ww - 9); const wy = h - 30 - 6 - Math.floor(k / 2) * 12;
+          if (wy < h - 26 - hh + 4) continue;
+          const lit = R(i * 4 + k) < 0.55;
+          g.fillStyle = lit ? '#d8e0b0' : '#0a0408'; g.fillRect(wx, wy, 4, 5);
+          if (!lit && R(i * 4 + k + 40) < 0.5) { g.fillStyle = '#ffe27a'; g.fillRect(wx, wy + 2, 1, 1); g.fillRect(wx + 3, wy + 2, 1, 1); }
+          if (lit) { g.fillStyle = '#6a7a5a'; g.fillRect(wx + 1, wy, 1, 5); g.fillRect(wx, wy + 2, 4, 1); }
+        }
+      }
+    } else { // 手前のくすんだ雲
+      for (let i = 0; i < 7; i++) { g.fillStyle = '#3a5a50'; pxDome(g, i * 52 + R(i) * 24, h, 30 + R(i + 4) * 14, 16 + R(i + 7) * 10); }
+      for (let i = 0; i < 7; i++) { g.fillStyle = '#6a7a5a'; pxDome(g, i * 52 + R(i) * 24 - 6, h - 6, 16 + R(i + 4) * 8, 8 + R(i + 7) * 5); }
     }
   } else if (ch === 1) {
     if (idx === 0) { // 鯨の腹（天井）と垂れる光の蔓
@@ -688,6 +774,8 @@ function layer(ch, idx, h) {
       g.fillStyle = '#1a3a5a'; for (let x = 0; x < W; x += 24) g.fillRect(x, 0, 2, 22);
       g.fillStyle = '#5ff0d0'; for (let i = 0; i < 14; i++) { const x = Math.floor(R(i) * W); const len = 10 + Math.floor(R(i + 30) * 40); for (let y = 24; y < 24 + len; y += 2) g.fillRect(x + Math.round(Math.sin(y * 0.2) * 1), y, 1, 1); g.fillRect(x - 1, 24 + len, 3, 2); }
       g.fillStyle = '#103026'; for (let i = 0; i < 12; i++) { const x = i * 28 + R(i) * 10; g.fillRect(x, h - 120, 6, 120); pxDome(g, x + 3, h - 118, 14, 20); }
+      for (let i = 0; i < 12; i++) { if (R(i + 60) < 0.45) { const x = Math.floor(i * 28 + R(i) * 10); const y = h - 70 - Math.floor(R(i + 61) * 30); g.fillStyle = '#06120e'; g.fillRect(x, y - 2, 6, 6); g.fillStyle = '#c8ff9a'; g.fillRect(x + 1, y, 1, 1); g.fillRect(x + 4, y, 1, 1); } }
+      g.fillStyle = '#184a38'; for (let i = 0; i < 6; i++) { const x = Math.floor(R(i + 80) * W); const y = 30 + Math.floor(R(i + 81) * 30); g.fillRect(x, 24, 1, y - 24); pxEllipse(g, x, y + 4, 3, 5); }
     } else if (idx === 1) { // 巨大な光るきのこ
       for (let i = 0; i < 4; i++) {
         const x = 40 + i * 80 + R(i) * 20; const hh = 40 + R(i + 5) * 40;
@@ -711,8 +799,18 @@ function layer(ch, idx, h) {
       const gx = 260; const gy = 30; g.fillStyle = '#3a0a18'; pxEllipse(g, gx, gy, 14, 14); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; g.fillRect(gx + Math.round(Math.cos(a) * 15) - 2, gy + Math.round(Math.sin(a) * 15) - 2, 4, 4); }
       g.fillStyle = '#1e0610'; pxEllipse(g, gx, gy, 6, 6);
     } else if (idx === 1) {
-      g.fillStyle = '#3a0a18'; for (let x = 0; x < W; x++) { const hh = 26 + Math.round(Math.sin(x * 0.05) * 8 + Math.sin(x * 0.17) * 3); g.fillRect(x, h - hh, 1, hh); }
-      g.fillStyle = '#f0b030'; for (let x = 0; x < W; x += 7) { const hh = 26 + Math.round(Math.sin(x * 0.05) * 8 + Math.sin(x * 0.17) * 3); g.fillRect(x, h - hh + 2, 3, 1); }
+      // 果てしなく続く窓の壁
+      g.fillStyle = '#3a0a18'; g.fillRect(0, h - 64, W, 64);
+      g.fillStyle = '#1e0610'; g.fillRect(0, h - 66, W, 3);
+      for (let i = 0; i < 16; i++) {
+        const x = i * 20 + 4; const y = h - 56 + (i % 2) * 6;
+        g.fillStyle = '#6a1424'; g.fillRect(x - 1, y - 1, 12, 18);
+        g.fillStyle = '#0a0408'; g.fillRect(x, y, 10, 16);
+        g.fillStyle = '#6a1424'; g.fillRect(x + 4, y, 2, 16);
+        if (R(i + 20) < 0.35) { g.fillStyle = '#c8c0b0'; pxEllipse(g, x + 5, y + 9, 3, 5); g.fillStyle = '#0a0408'; g.fillRect(x + 3, y + 7, 1, 2); g.fillRect(x + 6, y + 7, 1, 2); g.fillRect(x + 4, y + 11, 2, 1); }
+        else if (R(i + 40) < 0.4) { g.fillStyle = '#ff4a5a'; g.fillRect(x + 2, y + 6, 1, 1); g.fillRect(x + 7, y + 6, 1, 1); }
+      }
+      g.fillStyle = '#f0b030'; for (let x = 0; x < W; x += 6) g.fillRect(x, h - 66, 3, 1);
     } else {
       g.fillStyle = '#1e0610'; for (let i = 0; i < 6; i++) { const x = i * 60 + R(i) * 30; pxDome(g, x, h, 26, 18 + R(i + 1) * 12); }
     }
@@ -755,12 +853,17 @@ function cracks(ctx, w, h, camX, k) {
 export function drawBackground(ctx, ch, camX, camY, w, h, t, opts = {}) {
   const horizon = Math.round(h * 0.62 - (camY + h - 224) * 0.12);
   skyBands(ctx, ch, w, Math.max(h, 220), Math.min(0, horizon - Math.round(h * 0.62)));
-  stars(ctx, w, h, camX, t, ch === 0 ? '#ffd890' : ch === 1 ? '#c8ff9a' : '#ffd0c0');
+  stars(ctx, w, h, camX, t, ch === 0 ? '#d8e0b0' : ch === 1 ? '#c8ff9a' : '#ffd0c0');
   if (ch === 0) {
-    // 大きな朝日
-    const sx = Math.round(w * 0.78); const sy = horizon - 30;
-    ctx.fillStyle = '#ffb070'; pxEllipse(ctx, sx, sy, 26, 26); ctx.fillStyle = '#ffd890'; pxEllipse(ctx, sx, sy, 20, 20);
-    ctx.fillStyle = '#ffe27a'; for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6 + t * 0.1; for (let r = 30; r < 38; r += 2) ctx.fillRect(sx + Math.round(Math.cos(a) * r), sy + Math.round(Math.sin(a) * r), 1, 1); }
+    // 眠る目のある青白い月
+    const sx = Math.round(w * 0.78); const sy = horizon - 64;
+    ctx.fillStyle = '#3a5a50'; pxEllipse(ctx, sx, sy, 24, 24);
+    ctx.fillStyle = '#d8e0b0'; pxEllipse(ctx, sx, sy, 20, 20);
+    ctx.fillStyle = '#a8b090'; pxEllipse(ctx, sx - 7, sy - 8, 4, 3); pxEllipse(ctx, sx + 9, sy + 7, 3, 2); pxEllipse(ctx, sx - 10, sy + 9, 2, 2);
+    const open = Math.floor(t * 0.5) % 7 === 0 ? Math.min(3, Math.floor((t * 0.5 % 1) * 12)) : 0;
+    ctx.fillStyle = '#120c1c'; ctx.fillRect(sx - 8, sy + 1, 17, 1);
+    for (let k = -3; k <= 3; k++) ctx.fillRect(sx + k * 2 + 1, sy + 2, 1, 1 + (k % 2 ? 0 : 1));
+    if (open) { ctx.fillStyle = '#e8dcc8'; pxEllipse(ctx, sx, sy + 1, 7, open); ctx.fillStyle = '#ff2a1a'; ctx.fillRect(sx - 1, sy, 3, Math.max(1, open)); }
   }
   if (ch === 2 && (opts.eye ?? 0) > 0) bigEye(ctx, Math.round(w * 0.6 - (camX * 0.03) % 60), Math.round(h * 0.26), Math.round(Math.min(w, h) * 0.18), t, opts.eye);
   if (ch === 2 && (opts.cracks ?? 0) > 0) cracks(ctx, w, h, camX, opts.cracks);
@@ -769,9 +872,9 @@ export function drawBackground(ctx, ch, camX, camY, w, h, t, opts = {}) {
   drawLayer(ctx, layer(ch, 1, 120), camX, 0.3, horizon - 70, w);
   drawLayer(ctx, layer(ch, 2, 60), camX, 0.55, horizon + 16, w);
   const under = horizon + 76;
-  if (under < h) { ctx.fillStyle = ch === 0 ? '#f0c8a0' : ch === 1 ? '#06120e' : '#1e0610'; ctx.fillRect(0, under, w, h - under); }
+  if (under < h) { ctx.fillStyle = ch === 0 ? '#3a5a50' : ch === 1 ? '#06120e' : '#1e0610'; ctx.fillRect(0, under, w, h - under); }
   // 漂う光
-  ctx.fillStyle = ch === 0 ? '#fff' : ch === 1 ? '#c8ff9a' : '#f0b030';
+  ctx.fillStyle = ch === 0 ? '#d8e0b0' : ch === 1 ? '#c8ff9a' : '#f0b030';
   for (let i = 0; i < 14; i++) {
     const x = Math.floor(((hash(i + 300) * w * 3 - camX * 0.5 + Math.sin(t * 0.5 + i) * 10) % (w + 10) + w + 10) % (w + 10));
     const y = Math.floor(horizon - 70 + hash(i + 400) * 110 + Math.sin(t + i) * 4);
@@ -851,6 +954,7 @@ export function drawFoeIcon(g, kind, t) {
     for (let i = 0; i < 7; i++) g.drawImage(S.serpSeg, 6 + i * 5, 30 - Math.round(Math.sin(i / 6 * Math.PI) * 16));
     blit(g, S.serpHead, 40, 20); return;
   }
+  if (kind === 'window') { blit(g, S.facade, 10, -2); const wx = 21; g.save(); g.beginPath(); g.rect(wx, 17, 18, 18); g.clip(); blit(g, S.face, wx, 12); g.restore(); return; }
   const e = { kind, x: 30 / K, y: 24 / K, r: 16, face: 1, state: kind === 'lamp' ? 'idle' : 'hover', bound: 0, stun: 0, alert: kind === 'eater', beam: null };
   drawEnemy(g, e, t);
 }
