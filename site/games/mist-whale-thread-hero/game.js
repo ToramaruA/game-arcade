@@ -2,6 +2,7 @@
 import * as L from './logic.js';
 import * as A from './art.js';
 import { createAudio } from './audio.js';
+import { pixelPost, pixelCanvas } from './pixel.js';
 
 const $ = (id) => document.getElementById(id);
 const qs = new URLSearchParams(location.search);
@@ -20,8 +21,10 @@ let reduce = settings.reduce ?? window.matchMedia?.('(prefers-reduced-motion: re
 const persist = () => put(L.SAVE_KEY, L.serialize(save));
 const audio = createAudio(storage, 'mist-whale-thread-hero:audio');
 
-const cv = $('cv'); const ctx = cv.getContext('2d');
-let dpr = 1; let W = 0; let H = 0;
+const cv = $('cv'); const out = cv.getContext('2d');
+// 低い解像度のバッファに描いて、ドットのまま拡大する
+const lo = document.createElement('canvas'); const ctx = lo.getContext('2d', { willReadFrequently: true });
+let dpr = 1; let W = 0; let H = 0; let PIX = 3; let R = 1 / 3;
 let mode = 'title';
 let st = null;
 let cam = { x: 0, y: 0 };
@@ -41,6 +44,8 @@ function resize() {
   dpr = Math.min(2, window.devicePixelRatio || 1);
   W = Math.max(1, r.width); H = Math.max(1, r.height);
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  PIX = W < 520 ? 2 : Math.max(2, Math.min(4, Math.round(H / (OG ? 210 : 240))));
+  lo.width = Math.ceil(W / PIX); lo.height = Math.ceil(H / PIX); R = lo.width / W;
 }
 window.addEventListener('resize', resize);
 try { new ResizeObserver(() => resize()).observe(document.getElementById('cv')); } catch { /* 古いブラウザは resize だけ */ }
@@ -166,7 +171,7 @@ function handleEvents() {
 const nearX = () => true;
 
 // ───────────────────────── HUD ─────────────────────────
-const HEART_SVG = '<svg class="heart" viewBox="0 0 26 24" aria-hidden="true"><path d="M13 22 C4 15 1 11 1 7 C1 3.5 4 1 7.2 1 C9.8 1 11.8 2.6 13 4.6 C14.2 2.6 16.2 1 18.8 1 C22 1 25 3.5 25 7 C25 11 22 15 13 22Z" fill="#e8343a" stroke="#fff4d6" stroke-width="1.6"/><path d="M6 6 C7 4.5 8.5 4 9.5 4.4" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>';
+const HEART_SVG = '<svg class="heart" viewBox="-1 -1 11 10" shape-rendering="crispEdges" aria-hidden="true"><g fill="#0b0716" transform="translate(0.6 0.6)"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="7" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="8" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="8" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="8" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/></g><g fill="#e0313f"><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="7" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="8" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="8" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="8" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/></g><rect x="1" y="1" width="1" height="1" fill="#ffd8e0"/><rect x="2" y="1" width="1" height="1" fill="#ffa8b8"/><rect x="1" y="2" width="1" height="1" fill="#ffa8b8"/></svg>';
 let lastHearts = 3;
 function updateHud(pop = false) {
   if (!st) return;
@@ -226,8 +231,15 @@ function showOnly(which) {
 
 // ───────────────────────── 描画 ─────────────────────────
 function render(dt) {
+  renderScene(dt);
+  pixelPost(ctx, lo.width, lo.height);
+  out.setTransform(1, 0, 0, 1, 0, 0);
+  out.imageSmoothingEnabled = false;
+  out.drawImage(lo, 0, 0, lo.width * PIX * dpr, lo.height * PIX * dpr);
+}
+function renderScene(dt) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.clearRect(0, 0, lo.width, lo.height);
   if (mode === 'title' || (!st && mode !== 'map')) { renderTitle(); return; }
   if (mode === 'map') { renderMapBg(); return; }
   const s = viewScale(); const vw = W / s; const vh = H / s;
@@ -245,7 +257,7 @@ function render(dt) {
   if (OG) { cam.x = p.x - vw * 0.3; cam.y = Math.min(mapH - vh, st.ogBell.y - vh * 0.3); }
   let sx = 0; let sy = 0;
   if (shake > 0) { sx = (Math.random() - 0.5) * 10 * shake; sy = (Math.random() - 0.5) * 10 * shake; }
-  ctx.setTransform(dpr * s, 0, 0, dpr * s, 0, 0);
+  ctx.setTransform(R * s, 0, 0, R * s, 0, 0);
   const ch = st.def.chapter;
   const bells = st.bells.filter((b) => !b.clock);
   const rung = bells.filter((b) => b.rung).length;
@@ -255,7 +267,7 @@ function render(dt) {
     cracks: st.index === 14 ? 1 - rung / 3 : ch === 2 ? 0.4 : 0,
     gold: st.index === 14 ? rung / 3 : 0,
   });
-  ctx.setTransform(dpr * s, 0, 0, dpr * s, (-cam.x + sx) * dpr * s, (-cam.y + sy) * dpr * s);
+  ctx.setTransform(R * s, 0, 0, R * s, Math.round((-cam.x + sx) * R * s), Math.round((-cam.y + sy) * R * s));
   const c0 = Math.floor(cam.x / L.TS) - 1; const c1 = Math.ceil((cam.x + vw) / L.TS) + 1;
   const r0 = Math.floor(cam.y / L.TS) - 1; const r1 = Math.ceil((cam.y + vh) / L.TS) + 1;
   A.drawTiles(ctx, st, ch, c0, c1, r0, r1, t);
@@ -290,7 +302,7 @@ function render(dt) {
   for (const r of rings) { const u = 1 - r.life / r.max; ctx.strokeStyle = r.color; ctx.globalAlpha = 1 - u; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(r.x, r.y, r.r * (0.2 + u), 0, Math.PI * 2); ctx.stroke(); }
   ctx.globalAlpha = 1;
   // 画面効果
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.setTransform(R, 0, 0, R, 0, 0);
   if (flash > 0) { ctx.fillStyle = `rgba(255,236,170,${flash * 0.5})`; ctx.fillRect(0, 0, W, H); }
   if (p.invuln > 0.7 && p.dying <= 0) { ctx.fillStyle = `rgba(255,40,60,${(p.invuln - 0.7) * 0.5})`; ctx.fillRect(0, 0, W, H); }
   if (p.dying > 0) { ctx.fillStyle = `rgba(236,226,255,${Math.min(0.5, (1 - p.dying) * 0.6)})`; ctx.fillRect(0, 0, W, H); }
@@ -303,7 +315,7 @@ function render(dt) {
 function renderTitle() {
   const s = Math.min(H / 360, W / 300);
   const vw = W / s; const vh = H / s;
-  ctx.setTransform(dpr * s, 0, 0, dpr * s, 0, 0);
+  ctx.setTransform(R * s, 0, 0, R * s, 0, 0);
   A.drawBackground(ctx, 0, t * 20, 0, vw, vh, t, { noWhale: true });
   // 右上から斜めに流れる巨大な霧鯨
   const ws = Math.max(0.36, Math.min(vw / 1250, vh / 640));
@@ -323,7 +335,7 @@ function renderTitle() {
   A.drawThread(ctx, { x: mx + 16, y: mio.y + 2 }, { x: bx, y: by }, A.threadColor(save.color, t), 'hold', 1, t);
   A.drawStarBell(ctx, bx, by, 1.6, t);
   A.drawMio(ctx, mio, t, { scale: 1.5, throwing: true, color: A.threadColor(save.color, t) });
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.setTransform(R, 0, 0, R, 0, 0);
   const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(10,4,26,.5)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
@@ -331,9 +343,9 @@ function renderTitle() {
 
 function renderMapBg() {
   const s = Math.min(H / 360, W / 300); const vw = W / s; const vh = H / s;
-  ctx.setTransform(dpr * s, 0, 0, dpr * s, 0, 0);
+  ctx.setTransform(R * s, 0, 0, R * s, 0, 0);
   const ch = Math.min(2, Math.floor(nextStage() / 5));
-  A.drawBackground(ctx, ch, t * 15, 0, vw, vh, t, { eye: ch === 2 ? 0.5 : 0, cracks: ch === 2 ? 0.4 : 0 });
+  A.drawBackground(ctx, ch, t * 15, 0, vw, vh, t, { whaleDim: true, eye: ch === 2 ? 0.5 : 0, cracks: ch === 2 ? 0.4 : 0 });
 }
 
 // ───────────────────────── ループ ─────────────────────────
@@ -375,9 +387,8 @@ function finishStage() {
   $('resStage').textContent = `${L.CHAPTERS[st.def.chapter].sub} ${res.index + 1}『${st.def.name}』`;
   const bells = $('resBells'); bells.innerHTML = '';
   res.stars.forEach((got, i) => {
-    const c = document.createElement('canvas'); c.width = 108; c.height = 108;
-    const g = c.getContext('2d'); g.scale(2, 2);
-    if (got) A.drawStarBell(g, 27, 30, 1.7, i); else { g.globalAlpha = 0.25; A.drawStarBell(g, 27, 30, 1.7, 0); }
+    const c = document.createElement('canvas'); c.width = 27; c.height = 27; c.className = 'px';
+    pixelCanvas(c, (g) => { g.scale(0.5, 0.5); if (got) A.drawStarBell(g, 27, 30, 1.7, i); else { g.globalAlpha = 0.35; A.drawStarBell(g, 27, 30, 1.7, 0); } });
     c.setAttribute('aria-label', got ? '星鈴 取った' : '星鈴 まだ');
     bells.appendChild(c);
   });
@@ -534,7 +545,7 @@ function renderNote() {
       <ul><li><b>金のフック</b>：その場所まで一気に飛ぶ。空中でも投げられる。</li><li><b>レバー・鐘</b>：引くと橋が出る・扉が開く・灯台が開く。</li><li><b>敵</b>：1秒縛る。縛っている間にもう一度 J で手元へ引き寄せる。鈴スイッチに通す・いばらに落とす・別の敵にぶつけると倒せる。</li><li><b>種・雲の舟</b>：手元へ引き寄せる。舟に乗ってフックへ投げると舟ごと進む。</li></ul>
       <p>投げたあと0.6秒は次が投げられない（左上の糸巻きが満ちたらOK）。</p>
       <h3>ハートと灯</h3><p>ハートは3つ。なくなると最後にともした灯から、ハート3つで再開。星鈴はその面をクリアしたときに記録される。</p>
-      <h3>敵</h3><div class="foes">${FOES.map((f) => `<div class="foe"><canvas width="180" height="140" data-k="${f.kind}"></canvas><b>${f.name}</b>${f.text}</div>`).join('')}</div>`;
+      <h3>敵</h3><div class="foes">${FOES.map((f) => `<div class="foe"><canvas width="45" height="35" class="px" data-k="${f.kind}"></canvas><b>${f.name}</b>${f.text}</div>`).join('')}</div>`;
     for (const c of body.querySelectorAll('.foe canvas')) drawFoe(c, c.dataset.k);
   } else {
     body.innerHTML = `<div class="setting"><span>音</span><button type="button" class="toggle" id="setMute" aria-pressed="${!audio.state.muted}">${audio.state.muted ? 'オフ' : 'オン'}</button></div>
@@ -546,8 +557,9 @@ function renderNote() {
   }
 }
 
-function drawFoe(c, kind) {
-  const g = c.getContext('2d'); g.scale(2, 2);
+function drawFoe(c, kind) { pixelCanvas(c, (g) => drawFoeInner(g, kind)); }
+function drawFoeInner(g, kind) {
+  g.scale(0.5, 0.5);
   g.fillStyle = '#241444'; g.fillRect(0, 0, 90, 70);
   if (kind === 'fray') { A.drawFray(g, { x: 62, dying: 0 }, 0, 70, 1); return; }
   const e = { kind, x: 0, y: 0, r: 16, face: 1, state: 'hover', bound: 0, stun: 0, id: 1, s: 0.6, x0: -70, x1: 70, surf: 40, alert: true, beam: null, vx: 1, vy: 0, anim: 0 };

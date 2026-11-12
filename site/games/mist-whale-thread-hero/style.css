@@ -182,3 +182,56 @@ body.og .og-card { display: block; padding: 18px 22px; border-radius: 24px; back
 @media (prefers-reduced-motion: reduce) {
   .story-lines p { animation-duration: .01s; }
 }
+
+/* ───── レトロなドットの見た目（上書き） ───── */
+:root { --px: 3px; --navy: #0b0716; --panel: #1a0f2e; --gold: #f2c552; --gold2: #d89a2c; --paper: #fff6c8; }
+body, button, .chip, .ghost-btn, .big-btn, .note-body, .hint, .muted, .how-icons, .arcade-link, .node .nm small {
+  font-family: "Osaka-Mono", "MS Gothic", "Noto Sans Mono CJK JP", "Hiragino Kaku Gothic ProN", monospace;
+  letter-spacing: .04em;
+}
+.px, .res-bells canvas, .foe canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+/* ドットの枠：外側に黒、内側に金 */
+.chip, .ghost-btn, .big-btn, .sheet, .chap, .node, .pk, .hint, .toast, .spool, .note-tabs button, .cswatch, .setting, .toggle, .nrow, .mem, .foe, .res-grid > div, .badge, .how-icons kbd {
+  border-radius: 0 !important;
+}
+.chip { background: var(--panel); color: var(--paper); border: 0; box-shadow: 0 0 0 2px var(--gold), 0 0 0 4px var(--navy), 4px 4px 0 4px rgba(0,0,0,.35); padding: 5px 10px; }
+.chip.btn:active { transform: translate(2px, 2px); }
+.bell-ico { image-rendering: pixelated; background: none; position: relative; width: 14px; height: 14px; }
+.bell-ico::before { content: ""; position: absolute; left: 3px; top: 1px; width: 8px; height: 9px; background: var(--gold); box-shadow: -2px 6px 0 0 var(--gold), 2px 6px 0 0 var(--gold), 0 12px 0 -3px #6b3e18; }
+.hearts { filter: none; }
+.heart { image-rendering: pixelated; }
+.spool { background: var(--panel); border: 0; box-shadow: 0 0 0 2px var(--gold), 0 0 0 4px var(--navy); }
+.spool-ring { inset: 4px; border-radius: 0; -webkit-mask: none; mask: none; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 0, 22% 22%, 22% 78%, 78% 78%, 78% 22%, 22% 22%); }
+.hint { background: var(--panel); border: 0; box-shadow: 0 0 0 2px #7a4a9e, 0 0 0 4px var(--navy); color: var(--paper); }
+.toast { background: var(--paper); color: #2a1748; box-shadow: 0 0 0 3px var(--gold2), 0 0 0 6px var(--navy), 6px 6px 0 6px rgba(0,0,0,.35); }
+.logo { text-shadow: 3px 3px 0 #3d2263, 6px 6px 0 var(--navy); }
+.logo-a { font-family: "Osaka-Mono", "MS Gothic", monospace; }
+.logo-b { -webkit-text-stroke: 0; font-family: "Osaka-Mono", "MS Gothic", "Hiragino Kaku Gothic ProN", monospace; font-weight: 900; color: var(--gold); text-shadow: 0 4px 0 #a0661e, 4px 8px 0 #3d2263, 8px 12px 0 var(--navy); letter-spacing: .02em; }
+.tagline { text-shadow: 2px 2px 0 var(--navy); }
+.big-btn { background: var(--gold); color: #3b2010; box-shadow: inset -4px -4px 0 #a0661e, inset 4px 4px 0 #ffe68a, 0 0 0 3px var(--navy), 6px 6px 0 3px rgba(0,0,0,.4); text-shadow: none; }
+.big-btn:active { transform: translate(3px, 3px); box-shadow: inset -4px -4px 0 #a0661e, inset 4px 4px 0 #ffe68a, 0 0 0 3px var(--navy); }
+.ghost-btn { background: var(--panel); border: 0; box-shadow: 0 0 0 2px #c9a4e0, 0 0 0 4px var(--navy); color: var(--paper); }
+.col-btns .ghost-btn { background: #ecdcf7; color: #2a1748; box-shadow: 0 0 0 2px #7a4a9e, 0 0 0 4px var(--navy); border: 0; }
+.how-icons kbd { background: var(--paper); box-shadow: 0 2px 0 #9d94b8; }
+.sheet { background: #fff6c8; color: #2a1748; border: 0; box-shadow: 0 0 0 4px var(--gold2), 0 0 0 8px var(--navy), 10px 10px 0 8px rgba(0,0,0,.4); background-image: linear-gradient(rgba(42,23,72,.05) 1px, transparent 1px); background-size: 100% 4px; }
+.story .sheet { background: #1a0f2e; background-image: linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px); background-size: 100% 4px; box-shadow: 0 0 0 4px #7a4a9e, 0 0 0 8px var(--navy), 10px 10px 0 8px rgba(0,0,0,.4); }
+.chap { background: #fff6c8; box-shadow: 0 0 0 3px var(--gold2), 0 0 0 6px var(--navy), 8px 8px 0 6px rgba(0,0,0,.35); }
+.chap::before { height: 8px; }
+.node { border: 0; box-shadow: 0 0 0 2px #c9a4e0; background: #fffdf0; }
+.node .no { border-radius: 0; box-shadow: inset -2px -2px 0 rgba(0,0,0,.3); }
+.node.next { box-shadow: 0 0 0 3px var(--gold2), 0 0 0 5px var(--navy); }
+.node .st { font-family: monospace; }
+.pk { border: 0; background: #2a1748; color: var(--paper); box-shadow: inset -4px -4px 0 #1a0f2e, inset 4px 4px 0 #57327f, 0 0 0 2px var(--navy); }
+.pk-j { background: #1d3263; box-shadow: inset -4px -4px 0 #0f1a3d, inset 4px 4px 0 #2f5a96, 0 0 0 2px var(--navy); }
+.pk-t { background: #6b3e18; color: var(--gold); box-shadow: inset -4px -4px 0 #3b2010, inset 4px 4px 0 #a0661e, 0 0 0 2px var(--navy); }
+.pk.on { transform: translate(2px, 2px); filter: brightness(1.3); }
+.pad { background: var(--navy); border-top: 4px solid #3d2263; }
+.note-tabs button { background: #ecdcf7; box-shadow: 0 0 0 2px #c9a4e0; }
+.note-tabs button[aria-current="true"] { background: #3d2263; color: var(--paper); box-shadow: 0 0 0 2px var(--navy); }
+.nrow, .mem, .setting, .cswatch, .res-grid > div { border: 0; box-shadow: 0 0 0 2px #e6d6b0; }
+.foe { background: #1a0f2e; box-shadow: 0 0 0 2px #57327f; }
+.badge.on { background: var(--gold); box-shadow: inset -2px -2px 0 #a0661e; }
+.toggle { border: 0; box-shadow: 0 0 0 2px #7a4a9e; }
+.toggle[aria-pressed="true"] { background: #3d2263; }
+.map-screen { background: linear-gradient(rgba(11,7,22,.2), rgba(11,7,22,.5)); }
+body { background: var(--navy); }
