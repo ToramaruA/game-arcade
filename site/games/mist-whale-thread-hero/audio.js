@@ -134,7 +134,8 @@ export function createAudio(storage, key) {
     setChapter(c) { chapter = Math.max(0, Math.min(2, c)); },
     setTension(v) { tension = v; },
     setDread(v) { dread = v; },
-    startBgm() { if (bgmTimer || !ctx) return; bgmTimer = setInterval(tick, 300); },
+    // 待たせずに鳴らす：最初の拍で和音から始める
+    startBgm() { if (bgmTimer || !ctx) return; beat = -1; tick(); bgmTimer = setInterval(tick, 300); },
     setMuted(m) { st.muted = m; apply(); save(); if (!m) this.unlock(); },
   };
 }
