@@ -239,8 +239,8 @@ function updateHint() {
   let text = '';
   for (const h of st.def.hints || []) if (col >= h.c && col < h.c + 14) text = h.text;
   if (st.index >= 3 && save.stages[st.index]?.clear) text = '';
-  if (text && settings.oneHand && isTouchDevice()) text = text.replace('← → で走る ／ Space で跳ぶ', '指でなぞって走る／上にはじいて跳ぶ').replace('（J ／ 糸ボタン）', '（画面をタップ）').replace('もう一度 J で', 'もう一度タップで');
-  else if (text && pad.classList.contains('show')) text = text.replace('← → で走る ／ Space で跳ぶ', '◀▶で走る／ジャンプで跳ぶ（片手なら画面をなぞる）').replace('（J ／ 糸ボタン）', '（糸ボタン）').replace('もう一度 J で', 'もう一度 糸で');
+  if (text && settings.oneHand && isTouchDevice()) text = text.replace('← → で走る ／ Space で跳ぶ', '指でなぞって走る／上にはじいて跳ぶ').replace('（J ／ 糸ボタン）', '（画面をタップ）').replace('もう一度 J で', 'もう一度タップで').replace('→を押しながら', '右へなぞりながら').replace('次の糸！', '次のタップ！');
+  else if (text && pad.classList.contains('show')) text = text.replace('← → で走る ／ Space で跳ぶ', '◀▶で走る／ジャンプで跳ぶ（片手なら画面をなぞる）').replace('（J ／ 糸ボタン）', '（糸ボタン）').replace('もう一度 J で', 'もう一度 糸で').replace('→を押しながら', '▶を押しながら');
   if (performance.now() < toastUntil) text = '';
   if (text !== hintText) { hintText = text; const el = $('hint'); el.textContent = text; el.classList.toggle('off', !text); }
 }

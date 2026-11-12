@@ -318,3 +318,8 @@ body.og .og-card { left: auto; right: 34px; top: 28px; bottom: auto; text-align:
 /* 星座ノート：本文が長いタブでもタブ列がつぶれない */
 .sheet-head, .note-tabs { flex-shrink: 0; }
 .note-body { flex: 1 1 auto; min-height: 0; }
+
+/* 物語・結末は、後ろの画面を隠して集中させる */
+.modal.story { background: rgba(6, 2, 10, .94); }
+/* 地図：長い章名でも1行に収める */
+.chap h3 > span:first-child { white-space: nowrap; font-size: 15px; letter-spacing: 0; }
