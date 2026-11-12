@@ -66,6 +66,7 @@ function floorTop(st, c) {
 export function drawRoom(ctx, st, ch, c0, c1, yTop, yBot, t) {
   const P = ROOM[ch]; const R = roomOf(st);
   for (const m of R.mon) m.e.ch = ch;
+  if (st.def.scene === 'out') { drawFacades(ctx, st, ch, c0, c1, t); return; }
   const x0 = c0 * 16; const x1 = (c1 + 1) * 16;
   const holes = [...R.wins, ...R.mon].filter((w) => w.x1 > x0 && w.x0 < x1);
   const lowY = 176;
@@ -128,6 +129,35 @@ export function drawRoom(ctx, st, ch, c0, c1, yTop, yBot, t) {
     if (h.gone) continue; const hx = Math.round(h.x * K); const hy = Math.round(h.y * K) - 8;
     if (hx < x0 || hx > x1 || hy <= CEIL + 2) continue;
     ctx.fillRect(hx, CEIL, 1, hy - CEIL);
+  }
+}
+
+// 屋外の面：窓の顔は、建物の窓の奥から外へ身を乗りだす
+const FACADE = [
+  { wall: '#2a1c18', board: '#3a2418', roof: '#16303a', roofL: '#24484a' },
+  { wall: '#14201a', board: '#1e1414', roof: '#0c2a20', roofL: '#1b6a4a' },
+  { wall: '#2a0610', board: '#3a0a18', roof: '#1e0610', roofL: '#6a1424' },
+];
+function drawFacades(ctx, st, ch, c0, c1, t) {
+  const R = roomOf(st); const F = FACADE[ch]; const x0 = c0 * 16; const x1 = (c1 + 1) * 16;
+  for (const w of R.mon) {
+    if (w.x1 + 40 < x0 || w.x0 - 40 > x1) continue;
+    const L = w.x0 - 16; const Rr = w.x1 + 16; const top = w.y0 - 14; const bot = w.y1 + 60;
+    // 傾いた家の壁と三角屋根
+    ctx.fillStyle = OUT; ctx.fillRect(L - 1, top - 1, Rr - L + 2, bot - top + 1);
+    ctx.fillStyle = F.wall; ctx.fillRect(L, top, Rr - L, bot - top);
+    ctx.fillStyle = F.board; for (let y = top + 4; y < bot; y += 6) ctx.fillRect(L, y, Rr - L, 1);
+    const cx = (L + Rr) / 2; const rh = 30;
+    for (let i = 0; i <= rh; i++) {
+      const hw = Math.round((Rr - L) / 2 + 8 - i * ((Rr - L) / 2 + 8) / rh);
+      ctx.fillStyle = OUT; ctx.fillRect(Math.round(cx) - hw - 1, top - i, hw * 2 + 2, 1);
+      ctx.fillStyle = i < 3 ? F.roofL : F.roof; ctx.fillRect(Math.round(cx) - hw, top - i, hw * 2, 1);
+    }
+    ctx.fillStyle = F.roof; ctx.fillRect(Rr - 14, top - 26, 6, 14); ctx.fillStyle = OUT; ctx.fillRect(Rr - 15, top - 27, 8, 2);
+    // 窓の奥は真っ暗な部屋（かすかなランプ）
+    ctx.fillStyle = '#0a0408'; ctx.fillRect(w.x0, w.y0, w.x1 - w.x0, w.y1 - w.y0);
+    ctx.fillStyle = 'rgba(255,211,106,.08)'; ctx.fillRect(w.x0 + 4, w.y0 + 8, 12, 20);
+    drawWindowFrame(ctx, w, ch, st.dread || 0, t, true);
   }
 }
 

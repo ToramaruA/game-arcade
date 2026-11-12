@@ -35,7 +35,7 @@ export const CHAPTERS = [
 export const LEVELS = [
   // ───────── 第一章『眠る家』 ─────────
   {
-    name: '廊下の扉', chapter: 0, gimmick: '糸でフックへ渡る', par: 31,
+    name: '廊下の扉', scene: 'room', chapter: 0, gimmick: '糸でフックへ渡る', par: 31,
     lines: [{ c: 3, text: '……ここ、どこ？ 知らない家の廊下。……うちに、似てる。' }, { c: 40, text: '鈴の音。ここなら、だれも怒らない。' }],
     hints: [
       { c: 0, text: '← → で走る ／ Space で跳ぶ' },
@@ -55,7 +55,7 @@ export const LEVELS = [
     }),
   },
   {
-    name: '鈴の渡り廊下', chapter: 0, gimmick: '鈴レバーで橋を出す', par: 35,
+    name: '鈴の渡り廊下', scene: 'room', chapter: 0, gimmick: '鈴レバーで橋を出す', par: 35,
     lines: [{ c: 5, text: '窓に明かり。だれか起きてるの……？' }, { c: 42, text: '……見てる。窓から見られるのは、きらい。' }],
     hints: [
       { c: 0, text: 'レバーにも糸が届く。引けば橋が出る' },
@@ -76,8 +76,8 @@ export const LEVELS = [
     }),
   },
   {
-    name: '蛾の舞う客間', chapter: 0, gimmick: '影蛾を糸で縛る・鈴へ引く', par: 36,
-    lines: [{ c: 4, text: '蛾の羽に、目。夢だから平気。……平気。' }, { c: 50, text: '鈴をひとつ鳴らすたび、遠くの声が小さくなる。' }],
+    name: '蛾の舞う屋根', scene: 'out', chapter: 0, gimmick: '影蛾を糸で縛る・鈴へ引く', par: 36,
+    lines: [{ c: 4, text: '窓から、屋根の上へ。蛾の羽に、目。……平気。' }, { c: 50, text: '鈴をひとつ鳴らすたび、遠くの声が小さくなる。' }],
     hints: [
       { c: 0, text: '影蛾は糸で縛れる。もう一度 J で手元へ引く' },
       { c: 28, text: '蛾を鈴スイッチに通すと橋が鳴る' },
@@ -94,7 +94,7 @@ export const LEVELS = [
     }),
   },
   {
-    name: '吹き抜けの階段', chapter: 0, gimmick: '上昇風に乗る', par: 32,
+    name: '吹き抜けの階段', scene: 'room', chapter: 0, gimmick: '上昇風に乗る', par: 32,
     lines: [{ c: 3, text: '風が上へ上へと呼んでいる。ここなら、届かない。' }, { c: 40, text: '遠くにもう一頭の鯨。あの子も、眠ったふりをしてるの？' }],
     hints: [
       { c: 0, text: '白い風の柱に飛びこむと、上の階へ運ばれる' },
@@ -113,7 +113,7 @@ export const LEVELS = [
     }),
   },
   {
-    name: '屋根裏の鐘楼', chapter: 0, gimmick: '追ってくる鎧蜂・鐘を2つ鳴らす', par: 38, chase: true,
+    name: '屋根の上の鐘楼', scene: 'out', chapter: 0, gimmick: '追ってくる鎧蜂・鐘を2つ鳴らす', par: 38, chase: true,
     lines: [{ c: 14, text: '仮面の蜂。笑った顔のまま、追いかけてくる。' }, { c: 60, text: '鐘が鳴った。……下の部屋の音が、少しだけ聞こえた。' }],
     hints: [
       { c: 0, text: '鎧蜂が追ってくる！ 鐘を2つ鳴らせば灯台が開く' },
@@ -132,8 +132,8 @@ export const LEVELS = [
   },
   // ───────── 第二章『森に呑まれた家』 ─────────
   {
-    name: '種の回廊', chapter: 1, gimmick: '巨大な種を押す・引く', par: 34,
-    lines: [{ c: 3, text: '家の中まで、森が入りこんでる。暗いけど、静か。' }, { c: 45, text: '種の中で、だれかが息をひそめている。わたしと同じ。' }],
+    name: '種の森', scene: 'out', chapter: 1, gimmick: '巨大な種を押す・引く', par: 34,
+    lines: [{ c: 3, text: '扉の外は、森だった。暗いけど、静か。' }, { c: 45, text: '種の中で、だれかが息をひそめている。わたしと同じ。' }],
     hints: [
       { c: 0, text: '大きな種は押せる。糸で引き寄せもできる' },
       { c: 16, text: '種を鈴スイッチへ。扉が開く' },
@@ -150,7 +150,7 @@ export const LEVELS = [
     }),
   },
   {
-    name: '青い霧の食堂', chapter: 1, gimmick: '牙灯の光線をかわす', par: 42,
+    name: '青い霧の食堂', scene: 'room', chapter: 1, gimmick: '牙灯の光線をかわす', par: 42,
     lines: [{ c: 3, text: 'この提灯、まばたきした。大人の目に、似てる。' }, { c: 60, text: '「どこに隠れてるの？」……夢の中まで、聞こえる。' }],
     sounds: [{ c: 55, kind: 'dish', text: 'ガシャン……！' }],
     hints: [
@@ -168,7 +168,7 @@ export const LEVELS = [
     }),
   },
   {
-    name: '落ち葉の吹き抜け', chapter: 1, gimmick: '乗るとくずれる葉の足場', par: 45,
+    name: '落ち葉の空路', scene: 'out', chapter: 1, gimmick: '乗るとくずれる葉の足場', par: 45,
     lines: [{ c: 3, text: '足もとが崩れる。いい子にしてないと、崩れる。' }, { c: 48, text: '下を見ちゃだめ。下を見ちゃだめ。' }],
     hints: [
       { c: 0, text: '葉の足場は乗るとくずれる。止まらずに渡れ' },
@@ -185,7 +185,7 @@ export const LEVELS = [
     }),
   },
   {
-    name: '星の天井', chapter: 1, gimmick: 'フックを空中で順番につなぐ', par: 40,
+    name: '星の遊歩道', scene: 'out', chapter: 1, gimmick: 'フックを空中で順番につなぐ', par: 40,
     lines: [{ c: 3, text: '星のフックは、一度しか待ってくれない。' }, { c: 50, text: '鯨の歌。わたしの代わりに、泣いてるみたい。' }],
     hints: [
       { c: 0, text: 'フックからフックへ。→を押しながら、飛んでいる間に次の糸！' },
@@ -202,7 +202,7 @@ export const LEVELS = [
     }),
   },
   {
-    name: '鱗の浴室', chapter: 1, gimmick: '海蛇を縛って橋にする', par: 42,
+    name: '鱗の浴室', scene: 'room', chapter: 1, gimmick: '海蛇を縛って橋にする', par: 42,
     lines: [{ c: 3, text: '白い蛇。鱗がぜんぶ目で、ぜんぶこっちを見てる。' }, { c: 70, text: 'ドアの閉まる音がした。夢の、外で。' }],
     sounds: [{ c: 67, kind: 'door', text: 'バタン' }],
     hints: [
@@ -221,7 +221,7 @@ export const LEVELS = [
   },
   // ───────── 第三章『鯨の夢の底』 ─────────
   {
-    name: '糸喰いの物置', chapter: 2, gimmick: '糸喰いが糸を切る', par: 42,
+    name: '糸喰いの物置', scene: 'room', chapter: 2, gimmick: '糸喰いが糸を切る', par: 42,
     lines: [{ c: 3, text: '暗い。糸の光だけが、わたしの味方。' }, { c: 60, text: '糸を食べる子。おなかが空いてるの、わかるよ。' }],
     hints: [
       { c: 0, text: '糸喰いの近くで糸を投げると、食いちぎられる' },
@@ -243,11 +243,11 @@ export const LEVELS = [
     }),
   },
   {
-    name: '窓だらけの廊下', chapter: 2, gimmick: '影蛾と鎧蜂の複合', par: 43,
-    lines: [{ c: 3, text: '廊下の窓。どの窓にも、知ってる顔。' }, { c: 60, text: '伸びてくる手。あの手は、知ってる手。' }],
+    name: '窓だらけの屋根', scene: 'out', chapter: 2, gimmick: '影蛾と鎧蜂の複合', par: 43,
+    lines: [{ c: 3, text: '屋根の窓。どの窓にも、知ってる顔。' }, { c: 60, text: '伸びてくる手。あの手は、知ってる手。' }],
     hints: [
-      { c: 0, text: '上の棚は鎧蜂の通り道。予告の「！」を見て跳べ' },
-      { c: 27, text: '下の床か、上の棚か' },
+      { c: 0, text: '屋根の上は鎧蜂の通り道。予告の「！」を見て跳べ' },
+      { c: 27, text: '下の通りか、上の屋根か' },
       { c: 41, text: '蛾を鈴へ引けば橋が出る' },
     ],
     rows: build(90, ({ g, f, p }) => {
@@ -262,7 +262,7 @@ export const LEVELS = [
     }),
   },
   {
-    name: '夜縫いの時計', chapter: 2, gimmick: '時間で開閉する門・時計の鐘', par: 43,
+    name: '夜縫いの時計', scene: 'room', chapter: 2, gimmick: '時間で開閉する門・時計の鐘', par: 43,
     lines: [{ c: 3, text: '時計の音。夢には、朝が来ないはずなのに。' }, { c: 60, text: '針が進むたび、鯨が薄くなっていく。' }],
     hints: [
       { c: 0, text: '時計の門は2秒ごとに開閉する' },
@@ -282,7 +282,7 @@ export const LEVELS = [
     }),
   },
   {
-    name: '白い舟', chapter: 2, gimmick: '雲の舟を糸で引く', par: 45,
+    name: '白い舟の海', scene: 'out', chapter: 2, gimmick: '雲の舟を糸で引く', par: 45,
     lines: [{ c: 3, text: '雲の舟。最後の、逃げ道。' }, { c: 70, text: '赤いほつれは、夢を食べてるんじゃない。わたしを、起こしに来てる。' }],
     hints: [
       { c: 0, text: '雲の舟に糸をかけると、手元へ引き寄せられる' },
@@ -298,11 +298,11 @@ export const LEVELS = [
     }),
   },
   {
-    name: '最後の縫い目', chapter: 2, gimmick: '夢のほつれから逃げ、鐘を3つ', par: 50,
+    name: '最後の縫い目', scene: 'out', chapter: 2, gimmick: '夢のほつれから逃げ、鐘を3つ', par: 50,
     lines: [{ c: 6, text: '来た……！ 走らなきゃ。' }, { c: 60, text: 'あとひとつ鳴らしたら、目が覚めちゃう。……それでも。' }],
     hints: [
       { c: 0, text: '夢のほつれが来る！ 走れ。鐘を3つ鳴らせ' },
-      { c: 38, text: '風の柱で上へ。2つめの鐘は天井の近く' },
+      { c: 38, text: '風の柱で上へ。2つめの鐘は空の上' },
       { c: 80, text: '最後の鐘。そして灯台へ' },
     ],
     rows: build(110, ({ g, f, v, p }) => {

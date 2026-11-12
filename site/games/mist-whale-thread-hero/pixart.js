@@ -330,9 +330,10 @@ export const CH = [
     thorn: '#3a0a18', thornTip: '#ff4a5a', mist: '#ff4a5a', mistD: '#a82038',
   },
 ];
+const OUTTOP = [['#3a6a50', '#24484a'], ['#2fa06a', '#1b6a4a'], ['#a82038', '#6a1424']];
 const tileCache = new Map();
-function tile(ch, kind, v = 0) {
-  const key = `${ch}:${kind}:${v}`;
+function tile(ch, kind, v = 0, out = false) {
+  const key = `${ch}:${kind}:${v}:${out ? 1 : 0}`;
   if (tileCache.has(key)) return tileCache.get(key);
   const P = CH[ch];
   const c = document.createElement('canvas'); c.width = 16; c.height = 16;
@@ -346,7 +347,16 @@ function tile(ch, kind, v = 0) {
       if (ch === 0) { for (let i = 0; i < 3; i++) { const x = Math.floor(r(i) * 13); const y = Math.floor(r(i + 5) * 13) + 2; g.fillRect(x, y, 3, 1); g.fillRect(x + 1, y + 1, 1, 1); } if (r(9) < 0.4) { g.fillStyle = P.barn; g.fillRect(5, 8, 4, 3); g.fillStyle = P.barnD; g.fillRect(6, 9, 2, 2); } }
       else if (ch === 1) { for (let i = 0; i < 4; i++) { g.fillRect(Math.floor(r(i) * 15), Math.floor(r(i + 3) * 15), 2, 1); } if (r(8) < 0.35) { g.fillStyle = P.barn; g.fillRect(Math.floor(r(7) * 12) + 2, 10, 1, 4); g.fillRect(Math.floor(r(7) * 12) + 1, 13, 3, 1); } }
       else { g.fillRect(0, 7, 16, 1); g.fillRect(Math.floor(r(1) * 14), 0, 1, 7); g.fillRect(Math.floor(r(2) * 14), 8, 1, 8); g.fillStyle = P.skinL; g.fillRect(1, 1, 2, 1); if (r(4) < 0.4) { g.fillStyle = P.barn; g.fillRect(5, 3, 1, 1); g.fillRect(7, 3, 1, 1); g.fillRect(6, 4, 1, 1); } }
-      if (kind === 'top') {
+      if (kind === 'top' && out) {
+        // 屋外：草・光る苔・赤い縫い目の地面
+        const O = OUTTOP[ch];
+        g.fillStyle = P.skinL; g.fillRect(0, 3, 16, 1);
+        g.fillStyle = O[0]; g.fillRect(0, 0, 16, 3);
+        g.fillStyle = O[1]; g.fillRect(0, 3, 16, 1); for (let x = 0; x < 16; x += 3) g.fillRect(x + (v % 2), 4, 1, 1);
+        g.fillStyle = O[0]; for (let i = 0; i < 3; i++) { const x = Math.floor(r(i + 11) * 15); g.fillRect(x, 0, 1, 1); }
+        if (ch === 1 && r(12) < 0.5) { g.fillStyle = '#c8ff9a'; g.fillRect(Math.floor(r(13) * 14), 1, 1, 1); }
+        if (ch === 2) { g.fillStyle = '#f0b030'; for (let x = (v % 2) * 2; x < 16; x += 4) g.fillRect(x, 1, 1, 1); }
+      } else if (kind === 'top') {
         // 家の床：板張り（森は苔むし、奥の部屋は赤い絨毯）
         g.fillStyle = OUT; g.fillRect(0, 5, 16, 1);
         g.fillStyle = P.top; g.fillRect(0, 0, 16, 5);
@@ -408,7 +418,7 @@ export function drawTiles(ctx, st, ch, c0, c1, r0, r1, t) {
         case '#': {
           const top = r > 0 && T(c, r - 1) !== '#';
           const v = Math.floor(hash(c * 7 + r * 13) * 4);
-          ctx.drawImage(tile(ch, top ? 'top' : 'fill', v), x, y);
+          ctx.drawImage(tile(ch, top ? 'top' : 'fill', v, st.def.scene === 'out'), x, y);
           if (c > 0 && T(c - 1, r) !== '#') { ctx.fillStyle = OUT; ctx.fillRect(x, y, 1, 16); ctx.fillStyle = P.skinL; ctx.fillRect(x + 1, y, 1, 16); }
           if (c < st.w - 1 && T(c + 1, r) !== '#') { ctx.fillStyle = OUT; ctx.fillRect(x + 15, y, 1, 16); ctx.fillStyle = P.skinD; ctx.fillRect(x + 14, y, 1, 16); }
           if (!top && r > 0 && T(c, r - 1) === '#' && r - 1 >= 0 && T(c, r - 2) !== '#') { ctx.fillStyle = P.skinD; ctx.fillRect(x, y, 16, 2); }
