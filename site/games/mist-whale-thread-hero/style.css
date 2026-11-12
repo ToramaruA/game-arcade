@@ -104,7 +104,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #7fd4ff; outline-offs
 .row-btns > * { flex: 1; }
 .eyebrow { margin: 0 0 4px; text-align: center; font-size: 13px; color: #8a5a10; letter-spacing: .1em; }
 .res-bells { display: flex; justify-content: center; gap: 14px; margin: 6px 0 10px; }
-.res-bells canvas { width: 54px; height: 54px; }
+.res-bells canvas { width: 54px; height: 54px; image-rendering: pixelated; }
 .res-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: center; }
 .res-grid > div { background: #fff; border-radius: 12px; padding: 8px; border: 1px solid #eadff7; }
 .res-grid small { display: block; color: #6a5a8a; font-size: 12px; }
@@ -148,7 +148,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #7fd4ff; outline-offs
 .mem .secret { color: #8a5a10; border-top-color: #e8d4a8; }
 .foes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 .foe { background: #241444; color: #fff4d6; border-radius: 12px; padding: 8px; text-align: center; font-size: 12px; }
-.foe canvas { width: 90px; height: 70px; display: block; margin: 0 auto; }
+.foe canvas { width: 120px; height: 92px; display: block; margin: 0 auto; }
 .foe b { display: block; font-size: 14px; color: var(--gold); }
 .keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
 .keys kbd { background: #efe6fa; border-radius: 6px; padding: 1px 6px; font-family: inherit; font-size: 12px; }
@@ -235,3 +235,6 @@ body, button, .chip, .ghost-btn, .big-btn, .note-body, .hint, .muted, .how-icons
 .toggle[aria-pressed="true"] { background: #3d2263; }
 .map-screen { background: linear-gradient(rgba(11,7,22,.2), rgba(11,7,22,.5)); }
 body { background: var(--navy); }
+body.og .og-card { background: none; }
+.og-card .t { font-family: "Osaka-Mono", "MS Gothic", "Hiragino Kaku Gothic ProN", monospace; font-weight: 900; -webkit-text-stroke: 0; color: #f0b030; text-shadow: 0 4px 0 #a8641c, 4px 8px 0 #3a0a18, 8px 12px 0 #120c1c; }
+.og-card .s { text-shadow: 2px 2px 0 #120c1c; }

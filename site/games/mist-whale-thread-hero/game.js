@@ -1,8 +1,8 @@
 // 霧鯨と糸の勇者 — 描画・入力・画面の切り替え
 import * as L from './logic.js';
-import * as A from './art.js';
 import { createAudio } from './audio.js';
-import { pixelPost, pixelCanvas } from './pixel.js';
+import { pixelCanvas } from './pixel.js';
+import * as P from './pixart.js';
 
 const $ = (id) => document.getElementById(id);
 const qs = new URLSearchParams(location.search);
@@ -44,13 +44,12 @@ function resize() {
   dpr = Math.min(2, window.devicePixelRatio || 1);
   W = Math.max(1, r.width); H = Math.max(1, r.height);
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-  PIX = W < 520 ? 2 : Math.max(2, Math.min(4, Math.round(H / (OG ? 210 : 240))));
+  PIX = W < 520 ? 3 : Math.max(2, Math.min(5, Math.round(H / (OG ? 180 : 195))));
   lo.width = Math.ceil(W / PIX); lo.height = Math.ceil(H / PIX); R = lo.width / W;
 }
 window.addEventListener('resize', resize);
 try { new ResizeObserver(() => resize()).observe(document.getElementById('cv')); } catch { /* 古いブラウザは resize だけ */ }
 
-function viewScale() { return Math.min(H / 360, W / 300); }
 
 // ───────────────────────── 入力 ─────────────────────────
 const held = { left: false, right: false, jump: false };
@@ -206,7 +205,7 @@ function updateHint() {
   if (text !== hintText) { hintText = text; const el = $('hint'); el.textContent = text; el.classList.toggle('off', !text); }
 }
 
-function colorNow() { return A.threadColor(save.color, t); }
+function colorNow() { return P.threadColor(save.color, t); }
 
 // ───────────────────────── 面の開始 ─────────────────────────
 function startStage(i, { restart = false } = {}) {
@@ -229,123 +228,102 @@ function showOnly(which) {
   pad.style.display = which === 'play' ? '' : 'none';
 }
 
-// ───────────────────────── 描画 ─────────────────────────
+// ───────────────────────── 描画（ドット絵：1マス=16ドット） ─────────────────────────
 function render(dt) {
   renderScene(dt);
-  pixelPost(ctx, lo.width, lo.height);
   out.setTransform(1, 0, 0, 1, 0, 0);
   out.imageSmoothingEnabled = false;
   out.drawImage(lo, 0, 0, lo.width * PIX * dpr, lo.height * PIX * dpr);
 }
 function renderScene(dt) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, lo.width, lo.height);
   if (mode === 'title' || (!st && mode !== 'map')) { renderTitle(); return; }
   if (mode === 'map') { renderMapBg(); return; }
-  const s = viewScale(); const vw = W / s; const vh = H / s;
+  const w = lo.width; const h = lo.height; const K = P.K;
+  const vw = w / K; const vh = h / K;
   const p = st.player;
-  // カメラ
-  const lead = p.face > 0 ? 0.33 : 0.67;
+  // カメラ（世界の単位）
+  const lead = p.face > 0 ? 0.36 : 0.64;
   let tx = p.x + p.w / 2 - vw * lead;
   const lw = st.w * L.TS;
   tx = lw <= vw ? (lw - vw) / 2 : Math.max(0, Math.min(lw - vw, tx));
   const mapH = L.ROWS * L.TS;
   let ty = p.y + p.h / 2 - vh * 0.55;
-  ty = vh >= mapH ? Math.min(mapH - vh, ty + vh * 0.1) : Math.max(-vh * 0.35, Math.min(mapH - vh, ty));
-  const k = Math.min(1, dt * 6);
-  cam.x += (tx - cam.x) * k; cam.y += (ty - cam.y) * Math.min(1, dt * 4);
-  if (OG) { cam.x = p.x - vw * 0.3; cam.y = Math.min(mapH - vh, st.ogBell.y - vh * 0.3); }
+  ty = vh >= mapH ? mapH - vh : Math.max(-vh * 0.35, Math.min(mapH - vh, ty));
+  cam.x += (tx - cam.x) * Math.min(1, dt * 6); cam.y += (ty - cam.y) * Math.min(1, dt * 4);
+  if (OG) { cam.x = p.x - vw * 0.3; cam.y = Math.min(mapH - vh, st.ogBell.y - vh * 0.32); }
   let sx = 0; let sy = 0;
-  if (shake > 0) { sx = (Math.random() - 0.5) * 10 * shake; sy = (Math.random() - 0.5) * 10 * shake; }
-  ctx.setTransform(R * s, 0, 0, R * s, 0, 0);
+  if (shake > 0) { sx = Math.round((Math.random() - 0.5) * 6 * shake); sy = Math.round((Math.random() - 0.5) * 6 * shake); }
   const ch = st.def.chapter;
-  const bells = st.bells.filter((b) => !b.clock);
-  const rung = bells.filter((b) => b.rung).length;
-  A.drawBackground(ctx, ch, cam.x, cam.y, vw, vh, t, {
-    whaleDim: true,
-    eye: st.index === 14 ? 0.95 : ch === 2 ? 0.35 : 0,
-    cracks: st.index === 14 ? 1 - rung / 3 : ch === 2 ? 0.4 : 0,
+  const rung = st.bells.filter((b) => !b.clock && b.rung).length;
+  P.drawBackground(ctx, ch, cam.x * K, cam.y * K, w, h, t, {
+    eye: st.index === 14 ? 1 : ch === 2 ? 0.45 : 0,
+    cracks: st.index === 14 ? 1 - rung / 3 : ch === 2 ? 0.5 : 0,
     gold: st.index === 14 ? rung / 3 : 0,
   });
-  ctx.setTransform(R * s, 0, 0, R * s, Math.round((-cam.x + sx) * R * s), Math.round((-cam.y + sy) * R * s));
+  const ox = -Math.round(cam.x * K) + sx; const oy = -Math.round(cam.y * K) + sy;
+  ctx.setTransform(1, 0, 0, 1, ox, oy);
   const c0 = Math.floor(cam.x / L.TS) - 1; const c1 = Math.ceil((cam.x + vw) / L.TS) + 1;
   const r0 = Math.floor(cam.y / L.TS) - 1; const r1 = Math.ceil((cam.y + vh) / L.TS) + 1;
-  A.drawTiles(ctx, st, ch, c0, c1, r0, r1, t);
-  // 糸の標的プレビュー
+  P.drawTiles(ctx, st, ch, c0, c1, r0, r1, t);
   const dir = (held.right ? 1 : 0) - (held.left ? 1 : 0) || p.face;
   const preview = !st.thread && p.dying <= 0 ? L.pickTarget(st, dir) : null;
-  A.drawObjects(ctx, st, ch, t, preview);
-  for (const e of st.enemies) A.drawEnemy(ctx, e, t, st);
-  if (preview && preview.kind !== 'hook') A.targetRing(ctx, preview.x, preview.y, t, st.cooldown > 0 || p.tangled > 0 ? 'rgba(255,215,106,.4)' : '#ffd76a');
-  // 糸
-  if (st.thread) {
-    const from = { x: p.x + p.w / 2 + p.face * 14, y: p.y + 2 };
-    const th = st.thread;
-    const to = L.threadAnchor(st);
-    const prog = th.phase === 'fly' ? Math.min(1, th.t / L.THREAD.fly) : th.phase === 'miss' ? Math.min(1, th.t / 0.12) * (th.t > 0.16 ? Math.max(0, 1 - (th.t - 0.16) / 0.12) : 1) : 1;
-    if (to) A.drawThread(ctx, from, to, colorNow(), th.phase, prog, t);
-  }
+  P.drawObjects(ctx, st, t, preview);
+  for (const e of st.enemies) P.drawEnemy(ctx, e, t);
+  if (preview && preview.kind !== 'hook') P.targetRing(ctx, preview.x, preview.y, t, st.cooldown > 0 || p.tangled > 0);
+  // 主人公と糸
+  let pose = null;
   if (p.dying <= 0 || Math.floor(t * 10) % 2) {
-    ctx.save();
-    if (p.dying > 0) ctx.globalAlpha = Math.max(0, p.dying);
-    A.drawMio(ctx, p, t, { scale: 1.12, throwing: throwAnim > 0 || (st.thread && st.thread.phase !== 'miss'), color: colorNow(), hurt: p.invuln > 0.6 });
-    ctx.restore();
+    pose = P.drawHero(ctx, p, t, { throwing: throwAnim > 0 || (st.thread && st.thread.phase !== 'miss'), hurt: p.invuln > 0.6, og: OG });
   }
-  if (p.tangled > 0) {
-    ctx.strokeStyle = '#ff8aa8'; ctx.lineWidth = 1.5;
-    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(p.x + p.w / 2 + Math.sin(t * 5 + i) * 6, p.y - 30, 5 + i * 2, 0, Math.PI * 1.6); ctx.stroke(); }
+  if (st.thread) {
+    const hp = pose?.handPx || [Math.round((p.x + p.w / 2) * K), Math.round(p.y * K)];
+    const th = st.thread; const to = L.threadAnchor(st);
+    const prog = th.phase === 'fly' ? Math.min(1, th.t / L.THREAD.fly) : th.phase === 'miss' ? Math.min(1, th.t / 0.12) * (th.t > 0.16 ? Math.max(0, 1 - (th.t - 0.16) / 0.12) : 1) : 1;
+    if (to) P.drawThread(ctx, { x: hp[0], y: hp[1] }, { x: to.x * K, y: to.y * K }, colorNow(), th.phase, prog);
   }
-  if (st.fray) A.drawFray(ctx, st.fray, cam.y - 20, cam.y + vh + 20, t);
-  // 粒
-  for (const q of particles) { ctx.globalAlpha = Math.max(0, q.life / q.max); ctx.fillStyle = q.color; ctx.beginPath(); ctx.arc(q.x, q.y, q.size, 0, Math.PI * 2); ctx.fill(); }
-  ctx.globalAlpha = 1;
-  for (const r of rings) { const u = 1 - r.life / r.max; ctx.strokeStyle = r.color; ctx.globalAlpha = 1 - u; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(r.x, r.y, r.r * (0.2 + u), 0, Math.PI * 2); ctx.stroke(); }
-  ctx.globalAlpha = 1;
+  if (p.tangled > 0) { ctx.fillStyle = '#ff5a8a'; for (let i = 0; i < 4; i++) ctx.fillRect(Math.round((p.x + p.w / 2) * K) - 4 + i * 3, Math.round(p.y * K) - 18 + (Math.floor(t * 8 + i) % 2), 2, 1); }
+  if (st.fray) P.drawFray(ctx, st.fray, Math.round(cam.y * K) - 10, Math.round(cam.y * K) + h + 10, t);
+  // 粒と輪
+  for (const q of particles) { if (q.life / q.max < 0.3 && Math.floor(t * 20) % 2) continue; ctx.fillStyle = q.color; const sz = q.size > 2.5 ? 2 : 1; ctx.fillRect(Math.round(q.x * K), Math.round(q.y * K), sz, sz); }
+  for (const r of rings) {
+    const u = 1 - r.life / r.max; const rr = Math.round(r.r * K * (0.2 + u)); ctx.fillStyle = r.color;
+    const n = Math.max(8, rr * 2); for (let i = 0; i < n; i++) { if (i % 2 && u > 0.5) continue; const a = i / n * Math.PI * 2; ctx.fillRect(Math.round(r.x * K + Math.cos(a) * rr), Math.round(r.y * K + Math.sin(a) * rr), 1, 1); }
+  }
   // 画面効果
-  ctx.setTransform(R, 0, 0, R, 0, 0);
-  if (flash > 0) { ctx.fillStyle = `rgba(255,236,170,${flash * 0.5})`; ctx.fillRect(0, 0, W, H); }
-  if (p.invuln > 0.7 && p.dying <= 0) { ctx.fillStyle = `rgba(255,40,60,${(p.invuln - 0.7) * 0.5})`; ctx.fillRect(0, 0, W, H); }
-  if (p.dying > 0) { ctx.fillStyle = `rgba(236,226,255,${Math.min(0.5, (1 - p.dying) * 0.6)})`; ctx.fillRect(0, 0, W, H); }
-  // 周辺の暗がり（切り絵の額縁）
-  const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.4, W / 2, H / 2, Math.max(W, H) * 0.75);
-  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(10,4,26,.45)');
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (flash > 0) { ctx.fillStyle = `rgba(255,226,122,${flash * 0.5})`; ctx.fillRect(0, 0, w, h); }
+  if (p.invuln > 0.7 && p.dying <= 0) { ctx.fillStyle = `rgba(216,40,60,${(p.invuln - 0.7) * 0.6})`; ctx.fillRect(0, 0, w, h); }
+  if (p.dying > 0) { ctx.fillStyle = `rgba(244,241,232,${Math.min(0.5, (1 - p.dying) * 0.6)})`; ctx.fillRect(0, 0, w, h); }
 }
 
 function renderTitle() {
-  const s = Math.min(H / 360, W / 300);
-  const vw = W / s; const vh = H / s;
-  ctx.setTransform(R * s, 0, 0, R * s, 0, 0);
-  A.drawBackground(ctx, 0, t * 20, 0, vw, vh, t, { noWhale: true });
-  // 右上から斜めに流れる巨大な霧鯨
-  const ws = Math.max(0.36, Math.min(vw / 1250, vh / 640));
-  A.drawWhale(ctx, vw * 0.62 + Math.sin(t * 0.3) * 8, vh * 0.32 + Math.sin(t * 0.5) * 6, ws, t, { rot: -0.3, eyeOpen: 4 });
-  // 手前の雲の丘
-  ctx.fillStyle = '#c9b3e6';
-  ctx.beginPath(); ctx.moveTo(0, vh); ctx.lineTo(0, vh * 0.82);
-  for (let x = 0; x <= vw + 40; x += 40) ctx.quadraticCurveTo(x + 20, vh * 0.78 - Math.sin(x * 0.02 + 1) * 12, x + 40, vh * 0.82);
-  ctx.lineTo(vw, vh); ctx.fill();
-  ctx.fillStyle = '#efe8f3'; ctx.fillRect(0, vh * 0.86, vw, vh);
-  ctx.fillStyle = '#8fd17e';
-  ctx.beginPath(); ctx.moveTo(0, vh * 0.86); for (let x = 0; x <= vw; x += 10) ctx.lineTo(x, vh * 0.86 - 3 + Math.sin(x * 0.2) * 2); ctx.lineTo(vw, vh * 0.88); ctx.lineTo(0, vh * 0.88); ctx.fill();
-  // ミオが星鈴へ金の糸を投げる
-  const fy = vh * 0.86; const mx = Math.min(vw * 0.22, 130);
-  const mio = { x: mx - 12, y: fy - 40 - Math.abs(Math.sin(t * 2.2)) * 14, w: 24, h: 40, vx: 160, vy: -10, face: 1, onGround: false, anim: t * 220, landed: 0, invuln: 0 };
-  const bx = mx + Math.min(vw * 0.22, 150); const by = fy - 140 + Math.sin(t * 2) * 6;
-  A.drawThread(ctx, { x: mx + 16, y: mio.y + 2 }, { x: bx, y: by }, A.threadColor(save.color, t), 'hold', 1, t);
-  A.drawStarBell(ctx, bx, by, 1.6, t);
-  A.drawMio(ctx, mio, t, { scale: 1.5, throwing: true, color: A.threadColor(save.color, t) });
-  ctx.setTransform(R, 0, 0, R, 0, 0);
-  const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
-  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(10,4,26,.5)');
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  const w = lo.width; const h = lo.height;
+  P.drawBackground(ctx, 0, t * 6, 0, w, h, t, {});
+  const ws = Math.max(0.7, Math.min(w / 230, h / 150));
+  P.drawTitleWhale(ctx, Math.round(w * 0.6), Math.round(h * 0.42), ws, t);
+  // 手前の鯨の背（地面）
+  ctx.fillStyle = '#120c1c'; ctx.fillRect(0, Math.round(h * 0.86) - 1, w, h);
+  ctx.fillStyle = '#9fc0d4'; ctx.fillRect(0, Math.round(h * 0.86), w, h);
+  ctx.fillStyle = '#4fb08a'; ctx.fillRect(0, Math.round(h * 0.86), w, 3);
+  ctx.fillStyle = '#2f7a68'; for (let x = 0; x < w; x += 3) ctx.fillRect(x, Math.round(h * 0.86) - 1 - (x % 9 === 0 ? 1 : 0), 1, 1);
+  ctx.fillStyle = '#7896b4'; for (let x = 4; x < w; x += 23) ctx.fillRect(x, Math.round(h * 0.86) + 7 + (x % 3), 4, 1);
+  // 主人公が星鈴へ糸を投げる（大きく）
+  const sc = h > 260 ? 3 : 2;
+  const hx = Math.round(Math.min(w * 0.14, 50)); const jump = Math.round(Math.abs(Math.sin(t * 2.2)) * 6);
+  const hy = Math.round(h * 0.86) - 36 * sc + 2 - jump;
+  const bx = Math.round(hx + Math.min(w * 0.36, 130)); const by = Math.round(h * 0.86) - 36 * sc - 28 + Math.round(Math.sin(t * 2) * 2);
+  const hand = P.drawHeroBig(ctx, hx, hy, sc, t, { throwing: true, onGround: false, vy: -10 });
+  P.drawThread(ctx, { x: hand[0], y: hand[1] }, { x: bx, y: by }, colorNow(), 'hold', 1);
+  P.drawStarBell(ctx, bx, by, t, 2);
 }
 
 function renderMapBg() {
-  const s = Math.min(H / 360, W / 300); const vw = W / s; const vh = H / s;
-  ctx.setTransform(R * s, 0, 0, R * s, 0, 0);
   const ch = Math.min(2, Math.floor(nextStage() / 5));
-  A.drawBackground(ctx, ch, t * 15, 0, vw, vh, t, { whaleDim: true, eye: ch === 2 ? 0.5 : 0, cracks: ch === 2 ? 0.4 : 0 });
+  P.drawBackground(ctx, ch, t * 6, 0, lo.width, lo.height, t, { eye: ch === 2 ? 0.6 : 0, cracks: ch === 2 ? 0.5 : 0 });
 }
 
 // ───────────────────────── ループ ─────────────────────────
@@ -387,8 +365,8 @@ function finishStage() {
   $('resStage').textContent = `${L.CHAPTERS[st.def.chapter].sub} ${res.index + 1}『${st.def.name}』`;
   const bells = $('resBells'); bells.innerHTML = '';
   res.stars.forEach((got, i) => {
-    const c = document.createElement('canvas'); c.width = 27; c.height = 27; c.className = 'px';
-    pixelCanvas(c, (g) => { g.scale(0.5, 0.5); if (got) A.drawStarBell(g, 27, 30, 1.7, i); else { g.globalAlpha = 0.35; A.drawStarBell(g, 27, 30, 1.7, 0); } });
+    const c = document.createElement('canvas'); c.width = 18; c.height = 18; c.className = 'px';
+    pixelCanvas(c, (g) => { if (!got) g.globalAlpha = 0.3; P.drawStarBell(g, 9, 9, got ? 0.3 + i : 0, 1); });
     c.setAttribute('aria-label', got ? '星鈴 取った' : '星鈴 まだ');
     bells.appendChild(c);
   });
@@ -545,7 +523,7 @@ function renderNote() {
       <ul><li><b>金のフック</b>：その場所まで一気に飛ぶ。空中でも投げられる。</li><li><b>レバー・鐘</b>：引くと橋が出る・扉が開く・灯台が開く。</li><li><b>敵</b>：1秒縛る。縛っている間にもう一度 J で手元へ引き寄せる。鈴スイッチに通す・いばらに落とす・別の敵にぶつけると倒せる。</li><li><b>種・雲の舟</b>：手元へ引き寄せる。舟に乗ってフックへ投げると舟ごと進む。</li></ul>
       <p>投げたあと0.6秒は次が投げられない（左上の糸巻きが満ちたらOK）。</p>
       <h3>ハートと灯</h3><p>ハートは3つ。なくなると最後にともした灯から、ハート3つで再開。星鈴はその面をクリアしたときに記録される。</p>
-      <h3>敵</h3><div class="foes">${FOES.map((f) => `<div class="foe"><canvas width="45" height="35" class="px" data-k="${f.kind}"></canvas><b>${f.name}</b>${f.text}</div>`).join('')}</div>`;
+      <h3>敵</h3><div class="foes">${FOES.map((f) => `<div class="foe"><canvas width="60" height="46" class="px" data-k="${f.kind}"></canvas><b>${f.name}</b>${f.text}</div>`).join('')}</div>`;
     for (const c of body.querySelectorAll('.foe canvas')) drawFoe(c, c.dataset.k);
   } else {
     body.innerHTML = `<div class="setting"><span>音</span><button type="button" class="toggle" id="setMute" aria-pressed="${!audio.state.muted}">${audio.state.muted ? 'オフ' : 'オン'}</button></div>
@@ -557,18 +535,7 @@ function renderNote() {
   }
 }
 
-function drawFoe(c, kind) { pixelCanvas(c, (g) => drawFoeInner(g, kind)); }
-function drawFoeInner(g, kind) {
-  g.scale(0.5, 0.5);
-  g.fillStyle = '#241444'; g.fillRect(0, 0, 90, 70);
-  if (kind === 'fray') { A.drawFray(g, { x: 62, dying: 0 }, 0, 70, 1); return; }
-  const e = { kind, x: 0, y: 0, r: 16, face: 1, state: 'hover', bound: 0, stun: 0, id: 1, s: 0.6, x0: -70, x1: 70, surf: 40, alert: true, beam: null, vx: 1, vy: 0, anim: 0 };
-  g.save();
-  if (kind === 'serpent') { e.state = 'leap'; g.translate(45, 34); g.scale(0.42, 0.42); g.fillStyle = 'rgba(169,216,255,.5)'; g.fillRect(-90, 40, 180, 20); }
-  else { g.translate(45, 38); g.scale(1.25, 1.25); }
-  A.drawEnemy(g, e, 0.3, { t: 0 });
-  g.restore();
-}
+function drawFoe(c, kind) { pixelCanvas(c, (g) => P.drawFoeIcon(g, kind, 0.3)); }
 
 // ───────────────────────── OG（共有画像） ─────────────────────────
 function setupOg() {
