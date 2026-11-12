@@ -1,4 +1,5 @@
 // 切り絵と手描き線の絵（すべて Canvas のパス）。外部画像なし。
+import * as S from './sprites.js';
 import { TS, ROWS, serpentSpan, serpentY, serpentHead, clockOpen, exitLocked, THREAD_COLORS } from './logic.js';
 
 export const PAL = [
@@ -421,24 +422,12 @@ export function drawObjects(ctx, st, ch, t, preview) {
   for (const b of st.bells) drawBigBell(ctx, b, t, st);
   for (const h of st.hooks) drawHook(ctx, h, t, preview && preview.ref === h);
   for (const s of st.seeds) drawSeed(ctx, s, t);
-  for (const s of st.stars) if (!s.got) drawStarBell(ctx, s.x, s.y + Math.sin(t * 2.4 + s.id) * 3, 1, t);
+  for (const s of st.stars) if (!s.got) S.drawStarBell(ctx, s.x, s.y + Math.sin(t * 2.4 + s.id) * 3, 1, t);
   void ch;
 }
 
-export function drawStarBell(ctx, x, y, s, t) {
-  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
-  const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, 22);
-  glow.addColorStop(0, 'rgba(255,230,140,.8)'); glow.addColorStop(1, 'rgba(255,230,140,0)');
-  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
-  ctx.rotate(Math.sin(t * 3) * 0.15);
-  ctx.fillStyle = '#ffd24a'; ctx.strokeStyle = '#8a5a10'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(-9, 6); ctx.quadraticCurveTo(-9, -10, 0, -11); ctx.quadraticCurveTo(9, -10, 9, 6); ctx.lineTo(11, 8); ctx.lineTo(-11, 8); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#8a5a10'; ctx.beginPath(); ctx.arc(0, 10, 2.5, 0, Math.PI * 2); ctx.fill();
-  // 星
-  ctx.fillStyle = '#fff8d8';
-  star(ctx, 0, -2, 4.5, 2);
-  ctx.restore();
-}
+export { drawStarBell } from './sprites.js';
+
 function star(ctx, x, y, R, r) {
   ctx.beginPath();
   for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5; const rr = i % 2 ? r : R; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
@@ -447,17 +436,7 @@ function star(ctx, x, y, R, r) {
 
 export function drawHook(ctx, h, t, targeted) {
   if (h.gone) return;
-  ctx.save(); ctx.translate(h.x, h.y);
-  const a = h.fading && h.fade > 0 ? Math.max(0.2, h.fade / 2.2) : 1;
-  ctx.globalAlpha = a;
-  const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, 26);
-  glow.addColorStop(0, h.fading ? 'rgba(180,220,255,.7)' : 'rgba(255,215,106,.7)'); glow.addColorStop(1, 'rgba(255,215,106,0)');
-  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, 26, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = h.fading ? '#cfe6ff' : '#ffd76a';
-  star(ctx, 0, 0, 12, 5);
-  ctx.strokeStyle = h.fading ? '#4a6a9a' : '#8a5a10'; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.strokeStyle = '#fff3c0'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.stroke();
-  ctx.restore();
+  S.drawStarHook(ctx, h, t);
   if (targeted) targetRing(ctx, h.x, h.y, t);
 }
 
@@ -469,59 +448,11 @@ export function targetRing(ctx, x, y, t, color = '#ffd76a') {
   ctx.restore();
 }
 
-function drawLever(ctx, l, t) {
-  ctx.save(); ctx.translate(l.x, l.y);
-  ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, 18); ctx.lineTo(0, -2); ctx.stroke();
-  ctx.fillStyle = '#7a5a3a'; ctx.beginPath(); ctx.arc(0, 18, 7, Math.PI, 0); ctx.fill();
-  ctx.rotate(l.on ? 0.9 : -0.6);
-  ctx.strokeStyle = '#c99a3a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -16); ctx.stroke();
-  ctx.fillStyle = l.on ? '#fff0a0' : '#ffd24a'; ctx.strokeStyle = '#8a5a10'; ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.moveTo(-7, -14); ctx.quadraticCurveTo(-7, -26, 0, -26); ctx.quadraticCurveTo(7, -26, 7, -14); ctx.lineTo(9, -12); ctx.lineTo(-9, -12); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.restore();
-  if (!l.on) { ctx.fillStyle = `rgba(255,215,106,${0.3 + 0.2 * Math.sin(t * 4)})`; ctx.beginPath(); ctx.arc(l.x, l.y - 14, 16, 0, Math.PI * 2); ctx.fill(); }
-}
+function drawLever(ctx, l, t) { S.drawBellLever(ctx, l, t); }
 
-function drawSwitch(ctx, sw, t) {
-  const x = sw.x; const base = sw.y;
-  ctx.save();
-  // 3マスの鳴り枠
-  ctx.strokeStyle = sw.on ? 'rgba(255,215,106,.8)' : 'rgba(255,215,106,.35)'; ctx.setLineDash(sw.on ? [] : [4, 5]); ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(x - 18, base); ctx.lineTo(x - 18, base - 100); ctx.quadraticCurveTo(x, base - 124, x + 18, base - 100); ctx.lineTo(x + 18, base); ctx.stroke(); ctx.setLineDash([]);
-  // 吊り鈴
-  const sw2 = sw.on ? Math.sin(t * 6) * 0.25 : 0;
-  ctx.translate(x, base - 100); ctx.rotate(sw2);
-  ctx.strokeStyle = '#8a5a10'; ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(0, 6); ctx.stroke();
-  ctx.fillStyle = sw.on ? '#fff0a0' : '#e0b04a'; ctx.strokeStyle = '#6a4010'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(-12, 26); ctx.quadraticCurveTo(-12, 4, 0, 4); ctx.quadraticCurveTo(12, 4, 12, 26); ctx.lineTo(15, 30); ctx.lineTo(-15, 30); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.restore();
-  // 足元の印
-  ctx.fillStyle = '#ffd76a'; ctx.globalAlpha = sw.on ? 0.9 : 0.5;
-  star(ctx, x, base - 10, 7, 3); ctx.globalAlpha = 1;
-}
+function drawSwitch(ctx, sw, t) { S.drawSwitchBell(ctx, sw, t); }
 
-function drawBigBell(ctx, b, t, st) {
-  ctx.save(); ctx.translate(b.x, b.y);
-  const lit = b.clock ? b.ring > 0 : b.rung;
-  if (lit || !b.clock) {
-    const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, 46);
-    glow.addColorStop(0, lit ? 'rgba(255,230,140,.85)' : 'rgba(255,215,106,.35)'); glow.addColorStop(1, 'rgba(255,215,106,0)');
-    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, 46, 0, Math.PI * 2); ctx.fill();
-  }
-  // 吊り紐
-  ctx.strokeStyle = '#d8b0ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -24); ctx.quadraticCurveTo(-30, -60, -60, -90); ctx.moveTo(0, -24); ctx.quadraticCurveTo(30, -60, 60, -90); ctx.stroke();
-  ctx.rotate(Math.sin(t * 9) * 0.35 * (b.swing || 0));
-  ctx.fillStyle = b.clock ? '#c8b0ff' : (lit ? '#fff2a8' : '#e8b440'); ctx.strokeStyle = '#6a4010'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(-18, 14); ctx.quadraticCurveTo(-20, -22, 0, -24); ctx.quadraticCurveTo(20, -22, 18, 14); ctx.lineTo(23, 20); ctx.lineTo(-23, 20); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#6a4010'; ctx.beginPath(); ctx.arc(0, 23, 4, 0, Math.PI * 2); ctx.fill();
-  if (b.clock) {
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, -4, 9, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#3a2a6a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(0, -10); ctx.moveTo(0, -4); const a = st.t * 2; ctx.lineTo(Math.cos(a) * 6, -4 + Math.sin(a) * 6); ctx.stroke();
-    if (b.ring > 0) { ctx.strokeStyle = '#ffd76a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, -4, 14, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (b.ring / 6)); ctx.stroke(); }
-  } else {
-    ctx.fillStyle = lit ? '#fff' : '#fff1c0'; star(ctx, 0, -4, 6, 2.5);
-  }
-  ctx.restore();
-}
+function drawBigBell(ctx, b, t, st) { S.drawGreatBell(ctx, b, t, st); }
 
 function drawCheckpoint(ctx, c, t) {
   const x = c.x; const y = c.y + 40;
@@ -588,74 +519,8 @@ function drawShip(ctx, s, t) {
 }
 
 // ───────────────────────── 主人公ミオ ─────────────────────────
-export function drawMio(ctx, p, t, opts = {}) {
-  const x = p.x + p.w / 2; const foot = p.y + p.h;
-  const s = opts.scale || 1;
-  const face = p.face || 1;
-  const run = Math.abs(p.vx) > 20 && p.onGround;
-  const ph = p.anim * 0.055;
-  const air = !p.onGround;
-  ctx.save(); ctx.translate(x, foot); ctx.scale(face * s, s);
-  if (p.invuln > 0 && !opts.og && Math.floor(t * 16) % 2) ctx.globalAlpha = 0.45;
-  const squash = p.landed > 0 ? 1 - p.landed * 0.8 : 1;
-  ctx.scale(1 / squash > 1.15 ? 1.1 : 1, squash);
-  // 影
-  if (p.onGround) { ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(0, 0, 14, 4, 0, 0, Math.PI * 2); ctx.fill(); }
-  // マフラー（後ろへなびく）
-  const wind = air ? 1.4 : run ? 1 : 0.4;
-  ctx.fillStyle = '#e8343a'; ctx.strokeStyle = '#7a1018'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(-2, -44);
-  const tail = 30 + wind * 16;
-  for (let i = 0; i <= 6; i++) {
-    const u = i / 6;
-    ctx.lineTo(-4 - u * tail, -44 + Math.sin(t * 9 - u * 5) * (3 + u * 6 * wind) + u * (air && p.vy < 0 ? 10 : 2));
-  }
-  for (let i = 6; i >= 0; i--) {
-    const u = i / 6;
-    ctx.lineTo(-4 - u * tail, -36 + Math.sin(t * 9 - u * 5) * (3 + u * 6 * wind) + u * (air && p.vy < 0 ? 10 : 2) - u * 2);
-  }
-  ctx.closePath(); ctx.fill(); ctx.stroke();
-  // 脚
-  ctx.strokeStyle = '#2a2350'; ctx.lineWidth = 5; ctx.lineCap = 'round';
-  const l1 = air ? -0.5 : run ? Math.sin(ph) * 0.8 : 0.08;
-  const l2 = air ? 0.6 : run ? -Math.sin(ph) * 0.8 : -0.08;
-  for (const a of [l1, l2]) { ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(Math.sin(a) * 14, -18 + Math.cos(a) * 14 + (air ? -3 : 0)); ctx.stroke(); }
-  ctx.fillStyle = '#5a2a2a';
-  for (const a of [l1, l2]) { ctx.beginPath(); ctx.ellipse(Math.sin(a) * 14 + 2, -18 + Math.cos(a) * 14 + (air ? -3 : 0), 5, 3, 0, 0, Math.PI * 2); ctx.fill(); }
-  // 体（白い上着）
-  ctx.fillStyle = '#fbf6ee'; ctx.strokeStyle = '#3a2356'; ctx.lineWidth = 1.8;
-  ctx.beginPath(); ctx.moveTo(-9, -42); ctx.quadraticCurveTo(-13, -26, -12, -16); ctx.lineTo(12, -16); ctx.quadraticCurveTo(13, -26, 9, -42); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.strokeStyle = '#e0b04a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-12, -18); ctx.lineTo(12, -18); ctx.stroke();
-  // 腕（糸を投げる姿勢）
-  const throwing = opts.throwing;
-  ctx.strokeStyle = '#fbf6ee'; ctx.lineWidth = 5;
-  ctx.beginPath(); ctx.moveTo(4, -38);
-  if (throwing) ctx.lineTo(18, -46); else ctx.lineTo(8 + (run ? -Math.sin(ph) * 6 : 2), -24);
-  ctx.stroke();
-  ctx.strokeStyle = '#3a2356'; ctx.lineWidth = 1.2; ctx.stroke();
-  ctx.fillStyle = '#ffe2c8'; ctx.beginPath(); ctx.arc(throwing ? 19 : 9 + (run ? -Math.sin(ph) * 6 : 2), throwing ? -47 : -23, 3, 0, Math.PI * 2); ctx.fill();
-  // 糸巻き
-  ctx.fillStyle = '#c9963a'; ctx.beginPath(); ctx.ellipse(-8, -26, 4, 5, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = opts.color || '#ffd76a'; ctx.fillRect(-11, -28, 6, 4);
-  // マフラーの結び目
-  ctx.fillStyle = '#e8343a'; ctx.strokeStyle = '#7a1018'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.ellipse(0, -43, 11, 5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  // 頭
-  ctx.fillStyle = '#ffe2c8'; ctx.strokeStyle = '#3a2356'; ctx.lineWidth = 1.8;
-  ctx.beginPath(); ctx.arc(2, -56, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  // 髪
-  ctx.fillStyle = '#2a1d3a';
-  ctx.beginPath(); ctx.moveTo(-10, -50); ctx.quadraticCurveTo(-14, -70, 2, -69); ctx.quadraticCurveTo(15, -69, 14, -56);
-  ctx.quadraticCurveTo(8, -62, 4, -60); ctx.quadraticCurveTo(-2, -58, -4, -54); ctx.quadraticCurveTo(-8, -50, -10, -44); ctx.closePath(); ctx.fill();
-  // 髪飾り（星）
-  ctx.fillStyle = '#ffd76a'; star(ctx, -6, -66, 4, 1.8);
-  // 目と頬
-  ctx.fillStyle = '#2a1d3a'; ctx.beginPath(); ctx.ellipse(8, -55, 1.6, opts.hurt ? 0.6 : 2.4, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = 'rgba(255,120,120,.5)'; ctx.beginPath(); ctx.arc(7, -50, 2.5, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
-}
+export { drawMio } from './sprites.js';
 
-// ───────────────────────── 敵 ─────────────────────────
 export function drawEnemy(ctx, e, t, st) {
   if (e.dead) return;
   ctx.save();
