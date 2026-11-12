@@ -236,8 +236,9 @@ function drawWindowFrame(ctx, w, ch, dread, t, big) {
 export function drawMonster(ctx, g, m, t, ch = 0) {
   const ww = g.x1 - g.x0; const u = ww / 60; const cx = Math.round((g.x0 + g.x1) / 2); const sill = g.y1;
   const S = (n) => Math.max(1, Math.round(n * u));
-  const out = m.out;
+  const out = m.out; const parts = m.parts || 'all';
   const glint = ch === 2 ? '#ff4a5a' : '#ffe27a';
+  if (parts === 'hands') { drawMonsterHands(ctx, g, m, t, u, cx, sill, S); return; }
   if (out <= 0.02) {
     // 窓の下の暗がりに、離れた二つの目
     if (Math.floor(t * 0.7 + m.id) % 4 === 0 && Math.floor(t * 8) % 9) { ctx.fillStyle = glint; ctx.fillRect(cx - S(13), sill - S(5), S(2), 1); ctx.fillRect(cx + S(12), sill - S(5), S(2), 1); }
@@ -284,6 +285,12 @@ export function drawMonster(ctx, g, m, t, ch = 0) {
     }
   }
   ctx.restore();
+  if (parts === 'face') return;
+  drawMonsterHands(ctx, g, m, t, u, cx, sill, S);
+}
+function drawMonsterHands(ctx, g, m, t, u, cx, sill, S) {
+  const out = m.out; const ww = g.x1 - g.x0; const flinch = m.state === 'flinch';
+  if (out <= 0.02) return;
   // 窓台をつかむ両手（窓の外から指がかかる）
   const k = Math.max(0, Math.min(1, (out - 0.2) / 0.5));
   if (k > 0) {
@@ -361,4 +368,61 @@ export function drawFloorScreen(ctx, w, y, h, ch) {
   ctx.fillStyle = '#3a2418'; for (let x = 7; x < w; x += 19) ctx.fillRect(x, y + 1, 1, 5);
   ctx.fillStyle = '#1a1018'; ctx.fillRect(0, y + 7, w, h - y - 7);
   pxDither(ctx, 0, y + 6, w, 3, '#3a2418', 0);
+}
+
+// ───────── タイトル：月明かりの子ども部屋 ─────────
+// 壁（窓の穴あき）と、十字の桟の窓・カーテン
+export function drawTitleWall(ctx, w, h, win, floorY, t) {
+  const P = ROOM[0];
+  ctx.beginPath(); ctx.rect(0, 0, w, floorY); ctx.rect(win.x0, win.y0, win.x1 - win.x0, win.y1 - win.y0);
+  ctx.fillStyle = paper(ctx, 0); ctx.fill('evenodd');
+  // 壁は暗く沈める（窓の光だけが明るい）
+  ctx.beginPath(); ctx.rect(0, 0, w, floorY); ctx.rect(win.x0, win.y0, win.x1 - win.x0, win.y1 - win.y0);
+  ctx.fillStyle = 'rgba(8,6,16,.45)'; ctx.fill('evenodd');
+  const ceil = Math.max(6, Math.min(CEIL, win.y0 - 14));
+  ctx.fillStyle = P.ceil; ctx.fillRect(0, 0, w, ceil);
+  ctx.fillStyle = P.beam; for (let x = 6; x < w; x += 48) { ctx.fillRect(x, 0, 8, ceil + 3); ctx.fillRect(x - 2, ceil, 12, 2); }
+  ctx.fillStyle = OUT; ctx.fillRect(0, ceil, w, 1);
+  drawWindowFrame(ctx, { ...win, id: 2 }, 0, 0.6, t, false);
+}
+// 窓から斜めに差しこむ月の光。shadow: 窓の顔の影（0..1）
+export function drawMoonBeam(ctx, win, floorY, w, t, dim = 0, shadow = 0) {
+  const k = 0.55; const a = 0.11 * (1 - dim * 0.7);
+  const xr = (y) => [Math.round(win.x0 - (y - win.y0) * k), Math.round(win.x1 - Math.max(0, y - win.y1) * k)];
+  for (let y = win.y0; y < floorY; y++) {
+    const [l, r] = xr(y); if (r <= l) continue;
+    ctx.fillStyle = `rgba(216,224,176,${a})`; ctx.fillRect(Math.max(0, l), y, Math.min(w, r) - Math.max(0, l), 1);
+    // 縁はディザでぼかす
+    ctx.fillStyle = `rgba(216,224,176,${a})`; if ((y & 1) === 0) { ctx.fillRect(l - 2, y, 1, 1); ctx.fillRect(r + 1, y, 1, 1); }
+  }
+  // 床に落ちた窓の形（十字の桟の影つき）
+  const [fl, fr] = xr(floorY); const mid = Math.round((fl + fr) / 2 + (win.y1 - win.y0) * k * 0.05);
+  ctx.fillStyle = `rgba(232,238,200,${0.32 * (1 - dim * 0.7)})`; ctx.fillRect(fl, floorY + 1, fr - fl, 3);
+  ctx.fillStyle = 'rgba(10,8,16,.55)'; ctx.fillRect(mid - 1, floorY + 1, 2, 3);
+  // 漂うほこり
+  for (let i = 0; i < 16; i++) {
+    const yy = win.y0 + ((hash(i * 3) * (floorY - win.y0) + t * (3 + hash(i) * 4)) % (floorY - win.y0));
+    const [l, r] = xr(yy); const xx = l + hash(i * 7 + 1) * (r - l) + Math.sin(t * 0.7 + i) * 3;
+    if ((Math.floor(t * 2 + i) % 5) !== 0) { ctx.fillStyle = `rgba(244,241,232,${0.5 * (1 - dim * 0.5)})`; ctx.fillRect(Math.round(xx), Math.round(yy), 1, 1); }
+  }
+  // 窓の顔が光をさえぎって、床と壁に大きな頭の影が落ちる
+  if (shadow > 0.05) {
+    const ww = win.x1 - win.x0; const rx = Math.round(ww * 0.42 * Math.min(1, shadow * 1.2)); const ry = Math.round(rx * 0.9);
+    const cx = Math.round((fl + fr) / 2 + ww * 0.1); const cy = floorY - Math.round(ry * 0.5);
+    ctx.save(); ctx.beginPath();
+    for (let y = win.y0; y < floorY + 4; y++) { const [l, r] = xr(Math.min(y, floorY)); ctx.rect(l - 2, y, r - l + 4, 1); }
+    ctx.clip();
+    ctx.fillStyle = `rgba(6,3,10,${0.45 * shadow})`; pxEllipse(ctx, cx, cy, rx, ry); ctx.fillStyle = `rgba(6,3,10,${0.25 * shadow})`; pxEllipse(ctx, cx, cy, rx + 3, ry + 3);
+    for (let i = 0; i < 4; i++) { ctx.fillRect(cx - rx - 2 + i * 3, cy + Math.round(ry * 0.6), 2, Math.round(ry * 0.5)); ctx.fillRect(cx + rx - 10 + i * 3, cy + Math.round(ry * 0.6), 2, Math.round(ry * 0.5)); }
+    ctx.restore();
+  }
+}
+// 画面の四隅を暗く
+export function vignette(ctx, w, h) {
+  for (let i = 0; i < 6; i++) {
+    const a = 0.1 + i * 0.02;
+    ctx.fillStyle = `rgba(6,3,10,${a})`;
+    ctx.fillRect(0, 0, w, 6 - i); ctx.fillRect(0, h - (6 - i) * 2, w, (6 - i) * 2);
+    ctx.fillRect(0, 0, (6 - i) * 3, h); ctx.fillRect(w - (6 - i) * 3, 0, (6 - i) * 3, h);
+  }
 }

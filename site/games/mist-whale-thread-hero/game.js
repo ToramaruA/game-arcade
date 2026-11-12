@@ -379,31 +379,35 @@ function renderScene(dt) {
 
 function renderTitle() {
   const w = lo.width; const h = lo.height; const phone = w < 200;
-  const floorY = Math.round(h * (phone ? 0.7 : 0.86));
-  // 子ども部屋の大きな窓。外には夜空を泳ぐ鯨
+  // 月明かりの子ども部屋。窓の外を霧鯨が泳ぎ、ときどき窓の下から巨大な顔が上がってくる
+  const floorY = Math.round(h * (phone ? 0.74 : 0.8));
   const win = phone
-    ? { x0: Math.round(w * 0.16), x1: Math.round(w * 0.92), y0: Math.round(h * 0.3), y1: floorY - 22 }
-    : { x0: Math.round(w * 0.5), x1: Math.round(Math.min(w * 0.5 + 170, w * 0.95)), y0: 28, y1: floorY - 26 };
-  P.drawBackground(ctx, 0, t * 6, 0, w, h, t, {});
-  const ws = Math.max(0.7, Math.min(w / 230, h / 150));
-  P.drawTitleWhale(ctx, Math.round((win.x0 + win.x1) / 2 + 10), Math.round(win.y0 + (win.y1 - win.y0) * 0.42), phone ? 0.7 : ws, t);
-  // 7秒ごとに、窓の下から巨大な顔がぬっと上がって手を伸ばす
-  const cyc = (t % 7) / 7;
-  const out = cyc < 0.2 ? 0 : cyc < 0.45 ? (cyc - 0.2) / 0.25 : cyc < 0.85 ? 1 : 1 - (cyc - 0.85) / 0.15;
-  const arm = cyc > 0.6 && cyc < 0.85 ? Math.sin((cyc - 0.6) / 0.25 * Math.PI) : 0;
-  const sc = phone ? 2 : h > 260 ? 3 : 2;
-  const hx = Math.round(Math.min(w * 0.12, 50)); const jump = Math.round(Math.abs(Math.sin(t * 2.2)) * 6);
-  const footY = floorY;
-  const girl = [hx + 15 * sc, footY - 18 * sc];
-  const bx0 = (win.x0 + win.x1) / 2 - 8; const by0 = win.y1 - 12;
-  const reach = 0.55 * arm;
-  P.drawTitleRoom(ctx, w, h, win, floorY, out, arm, [Math.round(bx0 + (girl[0] - bx0) * reach), Math.round(by0 + (girl[1] - by0) * reach)], t);
-  // 主人公が星鈴へ糸を投げる（大きく）
-  const hy = footY - 35 * sc - jump;
-  const bx = Math.round(hx + Math.min(w * 0.5, 120)); const by = Math.round(phone ? win.y0 - 30 : footY - 36 * sc - 10) + Math.round(Math.sin(t * 2) * 2);
-  const hand = P.drawHeroBig(ctx, hx, hy, sc, t, { throwing: true, onGround: false, vy: -10, nervous: out < 0.5, scared: out >= 0.5 });
-  P.drawThread(ctx, { x: hand[0], y: hand[1] }, { x: bx, y: by }, colorNow(), 'hold', 1);
-  P.drawStarBell(ctx, bx, by, t, 2);
+    ? { x0: Math.round(w * 0.36), x1: Math.round(w * 0.92), y0: Math.round(h * 0.24), y1: Math.round(h * 0.46) }
+    : { x0: Math.round(w * 0.6), x1: Math.round(w * 0.6) + 84, y0: 26, y1: floorY - 46 };
+  const cyc = (t % 9) / 9;
+  const out = cyc < 0.35 ? 0 : cyc < 0.55 ? (cyc - 0.35) / 0.2 : cyc < 0.85 ? 1 : 1 - (cyc - 0.85) / 0.15;
+  P.drawBackground(ctx, 0, t * 4, 0, w, h, t, {});
+  // 窓の外をゆっくり横切る霧鯨
+  const span = win.x1 - win.x0 + 140; const wx = win.x1 + 20 - ((t * 7) % span);
+  P.drawWhaleSprite(ctx, wx, win.y0 + 8, 'main', 0.5, t);
+  const m = { out, arm: 0, state: 'peek', hx: 0, hy: 0, look: -1, id: 1 };
+  P.drawMonster(ctx, win, { ...m, parts: 'face' }, t, 0);
+  P.drawTitleWall(ctx, w, h, win, floorY, t);
+  P.drawMonster(ctx, win, { ...m, parts: 'hands' }, t, 0);
+  P.drawFloorScreen(ctx, w, floorY, h, 0);
+  P.drawMoonBeam(ctx, win, floorY, w, t, out, out);
+  // 光の中に立つ少女。顔が出ると身をすくめる
+  const sc = 2;
+  const hx = phone ? 2 : Math.round(w * 0.3 - 15 * sc);
+  const hy = floorY - 35 * sc;
+  const scared = out > 0.5;
+  const hand = P.drawHeroBig(ctx, hx, hy, sc, t, { throwing: !scared, nervous: !scared, scared });
+  if (!scared) {
+    const bx = Math.round(win.x0 - (phone ? 14 : 16)); const by = Math.round(win.y0 + (phone ? 14 : 6) + Math.sin(t * 2) * 2);
+    P.drawThread(ctx, { x: hand[0], y: hand[1] }, { x: bx, y: by }, colorNow(), 'hold', 1);
+    P.drawStarBell(ctx, bx, by, t, 2);
+  }
+  P.vignette(ctx, w, h);
 }
 
 function renderMapBg() {

@@ -323,3 +323,11 @@ body.og .og-card { left: auto; right: 34px; top: 28px; bottom: auto; text-align:
 .modal.story { background: rgba(6, 2, 10, .94); }
 /* 地図：長い章名でも1行に収める */
 .chap h3 > span:first-child { white-space: nowrap; font-size: 15px; letter-spacing: 0; }
+
+/* タイトルロゴ：夜の部屋に浮かぶ、骨のように白い字と一本の金の糸 */
+.logo { text-shadow: none; }
+.logo-a { color: #b8b0c8; letter-spacing: .32em; font-size: clamp(18px, 3vw, 34px); text-shadow: 2px 2px 0 #0a0408; }
+.logo-b { color: #ece2d0; font-weight: 900; letter-spacing: .04em; text-shadow: 3px 3px 0 #0a0408, 0 0 22px rgba(0, 0, 0, .7); position: relative; padding-bottom: 10px; }
+.logo-b .ito { color: #ffd36a; text-shadow: 3px 3px 0 #0a0408, 0 0 16px rgba(255, 211, 106, .75); }
+.logo-b::after { content: ""; position: absolute; left: .1em; right: -8%; bottom: 0; height: 3px; background: linear-gradient(90deg, #ffd36a 0 30%, rgba(255, 211, 106, .55) 55%, transparent); box-shadow: 0 0 8px rgba(255, 211, 106, .6); }
+.tagline { color: #c8c0d8; letter-spacing: .24em; font-size: clamp(12px, 1.4vw, 16px); text-shadow: 2px 2px 0 #0a0408; margin-top: 12px; }

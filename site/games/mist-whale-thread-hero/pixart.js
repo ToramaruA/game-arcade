@@ -917,6 +917,8 @@ export function drawTitleRoom(ctx, w, h, win, floorY, out, arm, hand, t) {
   drawFloorScreen(ctx, w, floorY, h, 0);
 }
 export { drawMonster, monsterWindow };
+export { drawTitleWall, drawMoonBeam, vignette } from './room.js';
+export { drawFloorScreen } from './room.js';
 
 // 霧をかぶせる（ディザ）
 export function fog(ctx, x, y, w, h, color, phase = 0) { pxDither(ctx, x, y, w, h, color, phase); }
