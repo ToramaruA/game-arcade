@@ -325,7 +325,7 @@ function renderScene(dt) {
   ctx.setTransform(1, 0, 0, 1, ox, oy);
   const c0 = Math.floor(cam.x / L.TS) - 1; const c1 = Math.ceil((cam.x + vw) / L.TS) + 1;
   const r0 = Math.floor(cam.y / L.TS) - 1; const r1 = Math.ceil((cam.y + vh) / L.TS) + 1;
-  P.drawWindowHouses(ctx, st, t);
+  P.drawRoom(ctx, st, ch, c0, c1, Math.round(cam.y * K) - 8, Math.round(cam.y * K) + h + 8, t);
   P.drawTiles(ctx, st, ch, c0, c1, r0, r1, t);
   const dir = (held.right ? 1 : 0) - (held.left ? 1 : 0) || p.face;
   const preview = !st.thread && p.dying <= 0 ? L.pickTarget(st, dir) : null;
@@ -368,29 +368,30 @@ function renderScene(dt) {
 }
 
 function renderTitle() {
-  const w = lo.width; const h = lo.height;
+  const w = lo.width; const h = lo.height; const phone = w < 200;
+  const floorY = Math.round(h * (phone ? 0.7 : 0.86));
+  // 子ども部屋の大きな窓。外には夜空を泳ぐ鯨
+  const win = phone
+    ? { x0: Math.round(w * 0.16), x1: Math.round(w * 0.92), y0: Math.round(h * 0.3), y1: floorY - 22 }
+    : { x0: Math.round(w * 0.5), x1: Math.round(Math.min(w * 0.5 + 170, w * 0.95)), y0: 28, y1: floorY - 26 };
   P.drawBackground(ctx, 0, t * 6, 0, w, h, t, {});
   const ws = Math.max(0.7, Math.min(w / 230, h / 150));
-  P.drawTitleWhale(ctx, Math.round(w * 0.6), Math.round(h * 0.42), ws, t);
-  // 霧をかぶせ、町の窓から何かが覗く
-  P.fog(ctx, 0, Math.round(h * 0.42), w, Math.round(h * 0.2), '#24484a', 0);
-  P.fog(ctx, 0, Math.round(h * 0.5), w, Math.round(h * 0.12), '#16303a', 1);
-  const cyc = (t % 7) / 7; const out = cyc < 0.15 ? 0 : cyc < 0.45 ? (cyc - 0.15) / 0.3 : cyc < 0.85 ? 1 : 1 - (cyc - 0.85) / 0.15;
-  P.drawPeekWindow(ctx, Math.round(w * (w < 200 ? 0.78 : 0.86)), Math.round(h * 0.72), out, t);
-  // 手前の鯨の背（地面）
-  ctx.fillStyle = '#120c1c'; ctx.fillRect(0, Math.round(h * 0.86) - 1, w, h);
-  ctx.fillStyle = '#5a7488'; ctx.fillRect(0, Math.round(h * 0.86), w, h);
-  ctx.fillStyle = '#3a6a50'; ctx.fillRect(0, Math.round(h * 0.86), w, 3);
-  ctx.fillStyle = '#24484a'; for (let x = 0; x < w; x += 3) ctx.fillRect(x, Math.round(h * 0.86) - 1 - (x % 9 === 0 ? 1 : 0), 1, 1);
-  ctx.fillStyle = '#3e5468'; for (let x = 4; x < w; x += 23) ctx.fillRect(x, Math.round(h * 0.86) + 7 + (x % 3), 4, 1);
-  // 主人公が星鈴へ糸を投げる（大きく）
-  const sc = w < 200 ? 2 : h > 260 ? 3 : 2;
+  P.drawTitleWhale(ctx, Math.round((win.x0 + win.x1) / 2 + 10), Math.round(win.y0 + (win.y1 - win.y0) * 0.42), phone ? 0.7 : ws, t);
+  // 7秒ごとに、窓の下から巨大な顔がぬっと上がって手を伸ばす
+  const cyc = (t % 7) / 7;
+  const out = cyc < 0.2 ? 0 : cyc < 0.45 ? (cyc - 0.2) / 0.25 : cyc < 0.85 ? 1 : 1 - (cyc - 0.85) / 0.15;
+  const arm = cyc > 0.6 && cyc < 0.85 ? Math.sin((cyc - 0.6) / 0.25 * Math.PI) : 0;
+  const sc = phone ? 2 : h > 260 ? 3 : 2;
   const hx = Math.round(Math.min(w * 0.12, 50)); const jump = Math.round(Math.abs(Math.sin(t * 2.2)) * 6);
-  const footY = Math.round(h * (w < 200 ? 0.7 : 0.86));
-  if (w < 200) { ctx.fillStyle = '#120c1c'; ctx.fillRect(hx - 4, footY, 30 * sc + 8, 5); ctx.fillStyle = '#5a7488'; ctx.fillRect(hx - 3, footY, 30 * sc + 6, 3); ctx.fillStyle = '#3a6a50'; ctx.fillRect(hx - 3, footY, 30 * sc + 6, 1); }
+  const footY = floorY;
+  const girl = [hx + 15 * sc, footY - 18 * sc];
+  const bx0 = (win.x0 + win.x1) / 2 - 8; const by0 = win.y1 - 12;
+  const reach = 0.55 * arm;
+  P.drawTitleRoom(ctx, w, h, win, floorY, out, arm, [Math.round(bx0 + (girl[0] - bx0) * reach), Math.round(by0 + (girl[1] - by0) * reach)], t);
+  // 主人公が星鈴へ糸を投げる（大きく）
   const hy = footY - 35 * sc - jump;
-  const bx = Math.round(hx + Math.min(w * 0.5, 150)); const by = footY - 36 * sc - 10 + Math.round(Math.sin(t * 2) * 2);
-  const hand = P.drawHeroBig(ctx, hx, hy, sc, t, { throwing: true, onGround: false, vy: -10, nervous: true });
+  const bx = Math.round(hx + Math.min(w * 0.5, 120)); const by = Math.round(phone ? win.y0 - 30 : footY - 36 * sc - 10) + Math.round(Math.sin(t * 2) * 2);
+  const hand = P.drawHeroBig(ctx, hx, hy, sc, t, { throwing: true, onGround: false, vy: -10, nervous: out < 0.5, scared: out >= 0.5 });
   P.drawThread(ctx, { x: hand[0], y: hand[1] }, { x: bx, y: by }, colorNow(), 'hold', 1);
   P.drawStarBell(ctx, bx, by, t, 2);
 }

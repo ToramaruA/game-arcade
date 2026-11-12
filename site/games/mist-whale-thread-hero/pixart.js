@@ -1,6 +1,8 @@
 // 霧鯨と糸の勇者 — ドット絵（1マス=16ドット）。すべてコードで描く。
 import { TS, serpentSpan, serpentY, serpentHead, clockOpen, exitLocked, THREAD_COLORS } from './logic.js';
 import { makeSprite, pxRect, pxEllipse, pxDome, pxLine, pxDither } from './pixel.js';
+import { drawRoom as roomDraw, drawMonster, monsterWindow, drawRoomScreen, drawFloorScreen } from './room.js';
+import { windowHand } from './logic.js';
 
 export const K = 16 / TS; // 世界の1単位 → ドット
 const X = (v) => Math.round(v * K);
@@ -280,20 +282,6 @@ function buildObjects() {
   S.serpSeg = makeSprite(12, 12, (g) => { g.fillStyle = '#c8c0b0'; g.beginPath(); g.ellipse(6, 6, 5, 5, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#8a8070'; g.fillRect(3, 7, 6, 2); }, { inner: (g) => { g.fillStyle = '#e8dcc8'; g.fillRect(4, 3, 2, 1); } });
   S.serpSegEye = makeSprite(12, 12, (g) => { g.fillStyle = '#c8c0b0'; g.beginPath(); g.ellipse(6, 6, 5, 5, 0, 0, Math.PI * 2); g.fill(); eye(g, 6, 5, 2.6); });
   S.serpSegBound = makeSprite(12, 12, (g) => { g.fillStyle = '#e8dcc8'; g.beginPath(); g.ellipse(6, 6, 5, 5, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#f0b030'; g.fillRect(5, 1, 2, 10); });
-  // 窓の顔：傾いた家の壁と窓、ぬっと出る顔、長い腕
-  S.facade = makeSprite(40, 50, (g) => {
-    g.fillStyle = '#3a2418'; g.beginPath(); g.moveTo(3, 14); g.lineTo(38, 10); g.lineTo(37, 50); g.lineTo(4, 50); g.closePath(); g.fill();
-    g.fillStyle = '#1e0610'; g.beginPath(); g.moveTo(0, 15); g.lineTo(21, 0); g.lineTo(40, 11); g.lineTo(38, 13); g.lineTo(21, 4); g.lineTo(2, 17); g.closePath(); g.fill();
-    g.fillStyle = '#5a3a28'; for (let y = 18; y < 50; y += 5) g.fillRect(5, y, 31, 1);
-    g.fillStyle = '#5a3a28'; g.fillRect(9, 17, 22, 22);
-    g.fillStyle = '#0a0408'; g.fillRect(11, 19, 18, 18);
-  }, { inner: (g) => { g.fillStyle = '#5a3a28'; g.fillRect(19, 19, 2, 18); g.fillRect(11, 27, 18, 2); g.fillStyle = '#3a2418'; g.fillRect(8, 39, 24, 2); } });
-  S.face = makeSprite(18, 26, (g) => {
-    g.fillStyle = '#c8c0b0'; g.beginPath(); g.ellipse(9, 13, 7.5, 12, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#e8dcc8'; g.beginPath(); g.ellipse(8, 10, 5, 7, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#0a0408'; g.beginPath(); g.ellipse(6, 10, 2.2, 3, 0, 0, Math.PI * 2); g.ellipse(12, 10, 2.2, 3, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#0a0408'; g.beginPath(); g.moveTo(3, 18); g.quadraticCurveTo(9, 23, 15, 18); g.quadraticCurveTo(9, 20, 3, 18); g.fill();
-  }, { inner: (g) => { g.fillStyle = '#fff'; g.fillRect(6, 10, 1, 1); g.fillRect(12, 10, 1, 1); g.fillStyle = '#e8dcc8'; for (let x = 5; x < 14; x += 2) g.fillRect(x, 19, 1, 1); g.fillStyle = '#8a8070'; g.fillRect(4, 4, 1, 3); g.fillRect(14, 15, 1, 2); } });
 }
 
 function glow(ctx, x, y, r, color) {
@@ -330,15 +318,15 @@ export function targetRing(ctx, x, y, t, dim) {
 // ───────────────────────── 章ごとのタイル ─────────────────────────
 export const CH = [
   { // 夜明けの雲海・鯨の背
-    skin: '#5a7488', skinD: '#3e5468', skinL: '#8aa4b4', deep: '#1a2430', top: '#3a6a50', topD: '#24484a', barn: '#c8c0b0', barnD: '#8a8070', plank: '#5a3a28', plankD: '#3a2418',
+    skin: '#3a4c5c', skinD: '#26323e', skinL: '#56708e', deep: '#0a0e16', top: '#6a4630', topD: '#3a2418', topL: '#8a5a3a', barn: '#c8c0b0', barnD: '#8a8070', plank: '#5a3a28', plankD: '#3a2418',
     thorn: '#16303a', thornTip: '#a8b090', mist: '#a8b090', mistD: '#3a5a50',
   },
   { // 光る森
-    skin: '#103026', skinD: '#0a1f18', skinL: '#184a38', deep: '#06120e', top: '#2fa06a', topD: '#1b6a4a', barn: '#5ff0d0', barnD: '#3fd8d0', plank: '#6a4630', plankD: '#3a2a2a',
+    skin: '#103026', skinD: '#0a1f18', skinL: '#184a38', deep: '#06120e', top: '#5a3a28', topD: '#3a2418', topL: '#6a4630', barn: '#5ff0d0', barnD: '#3fd8d0', plank: '#6a4630', plankD: '#3a2a2a',
     thorn: '#0c2a20', thornTip: '#c8ff9a', mist: '#5ff0d0', mistD: '#3fd8d0',
   },
   { // 夢の底
-    skin: '#e8dcc8', skinD: '#b8a890', skinL: '#ffffff', deep: '#7a6a5a', top: '#a82038', topD: '#6a1424', barn: '#f0b030', barnD: '#a8641c', plank: '#3a0a18', plankD: '#1e0610',
+    skin: '#e8dcc8', skinD: '#b8a890', skinL: '#ffffff', deep: '#7a6a5a', top: '#a82038', topD: '#6a1424', topL: '#ff4a5a', barn: '#f0b030', barnD: '#a8641c', plank: '#3a0a18', plankD: '#1e0610',
     thorn: '#3a0a18', thornTip: '#ff4a5a', mist: '#ff4a5a', mistD: '#a82038',
   },
 ];
@@ -359,12 +347,14 @@ function tile(ch, kind, v = 0) {
       else if (ch === 1) { for (let i = 0; i < 4; i++) { g.fillRect(Math.floor(r(i) * 15), Math.floor(r(i + 3) * 15), 2, 1); } if (r(8) < 0.35) { g.fillStyle = P.barn; g.fillRect(Math.floor(r(7) * 12) + 2, 10, 1, 4); g.fillRect(Math.floor(r(7) * 12) + 1, 13, 3, 1); } }
       else { g.fillRect(0, 7, 16, 1); g.fillRect(Math.floor(r(1) * 14), 0, 1, 7); g.fillRect(Math.floor(r(2) * 14), 8, 1, 8); g.fillStyle = P.skinL; g.fillRect(1, 1, 2, 1); if (r(4) < 0.4) { g.fillStyle = P.barn; g.fillRect(5, 3, 1, 1); g.fillRect(7, 3, 1, 1); g.fillRect(6, 4, 1, 1); } }
       if (kind === 'top') {
-        g.fillStyle = P.skinL; g.fillRect(0, 3, 16, 1);
-        g.fillStyle = P.top; g.fillRect(0, 0, 16, 3);
-        g.fillStyle = P.topD; g.fillRect(0, 3, 16, 1); for (let x = 0; x < 16; x += 3) g.fillRect(x + (v % 2), 4, 1, 1);
-        g.fillStyle = OUT; g.fillRect(0, -1, 16, 1);
-        // 草の葉先・光る苔・赤い縫い目
-        g.fillStyle = P.top; for (let i = 0; i < 3; i++) { const x = Math.floor(r(i + 11) * 15); g.fillRect(x, -2, 1, 2); }
+        // 家の床：板張り（森は苔むし、奥の部屋は赤い絨毯）
+        g.fillStyle = OUT; g.fillRect(0, 5, 16, 1);
+        g.fillStyle = P.top; g.fillRect(0, 0, 16, 5);
+        g.fillStyle = P.topL; g.fillRect(0, 0, 16, 1);
+        g.fillStyle = P.topD; g.fillRect(0, 4, 16, 1);
+        if (ch < 2) { g.fillRect([3, 11, 7, 14][v], 1, 1, 3); g.fillStyle = P.skinD; g.fillRect(0, 6, 16, 1); }
+        else { g.fillStyle = '#f0b030'; for (let x = (v % 2) * 2; x < 16; x += 4) g.fillRect(x, 2, 1, 1); }
+        if (ch === 1 && r(12) < 0.6) { g.fillStyle = '#2fa06a'; const x = Math.floor(r(13) * 12) + 1; g.fillRect(x, 0, 3, 1); g.fillRect(x + 1, -1, 1, 1); g.fillStyle = '#c8ff9a'; g.fillRect(x + 1, 0, 1, 1); }
       }
       break;
     }
@@ -541,17 +531,8 @@ export function drawObjects(ctx, st, t, preview) {
   for (const s of st.stars) if (!s.got) drawStarBell(ctx, X(s.x), X(s.y) + (Math.floor(t * 3 + s.id) % 2), t);
 }
 
-// 窓の顔の家（背景側に描く）
-export function drawWindowHouses(ctx, st, t) {
-  buildObjects();
-  for (const e of st.enemies) {
-    if (e.kind !== 'window') continue;
-    const x = X(e.x); const y = X(e.y);
-    blit(ctx, S.facade, x - 20, y - 28);
-    // 窓の奥の気配：閉じている間もときどき目が光る
-    if (e.out <= 0 && Math.floor(t * 0.7 + e.id) % 4 === 0 && Math.floor(t * 8) % 9) { ctx.fillStyle = '#ffe27a'; ctx.fillRect(x - 4, y - 2, 1, 1); ctx.fillRect(x + 3, y - 2, 1, 1); }
-  }
-}
+// 夢の家の部屋（壁・窓・額縁）。タイルより先に描く
+export function drawRoom(ctx, st, ch, c0, c1, yTop, yBot, t) { roomDraw(ctx, st, ch, c0, c1, yTop, yBot, t); }
 
 // ───────────────────────── 敵 ─────────────────────────
 export function warnMark(ctx, x, y, t) {
@@ -615,27 +596,10 @@ export function drawEnemy(ctx, e, t) {
       break;
     }
     case 'window': {
-      // 顔は窓の中から少しずつせり出す（窓枠で切り抜く）
-      const wx = x - 9; const wy = y - 9;
-      if (e.out > 0) {
-        ctx.save(); ctx.beginPath(); ctx.rect(wx, wy - 26, 18, 44); ctx.clip();
-        const fy = wy + 18 - Math.round(e.out * 22);
-        blit(ctx, S.face, wx, fy, false);
-        ctx.restore();
-      }
-      if (e.state === 'reach' || e.arm > 0) {
-        const hx = X(e.x + (e.tx - e.x)); void hx;
-        const dx = e.tx - e.x; const dy = e.ty - e.y; const d = Math.hypot(dx, dy) || 1;
-        const len = Math.min(d + 10, 3.8 * TS) * e.arm;
-        const ex = X(e.x + dx / d * len); const ey = X(e.y + dy / d * len);
-        ctx.fillStyle = OUT; pxLine(ctx, x, y + 4, ex, ey, 5);
-        ctx.fillStyle = '#c8c0b0'; pxLine(ctx, x, y + 4, ex, ey, 3);
-        ctx.fillStyle = '#8a8070'; pxLine(ctx, x, y + 5, ex, ey + 1, 1);
-        // 骨ばった指
-        const a = Math.atan2(dy, dx);
-        for (let k = -2; k <= 2; k++) { const b = a + k * 0.35; ctx.fillStyle = OUT; pxLine(ctx, ex, ey, ex + Math.cos(b) * 7, ey + Math.sin(b) * 7, 3); ctx.fillStyle = '#e8dcc8'; pxLine(ctx, ex, ey, ex + Math.cos(b) * 6, ey + Math.sin(b) * 6, 1); }
-      }
-      if (e.state === 'peek' && e.out > 0.3) warnMark(ctx, x, y - 30, t);
+      // 窓の外から巨大な顔がぬっと上がり、両手で窓台をつかみ、腕を部屋に伸ばす
+      const g = monsterWindow(e); const hd = windowHand(e);
+      drawMonster(ctx, g, { out: e.out, arm: e.arm, state: e.state, hx: X(hd.x), hy: X(hd.y), look: Math.sign(e.tx - e.x), id: e.id }, t, e.ch || 0);
+      if (e.state === 'peek' && e.out > 0.3) warnMark(ctx, x, g.y0 - 12, t);
       return;
     }
     default: break;
@@ -926,22 +890,24 @@ export function drawFoeIcon(g, kind, t) {
     for (let i = 0; i < 7; i++) g.drawImage(S.serpSeg, 6 + i * 5, 30 - Math.round(Math.sin(i / 6 * Math.PI) * 16));
     blit(g, S.serpHead, 40, 20); return;
   }
-  if (kind === 'window') { blit(g, S.facade, 10, -2); const wx = 21; g.save(); g.beginPath(); g.rect(wx, 17, 18, 18); g.clip(); blit(g, S.face, wx, 12); g.restore(); return; }
+  if (kind === 'window') {
+    const win = { x0: 13, x1: 47, y0: 6, y1: 40 };
+    drawRoomScreen(g, 60, 46, 0, win, 42, t);
+    drawMonster(g, win, { out: 1, arm: 0, state: 'peek', hx: 0, hy: 0, look: -1, id: 1 }, 0.3, 0);
+    return;
+  }
   const e = { kind, x: 30 / K, y: 24 / K, r: 16, face: 1, state: kind === 'lamp' ? 'idle' : 'hover', bound: 0, stun: 0, alert: kind === 'eater', beam: null };
   drawEnemy(g, e, t);
 }
 
-// タイトル：窓からぬっと覗く顔
-export function drawPeekWindow(ctx, x, y, out, t) {
-  buildObjects();
-  blit(ctx, S.facade, x - 20, y - 28);
-  if (out > 0) {
-    const wx = x - 9; const wy = y - 9;
-    ctx.save(); ctx.beginPath(); ctx.rect(wx, wy, 18, 18); ctx.clip();
-    blit(ctx, S.face, wx, wy + 18 - Math.round(out * 22));
-    ctx.restore();
-  } else if (Math.floor(t * 3) % 5 === 0) { ctx.fillStyle = '#ffe27a'; ctx.fillRect(x - 4, y - 2, 1, 1); ctx.fillRect(x + 3, y - 2, 1, 1); }
+// タイトル：子ども部屋の大きな窓。外には鯨、ときどき巨大な顔がぬっと覗く
+export function drawTitleRoom(ctx, w, h, win, floorY, out, arm, hand, t) {
+  drawRoomScreen(ctx, w, h, 0, win, floorY, t);
+  drawMonster(ctx, win, { out, arm, state: 'peek', hx: hand[0], hy: hand[1], look: -1, id: 1 }, t, 0);
+  drawFloorScreen(ctx, w, floorY, h, 0);
 }
+export { drawMonster, monsterWindow };
+
 // 霧をかぶせる（ディザ）
 export function fog(ctx, x, y, w, h, color, phase = 0) { pxDither(ctx, x, y, w, h, color, phase); }
 
