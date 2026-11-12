@@ -410,3 +410,21 @@ test('各面に、遊びながら見える少女のひとりごとが2つずつ�
     for (const ln of lines) { assert.ok(ln.text.trim()); assert.ok(ln.c >= 0 && ln.c < st.w, `${i + 1}面の位置`); }
   }
 });
+
+test('フックのあとの操作：押した向きへ振り出し、何も押さなくても向こう岸へ、ジャンプで高く', () => {
+  const fly = (inp) => {
+    const st = calm(L.createLevelState(0));
+    st.player.x = 16 * TS; st.player.y = 10 * TS; st.player.face = 1;
+    let top = 1e9;
+    for (let i = 0; i < 150; i++) {
+      L.step(st, { left: !!inp.left, right: !!inp.right && i > 0, jump: inp.jumpAt !== undefined && i >= inp.jumpAt, jumpPressed: i === inp.jumpAt, threadPressed: i === 0 }, 1 / 60);
+      top = Math.min(top, st.player.y);
+    }
+    return { x: st.player.x / TS, top, falls: st.falls, ground: st.player.onGround };
+  };
+  const none = fly({}); const right = fly({ right: true }); const left = fly({ left: true }); const jump = fly({ right: true, jumpAt: 5 });
+  assert.ok(none.falls === 0 && none.x > 21, '何も押さなくても渡れる（1面の手引き）');
+  assert.ok(right.x > none.x, '前を押すとさらに遠くへ');
+  assert.ok(left.x < 17 && left.falls === 0, '後ろを押すと手前の岸へ戻れる');
+  assert.ok(jump.top < right.top - 30, 'ジャンプを押すと高く振り出す');
+});

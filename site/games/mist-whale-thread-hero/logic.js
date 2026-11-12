@@ -359,7 +359,7 @@ function attach(st) {
       } else {
         p.zip = { x: t.ref.x - p.w / 2 + Math.sign(t.ref.x - pcx(p) || p.face) * 8, y: t.ref.y + 8, t: 0 };
         p.face = Math.sign(t.ref.x - pcx(p)) || p.face;
-        p.vx = 0; p.vy = 0;
+        p.vx = 0; p.vy = 0; p.coyote = 0;
       }
       if (t.ref.fading && t.ref.fade <= 0) t.ref.fade = 2.2;
       break;
@@ -444,9 +444,17 @@ export function step(st, input, dt = 1 / 60) {
     const dx = p.zip.x - p.x; const dy = p.zip.y - p.y; const d = Math.hypot(dx, dy);
     p.zip.t += dt;
     const sp = THREAD.zipSpeed * dt;
+    if (input.jumpPressed) { p.zipJump = true; p.jumpBuf = 0; }
     if (d <= sp + 2 || p.zip.t > 0.7) {
+      // フックに着いた：押している向きへ振り出す。何も押さなければその場でふわっと降りる。ジャンプで高く
       p.zip = null; st.thread = null;
-      p.vx = p.face * 285; p.vy = -400; p.flung = true;
+      const boost = p.zipJump || p.jumpHeld;
+      p.vx = move ? move * 285 : p.face * 200;
+      if (move) p.face = move;
+      p.vy = boost ? -560 : -380;
+      p.cutDone = !boost; p.zipJump = false; p.jumpBuf = 0;
+      p.flung = true; p.flingT = 0.18;
+      st.cooldown = Math.min(st.cooldown, 0.08);
       emit(st, 'fling');
     } else {
       const ox = p.x; const oy = p.y;
@@ -459,11 +467,19 @@ export function step(st, input, dt = 1 / 60) {
     const onG = p.onGround;
     const target = move * PHYS.run;
     const acc = move ? (onG ? PHYS.accelG : PHYS.accelA) : (onG ? PHYS.fric : PHYS.accelA * 0.4);
-    if (!onG && p.flung && move && Math.sign(p.vx) === move && Math.abs(p.vx) > PHYS.run) {
-      // フックから振り出した勢いは空中で保つ
-      p.vx = Math.sign(p.vx) * Math.max(PHYS.run, Math.abs(p.vx) - 120 * dt);
+    if (p.flingT > 0) {
+      // 振り出し直後のジャンプ入力も「高く」に数える
+      p.flingT -= dt;
+      if (p.jumpBuf > 0 && p.vy < 0) { p.vy = Math.min(p.vy, -560); p.jumpBuf = 0; p.flingT = 0; p.cutDone = false; emit(st, 'jump'); }
+    }
+    if (!onG && p.flung && !move) {
+      // 何も押していなければ振り出しの勢いのまま（ゆっくり弱まる）
+      p.vx = Math.sign(p.vx) * Math.max(0, Math.abs(p.vx) - 150 * dt);
+    } else if (!onG && p.flung && move && Math.sign(p.vx) === move && Math.abs(p.vx) > PHYS.run) {
+      // 振り出しの勢いは少しだけ残し、すぐ普段の操作に戻る
+      p.vx = Math.sign(p.vx) * Math.max(PHYS.run, Math.abs(p.vx) - 420 * dt);
     } else if (p.vx < target) p.vx = Math.min(target, p.vx + acc * dt); else if (p.vx > target) p.vx = Math.max(target, p.vx - acc * dt);
-    if (onG) p.flung = false;
+    if (onG) { p.flung = false; p.flingT = 0; }
     if (onG) p.coyote = PHYS.coyote; else p.coyote = Math.max(0, p.coyote - dt);
     if (p.jumpBuf > 0 && p.coyote > 0) {
       p.vy = -PHYS.jump; p.jumpBuf = 0; p.coyote = 0; p.onGround = false; p.cutDone = false; emit(st, 'jump');
