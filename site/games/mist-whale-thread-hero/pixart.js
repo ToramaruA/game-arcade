@@ -422,7 +422,7 @@ export function drawTiles(ctx, st, ch, c0, c1, r0, r1, t) {
           if (c > 0 && T(c - 1, r) !== '#') { ctx.fillStyle = OUT; ctx.fillRect(x, y, 1, 16); ctx.fillStyle = P.skinL; ctx.fillRect(x + 1, y, 1, 16); }
           if (c < st.w - 1 && T(c + 1, r) !== '#') { ctx.fillStyle = OUT; ctx.fillRect(x + 15, y, 1, 16); ctx.fillStyle = P.skinD; ctx.fillRect(x + 14, y, 1, 16); }
           if (!top && r > 0 && T(c, r - 1) === '#' && r - 1 >= 0 && T(c, r - 2) !== '#') { ctx.fillStyle = P.skinD; ctx.fillRect(x, y, 16, 2); }
-          if (!top && hash(c * 19 + r * 3) < 0.07) {
+          if (!top && hash(c * 19 + r * 3) < 0.05 + (st.dread || 0) * 0.12) {
             // 壁の割れ目から覗く目（ときどきまばたき）
             ctx.fillStyle = P.skinD; ctx.fillRect(x + 3, y + 6, 1, 4); ctx.fillRect(x + 4, y + 9, 3, 1); ctx.fillRect(x + 12, y + 3, 1, 3);
             ctx.fillStyle = '#0a0408'; ctx.fillRect(x + 5, y + 6, 7, 3);
@@ -944,3 +944,49 @@ export function drawPeekWindow(ctx, x, y, out, t) {
 }
 // 霧をかぶせる（ディザ）
 export function fog(ctx, x, y, w, h, color, phase = 0) { pxDither(ctx, x, y, w, h, color, phase); }
+
+// ───────────────────────── 目覚め：現実の部屋（結末） ─────────────────────────
+export function drawBedroom(g, kind, t) {
+  const W = 160; const H = 96;
+  g.imageSmoothingEnabled = false;
+  g.fillStyle = '#0a0408'; g.fillRect(0, 0, W, H);
+  // 壁と床
+  g.fillStyle = '#16101f'; g.fillRect(0, 0, W, 66);
+  g.fillStyle = '#1e1628'; for (let x = 0; x < W; x += 12) g.fillRect(x, 0, 1, 66);
+  g.fillStyle = '#120c1c'; g.fillRect(0, 66, W, 30);
+  g.fillStyle = '#1a1220'; for (let y = 70; y < H; y += 6) g.fillRect(0, y, W, 1);
+  // 窓（外は夜。鯨はいない）
+  g.fillStyle = '#2a2238'; g.fillRect(14, 12, 30, 24); g.fillStyle = '#0e1a24'; g.fillRect(16, 14, 26, 20);
+  g.fillStyle = '#2a2238'; g.fillRect(28, 14, 2, 20); g.fillRect(16, 23, 26, 2);
+  g.fillStyle = '#d8e0b0'; g.fillRect(20, 17, 3, 3);
+  // ベッドと毛布
+  g.fillStyle = '#3a2418'; g.fillRect(8, 52, 54, 16); g.fillRect(8, 44, 4, 24);
+  g.fillStyle = '#c8c0b0'; g.fillRect(12, 48, 50, 8);
+  g.fillStyle = '#6a7a5a'; g.fillRect(24, 50, 38, 10);
+  // ミオ（毛布から顔だけ）
+  g.fillStyle = '#ffd890'; g.fillRect(14, 45, 9, 6); g.fillStyle = '#ffd2b0'; g.fillRect(16, 47, 6, 4);
+  g.fillStyle = '#120c1c'; g.fillRect(19, 48, 1, 1); g.fillRect(21, 48, 1, 1);
+  if (kind === 'sew') { g.fillStyle = '#f0b030'; g.fillRect(24, 52, 3, 3); if (Math.floor(t * 2) % 2) { g.fillStyle = '#ffe27a'; g.fillRect(25, 51, 1, 1); } }
+  // 床の絵本
+  if (kind === 'return') { g.fillStyle = '#c8c0b0'; for (const [x, y] of [[70, 80], [78, 84], [64, 86], [86, 78], [92, 86]]) g.fillRect(x, y, 5, 3); g.fillStyle = '#5a7488'; g.fillRect(72, 81, 2, 1); }
+  else { g.fillStyle = '#5a7488'; g.fillRect(72, 80, 12, 7); g.fillStyle = '#c8c0b0'; g.fillRect(74, 82, 6, 1); }
+  // ドア：下の隙間から光、足の影
+  g.fillStyle = '#3a2418'; g.fillRect(112, 18, 30, 50); g.fillStyle = '#2a1a14'; g.fillRect(114, 20, 26, 46);
+  g.fillStyle = '#c9963a'; g.fillRect(134, 44, 2, 2);
+  const lightA = 0.6 + 0.2 * Math.sin(t * 3);
+  g.globalAlpha = lightA; g.fillStyle = '#ffd890'; g.fillRect(112, 67, 30, 2); g.fillRect(104, 69, 46, 1); g.globalAlpha = 1;
+  // 足の影（ふたつ）。ときどき、ずれる
+  const sh = Math.floor(t * 0.7) % 4 === 0 ? 1 : 0;
+  g.fillStyle = '#0a0408'; g.fillRect(118 + sh, 67, 6, 2); g.fillRect(129 + sh, 67, 6, 2);
+  if (kind === 'return') { g.fillStyle = '#c9963a'; g.fillRect(133, 43 + (Math.floor(t * 2) % 2), 4, 2); }
+}
+
+// 遅い面で一瞬だけ見える大人の影
+export function drawShadowFigure(g, x, y, h) {
+  g.fillStyle = '#0a0408';
+  const s = h / 60;
+  g.fillRect(x - 4 * s, y - h, 8 * s, 8 * s);
+  g.fillRect(x - 9 * s, y - h + 9 * s, 18 * s, h - 9 * s);
+  g.fillRect(x - 12 * s, y - h + 12 * s, 3 * s, 26 * s); g.fillRect(x + 9 * s, y - h + 12 * s, 3 * s, 26 * s);
+  g.fillStyle = '#ff2a1a'; g.fillRect(x - 2 * s, y - h + 3 * s, s, s); g.fillRect(x + 1 * s, y - h + 3 * s, s, s);
+}

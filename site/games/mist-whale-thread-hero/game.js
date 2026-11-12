@@ -37,6 +37,7 @@ let throwAnim = 0;
 let clearTimer = 0;
 let lastResult = null;
 let hintText = '';
+let dreadFlick = 0; let dreadX = 0;
 
 // ───────────────────────── 画面サイズ ─────────────────────────
 function resize() {
@@ -357,6 +358,10 @@ function renderScene(dt) {
   }
   // 画面効果
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // 後半の面：暗がりに一瞬、大人の影が立つ
+  if (!OG && !reduce && st.dread > 0.45 && dreadFlick <= 0 && Math.random() < 0.0025 * st.dread) { dreadFlick = 0.12; dreadX = Math.round(w * (0.55 + Math.random() * 0.4)); audio.play('dread'); }
+  if (dreadFlick > 0) { dreadFlick -= dt; ctx.fillStyle = 'rgba(10,4,8,.55)'; ctx.fillRect(0, 0, w, h); P.drawShadowFigure(ctx, dreadX, Math.round(h * 0.86), Math.round(h * 0.55)); }
+  if (st.dread > 0.6) { ctx.fillStyle = `rgba(106,20,36,${0.05 + 0.04 * Math.sin(t * 1.3)})`; ctx.fillRect(0, 0, w, h); }
   if (flash > 0) { ctx.fillStyle = `rgba(255,226,122,${flash * 0.5})`; ctx.fillRect(0, 0, w, h); }
   if (p.invuln > 0.7 && p.dying <= 0) { ctx.fillStyle = `rgba(216,40,60,${(p.invuln - 0.7) * 0.6})`; ctx.fillRect(0, 0, w, h); }
   if (p.dying > 0) { ctx.fillStyle = `rgba(244,241,232,${Math.min(0.5, (1 - p.dying) * 0.6)})`; ctx.fillRect(0, 0, w, h); }
@@ -409,6 +414,7 @@ function frame(now) {
     }
     if (st.cleared && clearTimer > 0) { clearTimer -= dt; if (clearTimer <= 0) finishStage(); }
     updateSpool(); updateHint(); updateMono(dt);
+    audio.setDread(st.dread);
     audio.setTension(st.fray ? 1 : st.enemies.some((e) => e.state === 'warn' || e.state === 'charge' || e.state === 'dive') ? 0.6 : 0);
   }
   for (const q of particles) { q.life -= dt; q.vy += q.g * dt; q.x += q.vx * dt; q.y += q.vy * dt; }
@@ -493,6 +499,10 @@ function showEnding() {
   $('endText').textContent = E.text;
   $('endStats').textContent = `星鈴 ${L.totalStars(save)}/45 ・ 評価 ${L.badgeCount(save)}/30 ・ 見た結末 ${Object.keys(L.ENDINGS).filter((k) => save.seen[`end_${k}`]).length}/3`;
   $('ending').hidden = false;
+  audio.play('wake');
+  const g = $('endScene').getContext('2d');
+  const anim = () => { if ($('ending').hidden) return; P.drawBedroom(g, key, performance.now() / 1000); requestAnimationFrame(anim); };
+  anim();
 }
 $('endBtn').addEventListener('click', () => { audio.play('ui'); $('ending').hidden = true; openMap(); });
 
@@ -517,10 +527,13 @@ function openMap() {
   nb?.scrollIntoView({ block: 'nearest' });
 }
 $('mapBack').addEventListener('click', () => { audio.play('ui'); mode = 'title'; showOnly('title'); });
+function beginPlay() { if (L.clearedCount(save) === 0) startStage(0); else openMap(); }
 $('startBtn').addEventListener('click', () => {
   audio.unlock(); audio.play('ui');
-  if (L.clearedCount(save) === 0) startStage(0); else openMap();
+  if (!save.seen.cw) { $('cw').hidden = false; $('cwBtn').focus({ preventScroll: true }); return; }
+  beginPlay();
 });
+$('cwBtn').addEventListener('click', () => { audio.play('ui'); save.seen.cw = true; persist(); $('cw').hidden = true; beginPlay(); });
 
 // ───────────────────────── 一時停止 ─────────────────────────
 function openPause() {
@@ -585,7 +598,7 @@ function renderNote() {
       if (!seen) return `<div class="mem"><b>${L.CHAPTERS[ci].sub}</b><p class="muted" style="text-align:left">章の最後の面をクリアすると読める。</p></div>`;
       const full = L.chapterStars(save, ci) >= 15;
       return `<div class="mem"><b>${L.CHAPTERS[ci].sub}『${L.CHAPTERS[ci].name}』</b>${S.lines.map((l) => `<p>${l}</p>`).join('')}<p class="secret">${full ? S.secret : `隠された回想：この章の星鈴 ${L.chapterStars(save, ci)}/15`}</p></div>`;
-    }).join('') + `<h3>結末</h3>` + Object.entries(L.ENDINGS).map(([k, E]) => `<div class="mem"><b>${save.seen[`end_${k}`] ? `『${E.title}』` : '？？？'}</b>${save.seen[`end_${k}`] ? `<p>${E.text}</p>` : ''}</div>`).join('') + '<p class="muted">結末は星鈴の数と評価で変わる（3種）。</p>';
+    }).join('') + `<h3>結末</h3>` + Object.entries(L.ENDINGS).map(([k, E]) => `<div class="mem"><b>${save.seen[`end_${k}`] ? `『${E.title}』` : '？？？'}</b>${save.seen[`end_${k}`] ? `<p>${E.text}</p>` : ''}</div>`).join('') + '<p class="muted">結末は星鈴の数と評価で変わる（3種）。どれも、目を覚ました部屋で終わる。</p>';
   } else if (noteTab === 'how') {
     body.innerHTML = `<h3>ミオ</h3><p>眠る霧鯨の夢に迷いこんだ小さな女の子。指先から光の糸を出せる。こわがりで、こわいものが近づくと頭を抱えてしゃがみこむ。</p><h3>操作</h3><div class="keys"><span><kbd>←</kbd><kbd>→</kbd> / <kbd>A</kbd><kbd>D</kbd></span><span>走る</span><span><kbd>Space</kbd> / <kbd>↑</kbd></span><span>ジャンプ（長押しで高く）</span><span><kbd>J</kbd></span><span>糸を投げる・縛った敵を引く</span><span><kbd>Esc</kbd></span><span>一時停止</span></div>
       <p>スマホは画面下の4つのボタン。左右とジャンプ・糸は同時に押せる。</p>

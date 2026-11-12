@@ -107,11 +107,20 @@
 
     <section id="ending" class="modal story" hidden role="dialog" aria-modal="true" aria-label="結末">
       <div class="sheet small story-sheet">
-        <p class="eyebrow">結末</p>
+        <p class="eyebrow">目覚め</p>
+        <canvas id="endScene" class="end-scene px" width="160" height="96" aria-label="目を覚ましたミオの部屋"></canvas>
         <h2 id="endTitle"></h2>
         <p id="endText" class="end-text"></p>
         <p id="endStats" class="muted"></p>
         <button id="endBtn" class="big-btn" type="button">地図へ</button>
+      </div>
+    </section>
+
+    <section id="cw" class="modal story" hidden role="dialog" aria-modal="true" aria-label="はじめる前に">
+      <div class="sheet small story-sheet">
+        <p class="eyebrow">はじめる前に</p>
+        <p class="end-text">この物語には、家庭でのつらい出来事（こわい大人、物音、あざ など）を思わせる表現があります。直接の描写はありません。</p>
+        <button id="cwBtn" class="big-btn" type="button">わかった</button>
       </div>
     </section>
 

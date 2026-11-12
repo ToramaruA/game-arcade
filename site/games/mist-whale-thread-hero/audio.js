@@ -9,7 +9,7 @@ const PROG = [
 const SCALE = [[0, 2, 4, 7, 9, 11], [0, 2, 3, 7, 8, 10], [0, 1, 3, 7, 8, 10]];
 
 export function createAudio(storage, key) {
-  let ctx = null; let master = null; let bgmTimer = null; let beat = 0; let chapter = 0; let tension = 0;
+  let ctx = null; let master = null; let bgmTimer = null; let beat = 0; let chapter = 0; let tension = 0; let dread = 0;
   const st = { muted: false, vol: 0.7 };
   try { Object.assign(st, JSON.parse(storage.getItem(key) || '{}')); } catch { /* 保存なしでも動く */ }
   const save = () => { try { storage.setItem(key, JSON.stringify(st)); } catch { /* 保存できなくてもよい */ } };
@@ -73,6 +73,8 @@ export function createAudio(storage, key) {
     crumble() { noise(0.25, { gain: 0.1, f0: 1500, f1: 400, q: 0.8 }); },
     clock(open) { tone(midi(open ? 84 : 72), { dur: 0.1, gain: 0.05, type: 'square' }); },
     push() { /* 鳴らしすぎない */ },
+    dread() { tone(midi(30), { dur: 0.6, gain: 0.12, type: 'sawtooth', slide: 0.8 }); noise(0.3, { gain: 0.1, f0: 150, f1: 90, q: 3 }); },
+    wake() { [76, 72, 76, 72].forEach((n, i) => tone(midi(n), { t: i * 0.12, dur: 0.1, gain: 0.08, type: 'square' })); tone(midi(40), { t: 0.6, dur: 2.5, gain: 0.05, type: 'triangle', attack: 0.6 }); },
     peek() { tone(midi(38), { dur: 1.2, gain: 0.08, type: 'sawtooth', slide: 1.06, attack: 0.4 }); noise(0.9, { gain: 0.05, f0: 200, f1: 380, q: 6 }); },
     grab() { noise(0.25, { gain: 0.14, f0: 900, f1: 200, q: 1.5 }); tone(midi(50), { dur: 0.25, gain: 0.08, type: 'square', slide: 0.6 }); },
     flinch() { tone(midi(86), { dur: 0.3, gain: 0.07, type: 'sawtooth', slide: 0.4 }); },
@@ -100,6 +102,8 @@ export function createAudio(storage, key) {
       tone(midi(n), { dur: 1.1, gain: 0.03 });
     }
     if (tension > 0.5 && b8 % 2 === 0) noise(0.05, { gain: 0.04, f0: 2000, f1: 1500 });
+    // 後半ほど、低い不協和音が混じる
+    if (dread > 0.3 && Math.random() < dread * 0.18) { tone(midi(root - 18 + 1), { dur: 2.4, gain: 0.03 * dread, type: 'sawtooth', attack: 0.8 }); tone(midi(root - 18 + 7), { t: 0.05, dur: 2.2, gain: 0.02 * dread, type: 'sawtooth', attack: 0.8 }); }
   }
   return {
     state: st,
@@ -107,6 +111,7 @@ export function createAudio(storage, key) {
     play(name, arg) { if (!ctx) return; const f = sfx[name]; if (f) f(arg); },
     setChapter(c) { chapter = Math.max(0, Math.min(2, c)); },
     setTension(v) { tension = v; },
+    setDread(v) { dread = v; },
     startBgm() { if (bgmTimer || !ctx) return; bgmTimer = setInterval(tick, 300); },
     setMuted(m) { st.muted = m; apply(); save(); if (!m) this.unlock(); },
   };

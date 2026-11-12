@@ -293,3 +293,5 @@ body.og .og-card { background: none; }
 .pk-t { background: var(--card); color: #ffe27a; box-shadow: inset -3px -3px 0 #0b0716, inset 3px 3px 0 #2a2238, 0 0 0 1px #a8641c; }
 body.og .og-card { left: auto; right: 34px; top: 28px; bottom: auto; text-align: right; padding: 12px 18px; background: rgba(11,7,22,.82); box-shadow: 0 0 0 2px var(--line), 0 0 0 5px var(--deep); }
 @media (max-width: 520px) { .toast { font-size: 13px; } }
+
+.end-scene { display: block; width: 100%; max-width: 384px; aspect-ratio: 160 / 96; margin: 4px auto 10px; image-rendering: pixelated; box-shadow: 0 0 0 1px #4a4060; }
