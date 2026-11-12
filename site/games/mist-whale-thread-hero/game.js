@@ -319,10 +319,10 @@ function renderTitle() {
   ctx.fillStyle = '#24484a'; for (let x = 0; x < w; x += 3) ctx.fillRect(x, Math.round(h * 0.86) - 1 - (x % 9 === 0 ? 1 : 0), 1, 1);
   ctx.fillStyle = '#3e5468'; for (let x = 4; x < w; x += 23) ctx.fillRect(x, Math.round(h * 0.86) + 7 + (x % 3), 4, 1);
   // 主人公が星鈴へ糸を投げる（大きく）
-  const sc = h > 260 ? 3 : 2;
-  const hx = Math.round(Math.min(w * 0.14, 50)); const jump = Math.round(Math.abs(Math.sin(t * 2.2)) * 6);
-  const hy = Math.round(h * 0.86) - 36 * sc + 2 - jump;
-  const bx = Math.round(hx + Math.min(w * 0.36, 130)); const by = Math.round(h * 0.86) - 36 * sc - 28 + Math.round(Math.sin(t * 2) * 2);
+  const sc = w < 200 ? 2 : h > 260 ? 3 : 2;
+  const hx = Math.round(Math.min(w * 0.12, 50)); const jump = Math.round(Math.abs(Math.sin(t * 2.2)) * 6);
+  const hy = Math.round(h * 0.86) - 28 * sc + sc - jump;
+  const bx = Math.round(hx + Math.min(w * 0.4, 140)); const by = Math.round(h * 0.86) - 28 * sc - 30 + Math.round(Math.sin(t * 2) * 2);
   const hand = P.drawHeroBig(ctx, hx, hy, sc, t, { throwing: true, onGround: false, vy: -10 });
   P.drawThread(ctx, { x: hand[0], y: hand[1] }, { x: bx, y: by }, colorNow(), 'hold', 1);
   P.drawStarBell(ctx, bx, by, t, 2);
