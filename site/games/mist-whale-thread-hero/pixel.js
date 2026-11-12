@@ -35,14 +35,19 @@ function buildLut() {
 const hexToInt = (h) => { const r = parseInt(h.slice(1, 3), 16); const g = parseInt(h.slice(3, 5), 16); const b = parseInt(h.slice(5, 7), 16); return (255 << 24) | (b << 16) | (g << 8) | r; };
 
 // にじみを消し、色をパレットに寄せ、縁取りする
-export function crisp(g, w, h, { outline = '#120c1c', inner = null } = {}) {
+function nearestFn(pal) {
+  const P = pal.map((h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16), hexToInt(h)]);
+  return (r, g, b) => { let best = P[0]; let bd = Infinity; for (const c of P) { const d = (r - c[0]) ** 2 * 2 + (g - c[1]) ** 2 * 4 + (b - c[2]) ** 2 * 3; if (d < bd) { bd = d; best = c; } } return best[3]; };
+}
+export function crisp(g, w, h, { outline = '#120c1c', inner = null, pal = null } = {}) {
   if (!LUT) buildLut();
+  const near = pal ? nearestFn(pal) : null;
   const img = g.getImageData(0, 0, w, h);
   const d = img.data; const px = new Uint32Array(d.buffer);
   for (let i = 0; i < w * h; i++) {
     const o = i * 4;
     if (d[o + 3] < 128) { px[i] = 0; continue; }
-    px[i] = LUT[((d[o] >> 3) << 10) | ((d[o + 1] >> 3) << 5) | (d[o + 2] >> 3)];
+    px[i] = near ? near(d[o], d[o + 1], d[o + 2]) : LUT[((d[o] >> 3) << 10) | ((d[o + 1] >> 3) << 5) | (d[o + 2] >> 3)];
   }
   if (outline) {
     const oc = hexToInt(outline); const src = px.slice();
