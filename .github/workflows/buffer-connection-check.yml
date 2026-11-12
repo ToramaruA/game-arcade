@@ -1,0 +1,80 @@
+# Read-only connectivity test. Does not create, schedule, or publish posts.
+name: Buffer connection check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-buffer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check Buffer API and connected X channel
+        env:
+          BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          from urllib.error import HTTPError, URLError
+          from urllib.request import Request, urlopen
+
+          token = os.environ.get("BUFFER_API_KEY")
+          if not token:
+              sys.exit("BUFFER_API_KEY is missing in GitHub Actions secrets.")
+
+          def query_buffer(query):
+              request = Request(
+                  "https://api.buffer.com",
+                  data=json.dumps({"query": query}).encode("utf-8"),
+                  headers={
+                      "Content-Type": "application/json",
+                      "Authorization": "Bearer " + token,
+                  },
+                  method="POST",
+              )
+              try:
+                  with urlopen(request, timeout=20) as response:
+                      payload = json.load(response)
+              except HTTPError as error:
+                  sys.exit(f"Buffer API HTTP error: {error.code}")
+              except (URLError, TimeoutError):
+                  sys.exit("Could not reach Buffer API.")
+              if payload.get("errors"):
+                  sys.exit("Buffer GraphQL error: check key permissions and account.")
+              return payload.get("data") or {}
+
+          account = query_buffer(
+              "query GetOrganizations { account { organizations { id } } }"
+          ).get("account")
+          if not account:
+              sys.exit("Account query returned no account.")
+          organizations = account.get("organizations") or []
+          if not organizations:
+              sys.exit("No Buffer organization found.")
+
+          x_channels = 0
+          for organization in organizations:
+              organization_id = json.dumps(organization["id"])
+              channels_query = (
+                  "query GetChannels { channels(input: "
+                  "{ organizationId: " + organization_id + " }) "
+                  "{ id name service } }"
+              )
+              channels = query_buffer(channels_query).get("channels") or []
+              x_channels += sum(
+                  1
+                  for channel in channels
+                  if str(channel.get("service", "")).lower() in ("twitter", "x")
+              )
+
+          print("Buffer API authentication: OK")
+          print(f"Connected X channels: {x_channels}")
+          if x_channels == 0:
+              sys.exit("No connected X channel was found.")
+          print("PASS: Buffer is connected to X. No post was created.")
+          PY
