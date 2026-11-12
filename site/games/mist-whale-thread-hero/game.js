@@ -281,7 +281,10 @@ function renderScene(dt) {
   // 主人公と糸
   let pose = null;
   if (p.dying <= 0 || Math.floor(t * 10) % 2) {
-    pose = P.drawHero(ctx, p, t, { throwing: throwAnim > 0 || (st.thread && st.thread.phase !== 'miss'), hurt: p.invuln > 0.6, og: OG });
+    const px = p.x + p.w / 2;
+    const scared = st.enemies.some((e) => !e.dead && ['warn', 'charge', 'dive', 'peek', 'reach'].includes(e.state) && Math.abs(e.x - px) < 5.5 * L.TS && Math.abs(e.y - p.y) < 4 * L.TS)
+      || (st.fray && st.fray.dying <= 0 && px - st.fray.x < 6 * L.TS) || p.tangled > 0;
+    pose = P.drawHero(ctx, p, t, { throwing: throwAnim > 0 || (st.thread && st.thread.phase !== 'miss'), hurt: p.invuln > 0.6 || p.dying > 0, scared, og: OG });
   }
   if (st.thread) {
     const hp = pose?.handPx || [Math.round((p.x + p.w / 2) * K), Math.round(p.y * K)];
