@@ -59,6 +59,8 @@ const padHeld = { left: false, right: false, jump: false };
 const gestHeld = { left: false, right: false, jump: false };
 let pend = { jump: false, thread: false };
 const KEYMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', Space: 'jump', ArrowUp: 'jump', KeyW: 'jump', KeyJ: 'thread', KeyK: 'thread', KeyX: 'thread', KeyZ: 'jump' };
+// 音の出口は、ユーザーの操作の中でしか開けない（特に iPhone）。どの操作でも開けにいく
+for (const ev of ['touchend', 'pointerup', 'click', 'keydown']) window.addEventListener(ev, () => audio.unlock(), { capture: true, passive: true });
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Escape' || e.code === 'KeyP') { if (mode === 'play') openPause(); else if (mode === 'pause') closePause(); return; }
   const k = KEYMAP[e.code];
@@ -580,9 +582,9 @@ const FOES = [
   { kind: 'moth', name: '影蛾', text: '近づくと「！」のあと突っこむ。縛って J で引けば、鈴やいばらへ投げられる。' },
   { kind: 'bee', name: '鎧蜂', text: '地をはう重い蜂。身をかがめたら突進の合図。跳んでかわす。' },
   { kind: 'lamp', name: '牙灯', text: '赤い点線のあとに光線。糸で引くと向きが変わる。光線は敵も消す。' },
-  { kind: 'serpent', name: '海蛇', text: '霧の川の波紋から跳ねる。縛ると2.6秒、背中が橋になる。' },
+  { kind: 'serpent', name: '海蛇', text: '浴槽の霧の波紋から跳ねる。縛ると2.6秒、背中が橋になる。' },
   { kind: 'eater', name: '糸喰い', text: '糸の近くに寄ると食いちぎる。しばらく糸が使えない。' },
-  { kind: 'window', name: '窓の顔', text: '近づくと窓からぬっと顔を出し、見つめた場所へ長い腕を伸ばす。糸をかけると引っ込む。' },
+  { kind: 'window', name: '窓の顔', text: '窓の外から巨大な顔がぬっと上がり、窓台をつかんで、部屋の中へ長い腕を伸ばす。顔に糸をかけると引っ込む。' },
   { kind: 'fray', name: '夢のほつれ', text: '最後の面で後ろから迫る。鐘を鳴らすと押し返せる。' },
 ];
 
@@ -664,7 +666,7 @@ else {
 
 // テストと確認用
 window.__mwth = {
-  get st() { return st; }, get mode() { return mode; }, get save() { return save; },
+  get st() { return st; }, get audioRunning() { return audio.running; }, get mode() { return mode; }, get save() { return save; },
   start: (i) => startStage(i), openMap, openNote, showStory, showEnding,
   setSave(o) { save = L.deserialize(JSON.stringify(o)); persist(); },
   finish() { if (st) { st.cleared = true; finishStage(); } },
