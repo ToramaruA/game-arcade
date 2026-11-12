@@ -19,68 +19,106 @@ function blit(ctx, img, x, y, flip = false) {
   ctx.save(); ctx.translate(x + img.width, y); ctx.scale(-1, 1); ctx.drawImage(img, 0, 0); ctx.restore();
 }
 
-// ───────────────────────── 主人公：子猫のミオ（白くて小さい） ─────────────────────────
+// ───────────────────────── 主人公：夢縫い見習いの子猫ミオ ─────────────────────────
+// 二本足で歩く白い子猫。ぶかぶかの「指ぬきの兜」、背丈より長い「縫い針の杖」、背中に赤い糸巻き。こわがり。
 const HC = {
-  fur: '#f4f1e8', furD: '#c8c0b0', ear: '#ffd0c0', nose: '#ff6b6b', eye: '#120c1c', white: '#ffffff', tear: '#7fc8e8',
-  collar: '#4f8ac4', gold: '#f0b030', goldL: '#ffe27a', yarn: '#f0b030',
+  fur: '#f4f1e8', furD: '#c8c0b0', pink: '#ffd0c0', nose: '#ff6b6b', eye: '#120c1c', iris: '#4f8ac4', white: '#ffffff', tear: '#7fc8e8',
+  gold: '#f0b030', goldD: '#a8641c', goldL: '#ffe27a', steel: '#e8eef6', steelD: '#9aa8c0', spool: '#d8283c', spoolD: '#8e1426', wood: '#6a4630',
 };
-const HW = 32; const HH = 28; const HCX = 15; // 足元は y=27
+const HW = 36; const HH = 38; const HCX = 15; // 足元は y=37
 function heroDraw(g, f) {
-  const b = f.bob || 0; const puff = f.expr === 'scared' ? 1 : 0;
-  // しっぽ（後ろで揺れる。おびえると太くなる）
+  const b = f.bob || 0; const hide = f.expr === 'scared'; const puff = hide ? 1.2 : 0;
+  // しっぽ
   const ts = f.tail || 0;
-  g.strokeStyle = HC.fur; g.lineCap = 'round'; g.lineWidth = 3 + puff * 2;
-  g.beginPath(); g.moveTo(6, 20 + b); g.quadraticCurveTo(1 + ts, 18 + b, 2 + ts * 1.5, 11 + b - puff * 2); g.stroke();
-  // 脚
+  g.strokeStyle = HC.fur; g.lineCap = 'round'; g.lineWidth = 2.6 + puff * 2;
+  g.beginPath(); g.moveTo(10, 28 + b); g.quadraticCurveTo(3, 27 + b, 3 + ts, 19 + b - puff); g.stroke();
+  g.strokeStyle = HC.furD; g.lineWidth = 2.4 + puff * 2; g.beginPath(); g.moveTo(3 + ts, 21 + b - puff); g.lineTo(3 + ts, 19 + b - puff); g.stroke();
+  // 背中の糸巻き
+  g.fillStyle = HC.wood; g.fillRect(6, 18 + b, 6, 2); g.fillRect(6, 25 + b, 6, 2);
+  g.fillStyle = HC.spool; g.fillRect(7, 20 + b, 4, 5);
+  g.fillStyle = HC.spoolD; g.fillRect(7, 22 + b, 4, 1);
+  // 脚（短い二本足）
   const leg = (x, a, back) => {
-    const fx = Math.round(x + a * 3); const lift = a > 0.3 ? 1 : 0;
-    g.fillStyle = back ? HC.furD : HC.fur; g.fillRect(fx - 1, 22 + b, 3, 5 - lift - b);
+    const fx = x + a * 3; const lift = a > 0.4 ? 1 : 0;
+    g.fillStyle = back ? HC.furD : HC.fur;
+    g.fillRect(Math.round(x) - 1, 28 + b, 3, 4 - lift);
+    g.beginPath(); g.ellipse(fx + 1, 32.5 - lift, 2.6, 1.6, 0, 0, Math.PI * 2); g.fill();
   };
-  leg(8, -f.legA || 0, true); leg(15, f.legA || 0, true);
-  // 胴（小さなお豆）
-  g.fillStyle = HC.fur; g.beginPath(); g.ellipse(11, 20 + b, 7.5 + puff, 5 + puff, 0, 0, Math.PI * 2); g.fill();
-  g.fillStyle = HC.furD; g.fillRect(5, 23 + b, 10, 1);
-  leg(10, f.legA || 0, false); leg(16, -f.legA || 0, false);
-  // 大きな頭
-  const hy = 11 + b + (f.expr === 'scared' ? 1 : 0);
-  // 耳（おびえると後ろへ倒れる）
-  const flat = f.expr === 'scared' || f.expr === 'hurt';
-  g.fillStyle = HC.fur;
-  if (flat) { g.beginPath(); g.moveTo(10, hy - 4); g.lineTo(4, hy - 4); g.lineTo(10, hy - 1); g.fill(); g.beginPath(); g.moveTo(18, hy - 6); g.lineTo(12, hy - 8); g.lineTo(16, hy - 3); g.fill(); }
-  else { g.beginPath(); g.moveTo(10, hy - 4); g.lineTo(11, hy - 11); g.lineTo(16, hy - 6); g.fill(); g.beginPath(); g.moveTo(19, hy - 6); g.lineTo(24, hy - 11); g.lineTo(25, hy - 3); g.fill(); }
-  g.fillStyle = HC.fur; g.beginPath(); g.ellipse(18, hy, 9 + puff * 0.5, 7.6, 0, 0, Math.PI * 2); g.fill();
-  if (!flat) { g.fillStyle = HC.ear; g.beginPath(); g.moveTo(11.5, hy - 5); g.lineTo(12, hy - 8.5); g.lineTo(14.5, hy - 6); g.fill(); g.beginPath(); g.moveTo(21, hy - 6); g.lineTo(23.5, hy - 8.5); g.lineTo(23.5, hy - 4.5); g.fill(); }
-  // 首輪と鈴
-  g.fillStyle = HC.collar; g.fillRect(12, hy + 6, 10, 2);
-  g.fillStyle = HC.gold; g.beginPath(); g.ellipse(18, hy + 9, 2, 2, 0, 0, Math.PI * 2); g.fill();
-  // 前足（投げると上がる）
-  let hand;
-  if (f.paw === 'throw') { hand = [30, hy + 4]; g.strokeStyle = HC.fur; g.lineWidth = 3; g.beginPath(); g.moveTo(17, 19 + b); g.lineTo(hand[0], hand[1]); g.stroke(); }
-  else if (f.paw === 'up') { hand = [22, 13 + b]; g.strokeStyle = HC.fur; g.lineWidth = 3; g.beginPath(); g.moveTo(15, 19 + b); g.lineTo(hand[0], hand[1]); g.stroke(); }
-  else hand = [20, 22 + b];
-  f._hand = hand;
+  leg(12, -(f.legA || 0), true);
+  // 胴
+  g.fillStyle = HC.fur; g.beginPath(); g.ellipse(14.5, 25 + b, 5.6 + puff * 0.5, 5.2 + puff * 0.3, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = HC.furD; g.fillRect(10, 28 + b, 9, 1);
+  leg(16, f.legA || 0, false);
+  // 奥の腕
+  const shoulder = [17, 22 + b];
+  if (!hide) { g.strokeStyle = HC.furD; g.lineWidth = 2.6; g.beginPath(); g.moveTo(12, 22 + b); g.lineTo(11 - (f.armA || 0) * 3, 26 + b); g.stroke(); }
+  // 頭（大きくて丸い）
+  const hy = 13 + b + (hide ? 2 : 0);
+  g.fillStyle = HC.fur; g.beginPath(); g.ellipse(15.5, hy, 8.4, 7.2, 0, 0, Math.PI * 2); g.fill();
+  // ほっぺの毛
+  g.fillRect(6, hy + 2, 2, 2); g.fillRect(24, hy + 2, 2, 2);
+  // 指ぬきの兜（こわいと目深にかぶる）
+  const hd = hide ? 5 : (f.helmDrop || 0);
+  // 指ぬき：まっすぐな筒に丸い天井、下に縁
+  g.fillStyle = HC.gold; g.beginPath();
+  g.moveTo(7.5, hy + hd); g.lineTo(8.5, hy - 8 + hd); g.quadraticCurveTo(9, hy - 13 + hd, 15.5, hy - 13 + hd); g.quadraticCurveTo(22, hy - 13 + hd, 22.5, hy - 8 + hd); g.lineTo(23.5, hy + hd); g.closePath(); g.fill();
+  g.fillStyle = HC.goldD; g.fillRect(7, hy - 1 + hd, 17, 2);
+  g.fillStyle = HC.goldL; g.fillRect(7, hy - 2 + hd, 17, 1);
+  // 耳（兜の穴から出ている。こわいと倒れる）
+  if (hide) {
+    g.fillStyle = HC.fur; g.beginPath(); g.moveTo(9, hy - 4); g.lineTo(3, hy - 3); g.lineTo(8, hy - 1); g.fill();
+  } else {
+    g.fillStyle = HC.fur;
+    g.beginPath(); g.moveTo(9.5, hy - 11 + hd); g.lineTo(10 + (f.earTw || 0), hy - 18 + hd); g.lineTo(14, hy - 12.5 + hd); g.fill();
+    g.beginPath(); g.moveTo(17, hy - 12.5 + hd); g.lineTo(21, hy - 18 + hd); g.lineTo(21.5, hy - 11 + hd); g.fill();
+    g.fillStyle = HC.pink; g.beginPath(); g.moveTo(11, hy - 12 + hd); g.lineTo(11.2, hy - 15.5 + hd); g.lineTo(13, hy - 12.8 + hd); g.fill();
+    g.beginPath(); g.moveTo(18.2, hy - 12.8 + hd); g.lineTo(20.4, hy - 15.5 + hd); g.lineTo(20.3, hy - 12 + hd); g.fill();
+  }
+  // 手前の腕と縫い針の杖
+  let hand; let tip;
+  if (f.pose === 'throw') { hand = [24, 21 + b]; tip = [35, 17 + b]; }
+  else if (f.pose === 'up') { hand = [22, 17 + b]; tip = [26, 3 + b]; }
+  else if (hide) { hand = [22, hy - 2 + hd]; tip = [26, 30]; }
+  else { hand = [21 + (f.armA || 0) * 2, 25 + b]; tip = [25 + (f.armA || 0) * 2, 6 + b]; }
+  // 針：持ち手から先端まで
+  const back = [hand[0] - (tip[0] - hand[0]) * 0.3, hand[1] - (tip[1] - hand[1]) * 0.3];
+  g.strokeStyle = HC.steelD; g.lineWidth = 2; g.lineCap = 'butt';
+  g.beginPath(); g.moveTo(back[0], back[1]); g.lineTo(tip[0], tip[1]); g.stroke();
+  g.strokeStyle = HC.steel; g.lineWidth = 1; g.beginPath(); g.moveTo(back[0], back[1]); g.lineTo(tip[0], tip[1]); g.stroke();
+  // 針穴に通った金の糸
+  g.fillStyle = HC.gold; g.fillRect(Math.round(back[0]) - 1, Math.round(back[1]) - 1, 3, 3);
+  g.strokeStyle = HC.fur; g.lineWidth = 2.8; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(shoulder[0], shoulder[1]); g.lineTo(hand[0], hand[1]); g.stroke();
+  g.fillStyle = HC.fur; g.beginPath(); g.ellipse(hand[0], hand[1], 1.8, 1.8, 0, 0, Math.PI * 2); g.fill();
+  f._hand = tip;
 }
 function heroInner(f) {
   return (g) => {
-    const b = f.bob || 0; const e = f.expr || 'normal';
-    const y = 11 + b + (e === 'scared' ? 1 : 0);
-    if (e === 'blink') { g.fillStyle = HC.eye; g.fillRect(17, y + 1, 3, 1); g.fillRect(23, y + 1, 2, 1); }
-    else if (e === 'hurt') {
-      g.fillStyle = HC.eye; g.fillRect(17, y - 1, 1, 1); g.fillRect(18, y, 1, 1); g.fillRect(17, y + 1, 1, 1); g.fillRect(24, y - 1, 1, 1); g.fillRect(23, y, 1, 1); g.fillRect(24, y + 1, 1, 1);
-      g.fillStyle = HC.tear; g.fillRect(18, y + 2, 1, 2); g.fillRect(22, y + 2, 1, 1);
-    } else if (e === 'scared') {
-      g.fillStyle = HC.white; g.fillRect(17, y - 2, 3, 4); g.fillRect(22, y - 2, 3, 4);
-      g.fillStyle = HC.eye; g.fillRect(18, y - 1, 1, 2); g.fillRect(23, y - 1, 1, 2);
-      g.fillStyle = HC.tear; g.fillRect(26, y - 6, 1, 2); g.fillRect(27, y - 5, 1, 1);
-    } else {
-      g.fillStyle = HC.eye; g.fillRect(17, y - 2, 3, 4); g.fillRect(22, y - 2, 3, 4);
-      g.fillStyle = HC.white; g.fillRect(17, y - 2, 1, 1); g.fillRect(22, y - 2, 1, 1); g.fillRect(19, y + 1, 1, 1); g.fillRect(24, y + 1, 1, 1);
+    const b = f.bob || 0; const e = f.expr || 'normal'; const hide = e === 'scared';
+    const hy = 13 + b + (hide ? 2 : 0); const hd = hide ? 5 : (f.helmDrop || 0);
+    // 指ぬきのくぼみ
+    g.fillStyle = HC.goldD;
+    for (let y = hy - 11 + hd; y < hy - 3 + hd; y += 2) for (let x = 10 + ((y - hy) & 1); x < 22; x += 2) g.fillRect(x, y, 1, 1);
+    g.fillStyle = HC.goldL; g.fillRect(9, hy - 9 + hd, 1, 6);
+    const ey = hy + 2;
+    if (hide) {
+      // 兜の下から震える口元だけ
+      g.fillStyle = HC.eye; g.fillRect(17, ey + 4, 1, 1); g.fillRect(19, ey + 4, 1, 1); g.fillRect(18, ey + 5, 1, 1);
+      g.fillStyle = HC.tear; g.fillRect(22, ey + 2, 1, 2);
+      return;
     }
-    g.fillStyle = HC.nose; g.fillRect(21, y + 3, 1, 1);
-    g.fillStyle = HC.eye; g.fillRect(20, y + 4, 1, 1); g.fillRect(22, y + 4, 1, 1);
-    if (e === 'scared') { g.fillRect(21, y + 5, 1, 1); }
-    g.fillStyle = HC.goldL; g.fillRect(17, y + 8, 1, 1);
-    g.fillStyle = HC.furD; g.fillRect(26, y + 2, 2, 1); g.fillRect(26, y + 4, 2, 1);
+    if (e === 'blink') { g.fillStyle = HC.eye; g.fillRect(14, ey + 1, 3, 1); g.fillRect(19, ey + 1, 3, 1); }
+    else if (e === 'hurt') {
+      g.fillStyle = HC.eye; g.fillRect(14, ey, 1, 1); g.fillRect(15, ey + 1, 1, 1); g.fillRect(14, ey + 2, 1, 1); g.fillRect(21, ey, 1, 1); g.fillRect(20, ey + 1, 1, 1); g.fillRect(21, ey + 2, 1, 1);
+      g.fillStyle = HC.tear; g.fillRect(15, ey + 3, 1, 2);
+    } else {
+      g.fillStyle = HC.eye; g.fillRect(14, ey - 1, 3, 4); g.fillRect(19, ey - 1, 3, 4);
+      g.fillStyle = HC.iris; g.fillRect(15, ey + 1, 2, 2); g.fillRect(20, ey + 1, 2, 2);
+      g.fillStyle = HC.white; g.fillRect(14, ey - 1, 1, 1); g.fillRect(19, ey - 1, 1, 1);
+    }
+    g.fillStyle = HC.nose; g.fillRect(18, ey + 3, 1, 1);
+    g.fillStyle = HC.eye; g.fillRect(17, ey + 4, 1, 1); g.fillRect(19, ey + 4, 1, 1);
+    g.fillStyle = HC.pink; g.fillRect(12, ey + 3, 1, 1); g.fillRect(23, ey + 3, 1, 1);
   };
 }
 const heroCache = new Map();
@@ -88,21 +126,24 @@ function heroFrame(f) {
   const key = JSON.stringify(f);
   if (heroCache.has(key)) return heroCache.get(key);
   const fr = { ...f };
-  const img = makeSprite(HW, HH, (g) => heroDraw(g, fr), { inner: heroInner(fr) });
-  const v = { img, hand: fr._hand };
+  const img = makeSprite(HW, HH, (g) => { g.save(); g.translate(0, 4); heroDraw(g, fr); g.restore(); }, { inner: (g) => { g.save(); g.translate(0, 4); heroInner(fr)(g); g.restore(); } });
+  const v = { img, hand: [fr._hand[0], fr._hand[1] + 4] };
   heroCache.set(key, v);
   return v;
 }
 export function heroPose(p, t, opts = {}) {
   const run = Math.abs(p.vx) > 20 && p.onGround;
   const air = !p.onGround;
-  const f = { bob: 0, legA: 0, paw: 'down', tail: Math.floor(t * 2) % 2, expr: 'normal' };
-  if (run) { const ph = Math.floor(p.anim * 0.07) % 4; f.legA = [0.8, 0, -0.8, 0][ph]; f.bob = ph % 2 ? -1 : 0; f.tail = ph % 2 ? 2 : 0; }
-  else if (air) { f.legA = p.vy < 0 ? 0.9 : -0.6; f.paw = p.vy < 0 ? 'up' : 'down'; f.tail = 3; f.bob = p.vy < 0 ? -1 : 0; }
-  else if (opts.scared) { f.bob = 1; }
-  else if (Math.floor(t * 10) % 37 === 0) f.expr = 'blink';
-  if (opts.scared && !opts.hurt) f.expr = 'scared';
-  if (opts.throwing) f.paw = 'throw';
+  const f = { bob: 0, legA: 0, armA: 0, pose: 'idle', tail: Math.floor(t * 1.5) % 2, expr: 'normal', helmDrop: 0, earTw: 0 };
+  if (run) { const ph = Math.floor(p.anim * 0.07) % 4; f.legA = [0.9, 0, -0.9, 0][ph]; f.bob = ph % 2 ? -1 : 0; f.armA = [-0.6, 0, 0.6, 0][ph]; f.tail = ph % 2 ? 2 : 0; }
+  else if (air) { f.legA = p.vy < 0 ? 0.7 : -0.5; f.pose = p.vy < 0 ? 'up' : 'idle'; f.tail = 3; f.bob = p.vy < 0 ? -1 : 0; }
+  else {
+    if (p.landed > 0) f.helmDrop = 2; // 着地で兜がずり落ちる
+    if (Math.floor(t * 0.8) % 5 === 0 && Math.floor(t * 8) % 2) f.earTw = 1; // きょろきょろ耳が動く
+    if (Math.floor(t * 10) % 37 === 0) f.expr = 'blink';
+  }
+  if (opts.scared && !opts.hurt && !air) { f.expr = 'scared'; f.bob = 2; f.legA = 0; }
+  if (opts.throwing) { f.pose = 'throw'; if (f.expr === 'scared') f.expr = 'normal'; }
   if (opts.hurt) f.expr = 'hurt';
   return heroFrame(f);
 }

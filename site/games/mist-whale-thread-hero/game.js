@@ -321,8 +321,10 @@ function renderTitle() {
   // 主人公が星鈴へ糸を投げる（大きく）
   const sc = w < 200 ? 2 : h > 260 ? 3 : 2;
   const hx = Math.round(Math.min(w * 0.12, 50)); const jump = Math.round(Math.abs(Math.sin(t * 2.2)) * 6);
-  const hy = Math.round(h * 0.86) - 28 * sc + sc - jump;
-  const bx = Math.round(hx + Math.min(w * 0.4, 140)); const by = Math.round(h * 0.86) - 28 * sc - 30 + Math.round(Math.sin(t * 2) * 2);
+  const footY = Math.round(h * (w < 200 ? 0.7 : 0.86));
+  if (w < 200) { ctx.fillStyle = '#120c1c'; ctx.fillRect(hx - 4, footY, 30 * sc + 8, 5); ctx.fillStyle = '#5a7488'; ctx.fillRect(hx - 3, footY, 30 * sc + 6, 3); ctx.fillStyle = '#3a6a50'; ctx.fillRect(hx - 3, footY, 30 * sc + 6, 1); }
+  const hy = footY - 37 * sc - jump;
+  const bx = Math.round(hx + Math.min(w * 0.5, 150)); const by = footY - 38 * sc - 10 + Math.round(Math.sin(t * 2) * 2);
   const hand = P.drawHeroBig(ctx, hx, hy, sc, t, { throwing: true, onGround: false, vy: -10 });
   P.drawThread(ctx, { x: hand[0], y: hand[1] }, { x: bx, y: by }, colorNow(), 'hold', 1);
   P.drawStarBell(ctx, bx, by, t, 2);
@@ -525,7 +527,7 @@ function renderNote() {
       return `<div class="mem"><b>${L.CHAPTERS[ci].sub}『${L.CHAPTERS[ci].name}』</b>${S.lines.map((l) => `<p>${l}</p>`).join('')}<p class="secret">${full ? S.secret : `隠された回想：この章の星鈴 ${L.chapterStars(save, ci)}/15`}</p></div>`;
     }).join('') + `<h3>結末</h3>` + Object.entries(L.ENDINGS).map(([k, E]) => `<div class="mem"><b>${save.seen[`end_${k}`] ? `『${E.title}』` : '？？？'}</b>${save.seen[`end_${k}`] ? `<p>${E.text}</p>` : ''}</div>`).join('') + '<p class="muted">結末は星鈴の数と評価で変わる（3種）。</p>';
   } else if (noteTab === 'how') {
-    body.innerHTML = `<h3>操作</h3><div class="keys"><span><kbd>←</kbd><kbd>→</kbd> / <kbd>A</kbd><kbd>D</kbd></span><span>走る</span><span><kbd>Space</kbd> / <kbd>↑</kbd></span><span>ジャンプ（長押しで高く）</span><span><kbd>J</kbd></span><span>糸を投げる・縛った敵を引く</span><span><kbd>Esc</kbd></span><span>一時停止</span></div>
+    body.innerHTML = `<h3>ミオ</h3><p>霧鯨の夢を縫う「夢縫い」の見習い子猫。武器はぶかぶかの指ぬきの兜と、背丈より長い縫い針だけ。こわがりで、こわいものが来ると兜をかぶって縮こまる。</p><h3>操作</h3><div class="keys"><span><kbd>←</kbd><kbd>→</kbd> / <kbd>A</kbd><kbd>D</kbd></span><span>走る</span><span><kbd>Space</kbd> / <kbd>↑</kbd></span><span>ジャンプ（長押しで高く）</span><span><kbd>J</kbd></span><span>糸を投げる・縛った敵を引く</span><span><kbd>Esc</kbd></span><span>一時停止</span></div>
       <p>スマホは画面下の4つのボタン。左右とジャンプ・糸は同時に押せる。</p>
       <h3>糸</h3><p>押した方向（なければ向いている方向）の、届く範囲で一番近い対象に自動でかかる。金の輪が出ているのが次の標的。</p>
       <ul><li><b>金のフック</b>：その場所まで一気に飛ぶ。空中でも投げられる。</li><li><b>レバー・鐘</b>：引くと橋が出る・扉が開く・灯台が開く。</li><li><b>敵</b>：1秒縛る。縛っている間にもう一度 J で手元へ引き寄せる。鈴スイッチに通す・いばらに落とす・別の敵にぶつけると倒せる。</li><li><b>種・雲の舟</b>：手元へ引き寄せる。舟に乗ってフックへ投げると舟ごと進む。</li></ul>
