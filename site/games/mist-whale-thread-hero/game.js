@@ -55,6 +55,7 @@ try { new ResizeObserver(() => resize()).observe(document.getElementById('cv'));
 const held = { left: false, right: false, jump: false };
 const keyHeld = { left: false, right: false, jump: false };
 const padHeld = { left: false, right: false, jump: false };
+const gestHeld = { left: false, right: false, jump: false };
 let pend = { jump: false, thread: false };
 const KEYMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', Space: 'jump', ArrowUp: 'jump', KeyW: 'jump', KeyJ: 'thread', KeyK: 'thread', KeyX: 'thread', KeyZ: 'jump' };
 window.addEventListener('keydown', (e) => {
@@ -94,8 +95,37 @@ function setupPad() {
 setupPad();
 window.addEventListener('resize', () => { if (!pad.classList.contains('show') && window.innerWidth <= 760 && !OG) pad.classList.add('show'); });
 
+// 片手操作：画面をなぞって走る・上にはじいてジャンプ・タップで糸
+const isTouchDevice = () => window.matchMedia?.('(hover: none), (pointer: coarse)').matches || qs.has('pad');
+let gest = null;
+cv.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse' || mode !== 'play' || gest) return;
+  e.preventDefault(); audio.unlock();
+  try { cv.setPointerCapture(e.pointerId); } catch { /* 古い端末 */ }
+  gest = { id: e.pointerId, sx: e.clientX, sy: e.clientY, nx: e.clientX, ny: e.clientY, t: performance.now(), travel: 0, jumped: false };
+});
+cv.addEventListener('pointermove', (e) => {
+  if (!gest || e.pointerId !== gest.id) return;
+  e.preventDefault();
+  const dx = e.clientX - gest.nx; const dy = e.clientY - gest.ny;
+  gest.travel = Math.max(gest.travel, Math.hypot(e.clientX - gest.sx, e.clientY - gest.sy));
+  const TH = 14;
+  gestHeld.right = dx > TH; gestHeld.left = dx < -TH;
+  // 指を戻すと止まる：基準点を少し追いかける
+  if (Math.abs(dx) > 60) gest.nx = e.clientX - Math.sign(dx) * 60;
+  if (!gest.jumped && dy < -26) { gest.jumped = true; pend.jump = true; gestHeld.jump = true; gest.ny = e.clientY; }
+  else if (gest.jumped && dy > 20) { gest.jumped = false; gestHeld.jump = false; gest.ny = e.clientY; }
+});
+const gestEnd = (e) => {
+  if (!gest || e.pointerId !== gest.id) return;
+  if (performance.now() - gest.t < 260 && gest.travel < 12) pend.thread = true;
+  gest = null; gestHeld.left = false; gestHeld.right = false; gestHeld.jump = false;
+};
+cv.addEventListener('pointerup', gestEnd);
+cv.addEventListener('pointercancel', gestEnd);
+
 function readInput() {
-  held.left = keyHeld.left || padHeld.left; held.right = keyHeld.right || padHeld.right; held.jump = keyHeld.jump || padHeld.jump;
+  held.left = keyHeld.left || padHeld.left || gestHeld.left; held.right = keyHeld.right || padHeld.right || gestHeld.right; held.jump = keyHeld.jump || padHeld.jump || gestHeld.jump;
   const inp = { left: held.left, right: held.right, jump: held.jump, jumpPressed: pend.jump, threadPressed: pend.thread };
   pend = { jump: false, thread: false };
   return inp;
@@ -111,7 +141,9 @@ function burst(x, y, color, n = 12, sp = 160, life = 0.6, size = 3) {
 }
 function ring(x, y, color, r = 60, life = 0.8) { rings.push({ x, y, color, r, life, max: life }); }
 function hideToast() { $('toast').classList.remove('show'); }
+let toastUntil = 0;
 function toast(msg, ms = 1400) {
+  toastUntil = performance.now() + ms;
   const el = $('toast'); el.textContent = msg; el.classList.add('show');
   clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), ms);
 }
@@ -204,8 +236,28 @@ function updateHint() {
   let text = '';
   for (const h of st.def.hints || []) if (col >= h.c && col < h.c + 14) text = h.text;
   if (st.index >= 3 && save.stages[st.index]?.clear) text = '';
-  if (text && pad.classList.contains('show')) text = text.replace('← → で走る ／ Space で跳ぶ', '◀▶で走る／ジャンプで跳ぶ').replace('（J ／ 糸ボタン）', '（糸ボタン）').replace('もう一度 J で', 'もう一度 糸で');
+  if (text && settings.oneHand && isTouchDevice()) text = text.replace('← → で走る ／ Space で跳ぶ', '指でなぞって走る／上にはじいて跳ぶ').replace('（J ／ 糸ボタン）', '（画面をタップ）').replace('もう一度 J で', 'もう一度タップで');
+  else if (text && pad.classList.contains('show')) text = text.replace('← → で走る ／ Space で跳ぶ', '◀▶で走る／ジャンプで跳ぶ（片手なら画面をなぞる）').replace('（J ／ 糸ボタン）', '（糸ボタン）').replace('もう一度 J で', 'もう一度 糸で');
+  if (performance.now() < toastUntil) text = '';
   if (text !== hintText) { hintText = text; const el = $('hint'); el.textContent = text; el.classList.toggle('off', !text); }
+}
+
+// 少女のひとりごと（遊びながら少しずつ物語が見える）
+let monoShown = new Set(); let monoTimer = 0; let monoFull = ''; let monoLen = 0;
+function hideMono(now) { const el = $('mono'); el.classList.remove('show'); if (now) el.textContent = ''; monoTimer = 0; }
+function updateMono(dt) {
+  if (!st) return;
+  const col = (st.player.x + st.player.w / 2) / L.TS;
+  (st.def.lines || []).forEach((ln, k) => {
+    if (!monoShown.has(k) && col >= ln.c) { monoShown.add(k); monoFull = ln.text; monoLen = 0; monoTimer = 4.2; $('mono').classList.add('show'); }
+  });
+  if (monoTimer > 0) {
+    monoTimer -= dt;
+    const n = Math.min(monoFull.length, Math.floor(monoLen += dt * 22));
+    const el = $('mono'); const txt = monoFull.slice(0, n);
+    if (el.textContent !== txt) el.textContent = txt;
+    if (monoTimer <= 0) hideMono(false);
+  }
 }
 
 function colorNow() { return P.threadColor(save.color, t); }
@@ -214,7 +266,7 @@ function colorNow() { return P.threadColor(save.color, t); }
 function startStage(i, { restart = false } = {}) {
   const variant = OG ? 0 : L.variantFor(save, i);
   st = L.createLevelState(i, { variant });
-  particles = []; rings = []; clearTimer = 0; hintText = '';
+  particles = []; rings = []; clearTimer = 0; hintText = ''; monoShown = new Set(); hideMono(true);
   cam.x = Math.max(0, st.player.x - 100); cam.y = L.ROWS * L.TS - 360;
   audio.setChapter(st.def.chapter);
   mode = 'play';
@@ -228,7 +280,8 @@ function showOnly(which) {
   $('map').hidden = which !== 'map';
   $('hud').hidden = which !== 'play';
   $('hint').style.display = which === 'play' ? '' : 'none';
-  pad.style.display = which === 'play' ? '' : 'none';
+  pad.style.display = which === 'play' && !settings.oneHand ? '' : 'none';
+  $('mono').style.display = which === 'play' ? '' : 'none';
 }
 
 // ───────────────────────── 描画（ドット絵：1マス=16ドット） ─────────────────────────
@@ -284,7 +337,9 @@ function renderScene(dt) {
     const px = p.x + p.w / 2;
     const scared = st.enemies.some((e) => !e.dead && ['warn', 'charge', 'dive', 'peek', 'reach'].includes(e.state) && Math.abs(e.x - px) < 5.5 * L.TS && Math.abs(e.y - p.y) < 4 * L.TS)
       || (st.fray && st.fray.dying <= 0 && px - st.fray.x < 6 * L.TS) || p.tangled > 0;
-    pose = P.drawHero(ctx, p, t, { throwing: throwAnim > 0 || (st.thread && st.thread.phase !== 'miss'), hurt: p.invuln > 0.6 || p.dying > 0, scared, og: OG });
+    const nervous = !scared && st.enemies.some((e) => !e.dead && Math.abs(e.x - px) < 6.5 * L.TS && Math.abs(e.y - p.y) < 4.5 * L.TS);
+    if ((scared || p.invuln > 0.6) && Math.random() < 0.08 && !reduce) particles.push({ x: px + p.face * 8, y: p.y + 14, vx: (Math.random() - 0.5) * 30, vy: 20, life: 0.6, max: 0.6, color: '#7fc8e8', size: 2, g: 500 });
+    pose = P.drawHero(ctx, p, t, { throwing: throwAnim > 0 || (st.thread && st.thread.phase !== 'miss'), hurt: p.invuln > 0.6 || p.dying > 0, scared, nervous: nervous || OG, og: OG });
   }
   if (st.thread) {
     const hp = pose?.handPx || [Math.round((p.x + p.w / 2) * K), Math.round(p.y * K)];
@@ -312,6 +367,11 @@ function renderTitle() {
   P.drawBackground(ctx, 0, t * 6, 0, w, h, t, {});
   const ws = Math.max(0.7, Math.min(w / 230, h / 150));
   P.drawTitleWhale(ctx, Math.round(w * 0.6), Math.round(h * 0.42), ws, t);
+  // 霧をかぶせ、町の窓から何かが覗く
+  P.fog(ctx, 0, Math.round(h * 0.42), w, Math.round(h * 0.2), '#24484a', 0);
+  P.fog(ctx, 0, Math.round(h * 0.5), w, Math.round(h * 0.12), '#16303a', 1);
+  const cyc = (t % 7) / 7; const out = cyc < 0.15 ? 0 : cyc < 0.45 ? (cyc - 0.15) / 0.3 : cyc < 0.85 ? 1 : 1 - (cyc - 0.85) / 0.15;
+  P.drawPeekWindow(ctx, Math.round(w * (w < 200 ? 0.78 : 0.86)), Math.round(h * 0.72), out, t);
   // 手前の鯨の背（地面）
   ctx.fillStyle = '#120c1c'; ctx.fillRect(0, Math.round(h * 0.86) - 1, w, h);
   ctx.fillStyle = '#5a7488'; ctx.fillRect(0, Math.round(h * 0.86), w, h);
@@ -325,7 +385,7 @@ function renderTitle() {
   if (w < 200) { ctx.fillStyle = '#120c1c'; ctx.fillRect(hx - 4, footY, 30 * sc + 8, 5); ctx.fillStyle = '#5a7488'; ctx.fillRect(hx - 3, footY, 30 * sc + 6, 3); ctx.fillStyle = '#3a6a50'; ctx.fillRect(hx - 3, footY, 30 * sc + 6, 1); }
   const hy = footY - 35 * sc - jump;
   const bx = Math.round(hx + Math.min(w * 0.5, 150)); const by = footY - 36 * sc - 10 + Math.round(Math.sin(t * 2) * 2);
-  const hand = P.drawHeroBig(ctx, hx, hy, sc, t, { throwing: true, onGround: false, vy: -10 });
+  const hand = P.drawHeroBig(ctx, hx, hy, sc, t, { throwing: true, onGround: false, vy: -10, nervous: true });
   P.drawThread(ctx, { x: hand[0], y: hand[1] }, { x: bx, y: by }, colorNow(), 'hold', 1);
   P.drawStarBell(ctx, bx, by, t, 2);
 }
@@ -348,7 +408,7 @@ function frame(now) {
       handleEvents();
     }
     if (st.cleared && clearTimer > 0) { clearTimer -= dt; if (clearTimer <= 0) finishStage(); }
-    updateSpool(); updateHint();
+    updateSpool(); updateHint(); updateMono(dt);
     audio.setTension(st.fray ? 1 : st.enemies.some((e) => e.state === 'warn' || e.state === 'charge' || e.state === 'dive') ? 0.6 : 0);
   }
   for (const q of particles) { q.life -= dt; q.vy += q.g * dt; q.x += q.vx * dt; q.y += q.vy * dt; }
@@ -375,7 +435,7 @@ function finishStage() {
   const bells = $('resBells'); bells.innerHTML = '';
   res.stars.forEach((got, i) => {
     const c = document.createElement('canvas'); c.width = 18; c.height = 18; c.className = 'px';
-    pixelCanvas(c, (g) => { if (!got) g.globalAlpha = 0.3; P.drawStarBell(g, 9, 9, got ? 0.3 + i : 0, 1); });
+    pixelCanvas(c, (g) => { P.drawStarBell(g, 9, 9, got ? 0.3 + i : 0, 1); if (!got) { g.globalCompositeOperation = 'source-atop'; g.fillStyle = '#2a2238'; g.fillRect(0, 0, 18, 18); g.globalCompositeOperation = 'source-over'; } });
     c.setAttribute('aria-label', got ? '星鈴 取った' : '星鈴 まだ');
     bells.appendChild(c);
   });
@@ -537,9 +597,11 @@ function renderNote() {
     for (const c of body.querySelectorAll('.foe canvas')) drawFoe(c, c.dataset.k);
   } else {
     body.innerHTML = `<div class="setting"><span>音</span><button type="button" class="toggle" id="setMute" aria-pressed="${!audio.state.muted}">${audio.state.muted ? 'オフ' : 'オン'}</button></div>
+      <div class="setting"><span>片手で遊ぶ（ボタンを隠す。画面をなぞって走る・上にはじいて跳ぶ・タップで糸）</span><button type="button" class="toggle" id="setOneHand" aria-pressed="${!!settings.oneHand}">${settings.oneHand ? 'オン' : 'オフ'}</button></div>
       <div class="setting"><span>動きを減らす（画面ゆれ・粒を減らす）</span><button type="button" class="toggle" id="setReduce" aria-pressed="${reduce}">${reduce ? 'オン' : 'オフ'}</button></div>
       <div class="setting"><span>記録を消す</span><button type="button" class="toggle" id="setWipe">消す</button></div>`;
     $('setMute').addEventListener('click', () => { audio.setMuted(!audio.state.muted); renderNote(); });
+    $('setOneHand').addEventListener('click', () => { settings.oneHand = !settings.oneHand; put(SET_KEY, JSON.stringify(settings)); renderNote(); });
     $('setReduce').addEventListener('click', () => { reduce = !reduce; settings.reduce = reduce; put(SET_KEY, JSON.stringify(settings)); renderNote(); });
     $('setWipe').addEventListener('click', () => { if (window.confirm('星鈴と進行の記録をすべて消しますか？')) { save = L.newSave(); persist(); renderNote(); } });
   }
@@ -551,7 +613,7 @@ function drawFoe(c, kind) { pixelCanvas(c, (g) => P.drawFoeIcon(g, kind, 0.3)); 
 function setupOg() {
   document.body.classList.add('og');
   const card = document.createElement('div'); card.className = 'og-card';
-  card.innerHTML = '<div class="t">霧鯨と糸の勇者</div><div class="s">走れ、跳べ、光の糸を投げろ。</div>';
+  card.innerHTML = '<div class="t">霧鯨と糸の勇者</div><div class="s">こわくても、糸をたぐって。</div>';
   $('stage').appendChild(card);
   save.color = 0;
   st = L.createLevelState(14);

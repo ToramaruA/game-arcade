@@ -238,3 +238,58 @@ body { background: var(--navy); }
 body.og .og-card { background: none; }
 .og-card .t { font-family: "Osaka-Mono", "MS Gothic", "Hiragino Kaku Gothic ProN", monospace; font-weight: 900; -webkit-text-stroke: 0; color: #f0b030; text-shadow: 0 4px 0 #a8641c, 4px 8px 0 #3a0a18, 8px 12px 0 #120c1c; }
 .og-card .s { text-shadow: 2px 2px 0 #120c1c; }
+
+/* 少女のひとりごと */
+.mono { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); max-width: min(92%, 560px); padding: 8px 14px; background: rgba(11,7,22,.82); color: #f4f1e8; font-size: 15px; line-height: 1.5; letter-spacing: .06em; text-align: center; box-shadow: 0 0 0 2px #4a4060, 0 0 0 4px #0b0716; opacity: 0; transition: opacity .5s; pointer-events: none; font-family: "Osaka-Mono", "MS Gothic", "Hiragino Kaku Gothic ProN", monospace; }
+.mono.show { opacity: 1; }
+.mono:empty { display: none; }
+@media (max-width: 520px) { .mono { font-size: 13px; bottom: 10px; } }
+
+/* ───── 悪夢の配色のUI（暗い地に1ドットの枠。金は鈴と糸だけ） ───── */
+:root { --ink2: #e8dcc8; --line: #4a4060; --deep: #0b0716; --panel2: #16101f; --card: #1e1628; }
+.chip { background: var(--deep); color: var(--ink2); box-shadow: 0 0 0 1px var(--line), 0 0 0 3px var(--deep); }
+.spool { background: var(--deep); box-shadow: 0 0 0 1px var(--line), 0 0 0 3px var(--deep); }
+.hint { background: rgba(11,7,22,.9); box-shadow: 0 0 0 1px var(--line), 0 0 0 3px var(--deep); color: var(--ink2); }
+.toast { background: var(--deep); color: var(--ink2); box-shadow: 0 0 0 1px var(--line), 0 0 0 3px var(--deep); white-space: nowrap; font-size: 16px; padding: 8px 16px; }
+.big-btn { background: var(--ink2); color: #120c1c; box-shadow: inset -3px -3px 0 #b8a890, inset 3px 3px 0 #ffffff, 0 0 0 3px var(--deep), 5px 5px 0 3px rgba(0,0,0,.5); }
+.big-btn:active { box-shadow: inset -3px -3px 0 #b8a890, inset 3px 3px 0 #ffffff, 0 0 0 3px var(--deep); }
+.ghost-btn, .col-btns .ghost-btn { background: var(--deep); color: var(--ink2); box-shadow: 0 0 0 1px var(--line), 0 0 0 3px var(--deep); }
+.sheet, .story .sheet { background: var(--panel2); color: var(--ink2); background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px); background-size: 100% 3px; box-shadow: 0 0 0 2px var(--line), 0 0 0 5px var(--deep), 8px 8px 0 5px rgba(0,0,0,.5); }
+.story h2, .sheet h2 { color: var(--ink2); }
+.eyebrow, .story .eyebrow { color: #b8a890; }
+.muted, .story .muted { color: #9d94b8; }
+.res-grid > div, .nrow, .mem, .setting, .cswatch { background: var(--card); color: var(--ink2); box-shadow: 0 0 0 1px var(--line); }
+.res-grid small, .nrow .tags, .cswatch small { color: #9d94b8; }
+.badge { background: #2a2238; color: #9d94b8; box-shadow: none; }
+.badge.on { background: var(--ink2); color: #120c1c; box-shadow: none; }
+.unlock { color: #ffe27a; }
+.secret { color: #ffe27a; }
+.map-screen { background: linear-gradient(rgba(11,7,22,.35), rgba(11,7,22,.7)); }
+.chap { background: var(--panel2); color: var(--ink2); box-shadow: 0 0 0 2px var(--line), 0 0 0 5px var(--deep), 6px 6px 0 5px rgba(0,0,0,.5); }
+.chap h3 small, .chap .cstars { color: #b8a890; }
+.chap.locked { opacity: 1; filter: brightness(.5) saturate(.6); }
+.chap.locked h3::after { content: "封"; margin-left: 6px; padding: 0 4px; font-size: 12px; color: #ff4a5a; box-shadow: 0 0 0 1px #ff4a5a; }
+.node { background: var(--card); color: var(--ink2); box-shadow: 0 0 0 1px var(--line); }
+.node .nm small { color: #9d94b8; }
+.node .no { background: #2a2238; color: var(--ink2); }
+.node.clear .no { background: var(--ink2); color: #120c1c; }
+.node.next { box-shadow: 0 0 0 2px var(--ink2), 0 0 0 4px var(--deep); }
+.node .st { color: #ffe27a; }
+.node .st .off { color: #4a4060; }
+.nrow .b { color: #ffe27a; } .nrow .b .off { color: #4a4060; }
+.sheet.note { position: relative; }
+.note-tabs { position: sticky; top: 0; z-index: 2; background: var(--panel2); padding-top: 4px; }
+.note-tabs button { background: var(--card); color: #c8c0b0; box-shadow: 0 0 0 1px var(--line); }
+.note-tabs button[aria-current="true"] { background: var(--ink2); color: #120c1c; box-shadow: 0 0 0 1px var(--deep); }
+.note-body { color: var(--ink2); }
+.note-body h3 { color: var(--ink2); }
+.keys kbd, .how-icons kbd { background: var(--card); color: var(--ink2); box-shadow: 0 0 0 1px var(--line); }
+.toggle { background: var(--card); color: var(--ink2); box-shadow: 0 0 0 1px var(--line); }
+.toggle[aria-pressed="true"] { background: var(--ink2); color: #120c1c; }
+.foe { background: #0b0716; color: var(--ink2); box-shadow: 0 0 0 1px var(--line); }
+.foe b { color: var(--ink2); }
+.pad { background: var(--deep); border-top: 2px solid #2a2238; }
+.pk, .pk-j { background: var(--card); color: var(--ink2); box-shadow: inset -3px -3px 0 #0b0716, inset 3px 3px 0 #2a2238, 0 0 0 1px var(--line); }
+.pk-t { background: var(--card); color: #ffe27a; box-shadow: inset -3px -3px 0 #0b0716, inset 3px 3px 0 #2a2238, 0 0 0 1px #a8641c; }
+body.og .og-card { left: auto; right: 34px; top: 28px; bottom: auto; text-align: right; padding: 12px 18px; background: rgba(11,7,22,.82); box-shadow: 0 0 0 2px var(--line), 0 0 0 5px var(--deep); }
+@media (max-width: 520px) { .toast { font-size: 13px; } }

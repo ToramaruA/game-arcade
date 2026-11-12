@@ -73,6 +73,12 @@ function heroInner(f) {
       g.fillStyle = HC.eye; g.fillRect(14, y + 1, 1, 1); g.fillRect(15, y + 2, 1, 1); g.fillRect(19, y + 1, 1, 1); g.fillRect(18, y + 2, 1, 1);
       g.fillStyle = HC.tear; g.fillRect(14, y + 3, 1, 2); g.fillRect(19, y + 3, 1, 2);
       g.fillStyle = HC.eye; g.fillRect(16, y + 5, 2, 1);
+    } else if (e === 'nervous') {
+      // こわごわ：目を見開いて、汗
+      g.fillStyle = HC.white; g.fillRect(14, y - 1, 2, 3); g.fillRect(18, y - 1, 2, 3);
+      g.fillStyle = HC.eye; g.fillRect(15, y, 1, 2); g.fillRect(19, y, 1, 2);
+      g.fillStyle = HC.eye; g.fillRect(16, y + 5, 1, 1); g.fillRect(17, y + 4, 1, 1); g.fillRect(18, y + 5, 1, 1);
+      g.fillStyle = HC.tear; g.fillRect(23, y - 3, 1, 2); g.fillRect(22, y - 2, 1, 1);
     } else {
       g.fillStyle = HC.eye; g.fillRect(14, y, 2, 3); g.fillRect(18, y, 2, 3);
       g.fillStyle = HC.white; g.fillRect(14, y, 1, 1); g.fillRect(18, y, 1, 1);
@@ -103,6 +109,7 @@ export function heroPose(p, t, opts = {}) {
     if (Math.floor(t * 10) % 37 === 0) f.expr = 'blink';
   }
   if (opts.scared && !opts.hurt && !air && !opts.throwing) { f.expr = 'scared'; f.pose = 'idle'; f.bob = 0; f.legA = 0; }
+  if (opts.nervous && f.expr === 'normal') f.expr = 'nervous';
   if (opts.throwing) f.pose = 'throw';
   if (opts.hurt) f.expr = 'hurt';
   return heroFrame(f);
@@ -112,7 +119,7 @@ export function drawHero(ctx, p, t, opts = {}) {
   const pose = heroPose(p, t, opts);
   const face = p.face || 1;
   const cx = X(p.x + p.w / 2); const foot = X(p.y + p.h);
-  const shiver = opts.scared && p.onGround && Math.floor(t * 30) % 3 === 0 ? (Math.floor(t * 60) % 2 ? 1 : -1) : 0;
+  const shiver = (opts.scared || opts.nervous) && p.onGround && Math.floor(t * 30) % (opts.scared ? 3 : 7) === 0 ? (Math.floor(t * 60) % 2 ? 1 : -1) : 0;
   const sx = (face > 0 ? cx - HCX : cx - (HW - HCX)) + shiver;
   const sy = foot - HH + 1 + (p.landed > 0 ? 1 : 0);
   if (p.invuln > 0 && !opts.og && Math.floor(t * 16) % 2) return pose;
@@ -415,6 +422,12 @@ export function drawTiles(ctx, st, ch, c0, c1, r0, r1, t) {
           if (c > 0 && T(c - 1, r) !== '#') { ctx.fillStyle = OUT; ctx.fillRect(x, y, 1, 16); ctx.fillStyle = P.skinL; ctx.fillRect(x + 1, y, 1, 16); }
           if (c < st.w - 1 && T(c + 1, r) !== '#') { ctx.fillStyle = OUT; ctx.fillRect(x + 15, y, 1, 16); ctx.fillStyle = P.skinD; ctx.fillRect(x + 14, y, 1, 16); }
           if (!top && r > 0 && T(c, r - 1) === '#' && r - 1 >= 0 && T(c, r - 2) !== '#') { ctx.fillStyle = P.skinD; ctx.fillRect(x, y, 16, 2); }
+          if (!top && hash(c * 19 + r * 3) < 0.07) {
+            // 壁の割れ目から覗く目（ときどきまばたき）
+            ctx.fillStyle = P.skinD; ctx.fillRect(x + 3, y + 6, 1, 4); ctx.fillRect(x + 4, y + 9, 3, 1); ctx.fillRect(x + 12, y + 3, 1, 3);
+            ctx.fillStyle = '#0a0408'; ctx.fillRect(x + 5, y + 6, 7, 3);
+            if ((Math.floor(t * 0.9 + c * 0.37 + r) % 6) !== 0) { ctx.fillStyle = ch === 0 ? '#d8e0b0' : ch === 1 ? '#c8ff9a' : '#ff4a5a'; ctx.fillRect(x + 6, y + 7, 1, 1); ctx.fillRect(x + 10, y + 7, 1, 1); }
+          } else if (!top && hash(c * 23 + r * 5) < 0.18) { ctx.fillStyle = P.skinD; ctx.fillRect(x + 2 + (c % 5), y + 4, 1, 5); ctx.fillRect(x + 3 + (c % 5), y + 8, 4, 1); }
           if (r >= 12) { ctx.fillStyle = P.deep; ctx.globalAlpha = (r - 11) * 0.25; ctx.fillRect(x, y, 16, 16); ctx.globalAlpha = 1; }
           break;
         }
@@ -574,7 +587,7 @@ export function drawEnemy(ctx, e, t) {
     }
     case 'lamp': {
       const hot = e.state === 'warn' || e.state === 'fire';
-      if (e.beam && e.state === 'warn') { ctx.fillStyle = '#ff2a1a'; const by = X(e.beam.y); for (let xx = X(e.beam.x0); xx < X(e.beam.x1); xx += 4) if ((xx + Math.floor(t * 20)) % 8 < 4) ctx.fillRect(xx, by, 2, 1); }
+      if (e.beam && e.state === 'warn' && Math.floor(t * 12) % 2) { ctx.fillStyle = '#ffe27a'; const by = X(e.beam.y); for (let xx = X(e.beam.x0); xx < X(e.beam.x1); xx += 4) if ((xx + Math.floor(t * 20)) % 8 < 4) ctx.fillRect(xx, by, 2, 1); }
       if (e.beam && e.state === 'fire') { const by = X(e.beam.y); const x0 = X(e.beam.x0); const w = X(e.beam.x1) - x0; ctx.fillStyle = '#ff2a1a'; ctx.fillRect(x0, by - 3, w, 7); ctx.fillStyle = '#ffd0c0'; ctx.fillRect(x0, by - 2, w, 5); ctx.fillStyle = '#fff'; ctx.fillRect(x0, by - 1, w, 2); }
       glow(ctx, x, y, 14, hot ? '#ff2a1a' : '#7fc8e8');
       blit(ctx, S.lamp[hot ? 1 : 0], x - 11, y - 15, flip);
@@ -751,9 +764,9 @@ function layer(ch, idx, h) {
   } else {
     if (idx === 0) { // 浮かぶ骨の島と歯車
       for (let i = 0; i < 3; i++) {
-        const x = 50 + i * 110; const y = 40 + R(i) * 40;
-        g.fillStyle = '#7a6a5a'; pxEllipse(g, x, y, 22, 5); for (let k = 0; k < 6; k++) g.fillRect(x - 14 + k * 5, y, 3, 6 + Math.floor(R(i * 7 + k) * 8));
-        g.fillStyle = '#b8a890'; g.fillRect(x - 18, y - 4, 36, 2);
+        const x = 50 + i * 110; const y = 112 + R(i) * 16;
+        g.fillStyle = '#3a0a18'; pxEllipse(g, x, y, 22, 5); for (let k = 0; k < 6; k++) g.fillRect(x - 14 + k * 5, y, 3, 6 + Math.floor(R(i * 7 + k) * 8));
+        g.fillStyle = '#6a1424'; g.fillRect(x - 18, y - 4, 36, 2);
       }
       const gx = 260; const gy = 30; g.fillStyle = '#3a0a18'; pxEllipse(g, gx, gy, 14, 14); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; g.fillRect(gx + Math.round(Math.cos(a) * 15) - 2, gy + Math.round(Math.sin(a) * 15) - 2, 4, 4); }
       g.fillStyle = '#1e0610'; pxEllipse(g, gx, gy, 6, 6);
@@ -917,3 +930,17 @@ export function drawFoeIcon(g, kind, t) {
   const e = { kind, x: 30 / K, y: 24 / K, r: 16, face: 1, state: kind === 'lamp' ? 'idle' : 'hover', bound: 0, stun: 0, alert: kind === 'eater', beam: null };
   drawEnemy(g, e, t);
 }
+
+// タイトル：窓からぬっと覗く顔
+export function drawPeekWindow(ctx, x, y, out, t) {
+  buildObjects();
+  blit(ctx, S.facade, x - 20, y - 28);
+  if (out > 0) {
+    const wx = x - 9; const wy = y - 9;
+    ctx.save(); ctx.beginPath(); ctx.rect(wx, wy, 18, 18); ctx.clip();
+    blit(ctx, S.face, wx, wy + 18 - Math.round(out * 22));
+    ctx.restore();
+  } else if (Math.floor(t * 3) % 5 === 0) { ctx.fillStyle = '#ffe27a'; ctx.fillRect(x - 4, y - 2, 1, 1); ctx.fillRect(x + 3, y - 2, 1, 1); }
+}
+// 霧をかぶせる（ディザ）
+export function fog(ctx, x, y, w, h, color, phase = 0) { pxDither(ctx, x, y, w, h, color, phase); }

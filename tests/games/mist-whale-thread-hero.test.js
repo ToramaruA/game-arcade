@@ -401,3 +401,12 @@ test('窓の顔：近づくと窓から顔を出し（予告）、見つめた�
   assert.equal(w2.state, 'shut');
   assert.ok(w2.cool > 1, 'しばらく出てこない');
 });
+
+test('各面に、遊びながら見える少女のひとりごとが2つずつある（面の中の位置で出る）', () => {
+  for (let i = 0; i < 15; i++) {
+    const st = L.createLevelState(i);
+    const lines = st.def.lines || [];
+    assert.equal(lines.length, 2, `${i + 1}面`);
+    for (const ln of lines) { assert.ok(ln.text.trim()); assert.ok(ln.c >= 0 && ln.c < st.w, `${i + 1}面の位置`); }
+  }
+});
