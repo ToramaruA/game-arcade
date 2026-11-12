@@ -244,13 +244,21 @@ function updateHint() {
 }
 
 // 少女のひとりごと（遊びながら少しずつ物語が見える）
-let monoShown = new Set(); let monoTimer = 0; let monoFull = ''; let monoLen = 0;
+let scareT = 0; let monoShown = new Set(); let monoTimer = 0; let monoFull = ''; let monoLen = 0;
 function hideMono(now) { const el = $('mono'); el.classList.remove('show'); if (now) el.textContent = ''; monoTimer = 0; }
 function updateMono(dt) {
   if (!st) return;
   const col = (st.player.x + st.player.w / 2) / L.TS;
   (st.def.lines || []).forEach((ln, k) => {
     if (!monoShown.has(k) && col >= ln.c) { monoShown.add(k); monoFull = ln.text; monoLen = 0; monoTimer = 4.2; $('mono').classList.add('show'); }
+  });
+  // 夢の外から聞こえる物音（皿の割れる音、ドアの音）。一度だけ
+  (st.def.sounds || []).forEach((sd, k) => {
+    if (!monoShown.has(`s${k}`) && col >= sd.c) {
+      monoShown.add(`s${k}`); audio.play(sd.kind); scareT = 1.6;
+      shake = reduce ? 0 : Math.max(shake, sd.kind === 'dish' ? 0.45 : 0.3);
+      const el = $('sfxText'); el.textContent = sd.text; el.className = `sfx-text ${sd.kind}`; void el.offsetWidth; el.classList.add('show');
+    }
   });
   if (monoTimer > 0) {
     monoTimer -= dt;
@@ -267,7 +275,7 @@ function colorNow() { return P.threadColor(save.color, t); }
 function startStage(i, { restart = false } = {}) {
   const variant = OG ? 0 : L.variantFor(save, i);
   st = L.createLevelState(i, { variant });
-  particles = []; rings = []; clearTimer = 0; hintText = ''; monoShown = new Set(); hideMono(true);
+  particles = []; rings = []; clearTimer = 0; hintText = ''; monoShown = new Set(); hideMono(true); scareT = 0; $('sfxText').className = 'sfx-text';
   cam.x = Math.max(0, st.player.x - 100); cam.y = L.ROWS * L.TS - 360;
   audio.setChapter(st.def.chapter);
   mode = 'play';
@@ -337,7 +345,7 @@ function renderScene(dt) {
   if (p.dying <= 0 || Math.floor(t * 10) % 2) {
     const px = p.x + p.w / 2;
     const scared = st.enemies.some((e) => !e.dead && ['warn', 'charge', 'dive', 'peek', 'reach'].includes(e.state) && Math.abs(e.x - px) < 5.5 * L.TS && Math.abs(e.y - p.y) < 4 * L.TS)
-      || (st.fray && st.fray.dying <= 0 && px - st.fray.x < 6 * L.TS) || p.tangled > 0;
+      || (st.fray && st.fray.dying <= 0 && px - st.fray.x < 6 * L.TS) || p.tangled > 0 || scareT > 0;
     const nervous = !scared && st.enemies.some((e) => !e.dead && Math.abs(e.x - px) < 6.5 * L.TS && Math.abs(e.y - p.y) < 4.5 * L.TS);
     if ((scared || p.invuln > 0.6) && Math.random() < 0.08 && !reduce) particles.push({ x: px + p.face * 8, y: p.y + 14, vx: (Math.random() - 0.5) * 30, vy: 20, life: 0.6, max: 0.6, color: '#7fc8e8', size: 2, g: 500 });
     pose = P.drawHero(ctx, p, t, { throwing: throwAnim > 0 || (st.thread && st.thread.phase !== 'miss'), hurt: p.invuln > 0.6 || p.dying > 0, scared, nervous: nervous || OG, og: OG });
@@ -422,7 +430,7 @@ function frame(now) {
   particles = particles.filter((q) => q.life > 0);
   for (const r of rings) r.life -= dt;
   rings = rings.filter((r) => r.life > 0);
-  shake = Math.max(0, shake - dt); flash = Math.max(0, flash - dt); throwAnim = Math.max(0, throwAnim - dt);
+  scareT = Math.max(0, scareT - dt); shake = Math.max(0, shake - dt); flash = Math.max(0, flash - dt); throwAnim = Math.max(0, throwAnim - dt);
   render(dt);
   requestAnimationFrame(frame);
 }

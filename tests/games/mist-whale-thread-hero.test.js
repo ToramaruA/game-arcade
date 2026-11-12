@@ -411,6 +411,13 @@ test('各面に、遊びながら見える少女のひとりごとが2つずつ�
   }
 });
 
+test('夢の外の物音：7面で皿の割れる音、10面でドアの音が、面の中で一度ずつ鳴る', () => {
+  const s7 = L.createLevelState(6).def.sounds || []; const s10 = L.createLevelState(9).def.sounds || [];
+  assert.deepEqual(s7.map((x) => x.kind), ['dish']);
+  assert.deepEqual(s10.map((x) => x.kind), ['door']);
+  for (const [i, arr] of [[6, s7], [9, s10]]) for (const sd of arr) { assert.ok(sd.text.trim()); assert.ok(sd.c > 0 && sd.c < L.createLevelState(i).w); }
+});
+
 test('フックのあとの操作：押した向きへ振り出し、何も押さなくても向こう岸へ、ジャンプで高く', () => {
   const fly = (inp) => {
     const st = calm(L.createLevelState(0));

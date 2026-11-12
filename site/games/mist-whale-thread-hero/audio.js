@@ -78,6 +78,15 @@ export function createAudio(storage, key) {
     peek() { tone(midi(38), { dur: 1.2, gain: 0.08, type: 'sawtooth', slide: 1.06, attack: 0.4 }); noise(0.9, { gain: 0.05, f0: 200, f1: 380, q: 6 }); },
     grab() { noise(0.25, { gain: 0.14, f0: 900, f1: 200, q: 1.5 }); tone(midi(50), { dur: 0.25, gain: 0.08, type: 'square', slide: 0.6 }); },
     flinch() { tone(midi(86), { dur: 0.3, gain: 0.07, type: 'sawtooth', slide: 0.4 }); },
+    dish() { // 皿の割れる音：鋭い破裂と、散らばる破片
+      noise(0.18, { gain: 0.3, f0: 5000, f1: 2500, q: 0.8 }); noise(0.35, { gain: 0.16, f0: 1800, f1: 600, q: 1 });
+      for (let i = 0; i < 9; i++) { const t = 0.05 + i * 0.045 + Math.random() * 0.06; tone(2600 + Math.random() * 2600, { t, dur: 0.18, gain: 0.05, type: 'triangle' }); noise(0.04, { t, gain: 0.08, f0: 6000, f1: 4000, q: 4 }); }
+      [0.5, 0.68, 0.8].forEach((t, i) => { tone(3200 - i * 300, { t, dur: 0.12, gain: 0.03, type: 'triangle' }); noise(0.03, { t, gain: 0.05, f0: 5000, f1: 4500, q: 5 }); });
+    },
+    door() { // 遠くでドアが閉まる：低い衝撃と掛け金
+      tone(62, { dur: 0.5, gain: 0.3, type: 'sine', slide: 0.6 }); noise(0.3, { gain: 0.22, f0: 260, f1: 90, q: 1 });
+      noise(0.05, { t: 0.09, gain: 0.08, f0: 2500, f1: 2000, q: 6 }); tone(midi(33), { t: 0.05, dur: 1.4, gain: 0.04, type: 'sawtooth', attack: 0.3 });
+    },
     dock() { tone(midi(67), { dur: 0.3, gain: 0.05 }); },
     sew() { for (let i = 0; i < 12; i++) bellTone(72 + SCALE[0][i % 6] + 12 * Math.floor(i / 6), i * 0.12, 0.07, 1.6); },
     clear() { [60, 64, 67, 72, 76, 79, 84].forEach((n, i) => bellTone(n, i * 0.09, 0.09, 1.4)); },

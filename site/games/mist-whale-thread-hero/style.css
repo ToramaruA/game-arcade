@@ -295,3 +295,22 @@ body.og .og-card { left: auto; right: 34px; top: 28px; bottom: auto; text-align:
 @media (max-width: 520px) { .toast { font-size: 13px; } }
 
 .end-scene { display: block; width: 100%; max-width: 384px; aspect-ratio: 160 / 96; margin: 4px auto 10px; image-rendering: pixelated; box-shadow: 0 0 0 1px #4a4060; }
+
+/* 夢の外から聞こえる物音の文字 */
+.sfx-text { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); pointer-events: none; opacity: 0; z-index: 4;
+  font-weight: 900; font-size: clamp(28px, 7vw, 56px); letter-spacing: .08em; color: #e8dcc8; white-space: nowrap;
+  text-shadow: 3px 3px 0 #0a0408, -1px -1px 0 #0a0408, 0 0 18px rgba(216, 40, 60, .55); }
+.sfx-text.dish { color: #f4f1e8; }
+.sfx-text.door { color: #c8c0b0; font-size: clamp(24px, 6vw, 46px); }
+.sfx-text.show { animation: sfxPop 1.6s ease-out forwards; }
+@keyframes sfxPop {
+  0% { opacity: 0; transform: translateX(-50%) scale(1.5) rotate(-4deg); }
+  8% { opacity: 1; transform: translateX(-50%) scale(1) rotate(-4deg); }
+  14% { transform: translateX(calc(-50% + 6px)) rotate(-2deg); }
+  20% { transform: translateX(calc(-50% - 5px)) rotate(-5deg); }
+  26% { transform: translateX(-50%) rotate(-4deg); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-8px) rotate(-4deg); }
+}
+@media (prefers-reduced-motion: reduce) { .sfx-text.show { animation: sfxFade 1.6s ease-out forwards; } }
+@keyframes sfxFade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
