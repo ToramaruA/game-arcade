@@ -1,0 +1,38 @@
+name: Publish new game to X via Buffer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - site/games/games.json
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: 'Existing public game slug to preview (does not post)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: game-arcade-x-autopost
+  cancel-in-progress: false
+
+jobs:
+  x-autopost:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Publish newly added games, or preview manually without posting
+        env:
+          BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PREVIEW_SLUG: ${{ inputs.slug }}
+        run: node scripts/x-autopost.mjs
