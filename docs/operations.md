@@ -23,6 +23,12 @@
 ⑦ 次の企画     ChatGPT（自動）         [GAME] PR の Merge をきっかけに ① へ（毎日朝6時にも再挑戦）
 ```
 
+## X自動投稿（新作公開後）
+- ゲームのPRをマージしてCloudflareに新作が公開されると、GitHub ActionsがBuffer経由でXへゲーム紹介文・URL・共有画像を送る。
+- **site/games/games.json に新しいゲームが追加された場合だけ**実行される。修正PRや既存ゲームの説明変更では投稿しない。
+- 公開確認・重複防止を行い、失敗した場合はActionsログで確認する。手動実行は投稿なしのプレビュー専用。
+- 設定と運用の詳細は [docs/x-autopost.md](x-autopost.md) を参照。
+
 ## 言葉
 | 言葉 | 意味 | Merge |
 | --- | --- | --- |
