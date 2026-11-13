@@ -1,0 +1,34 @@
+name: Isolated PR bot wakeup test
+on:
+  pull_request:
+    types: [synchronize]
+    paths:
+      - '.github/workflows/clef-pr-wakeup-test.yml'
+permissions:
+  contents: read
+  issues: write
+jobs:
+  post-test-result:
+    if: >-
+      github.repository == 'ToramaruA/game-arcade' &&
+      github.event.pull_request.number == 70 &&
+      github.event.pull_request.head.ref == 'test/clef-pr-comment-wakeup' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Post synthetic review result without calling any AI API
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          const body = '<!-- clef-pr-wakeup-test:v1 -->\n' + JSON.stringify({test_only:true,nonce:'clef-pr-wakeup-20261113-v1',phase:'design',revision:1,status:'revise'}) + '\nSynthetic event routing test only. No Clef call. No game work.';
+          const response = await fetch('https://api.github.com/repos/ToramaruA/game-arcade/issues/70/comments', {
+            method:'POST',
+            headers:{Authorization:'Bearer '+process.env.GH_TOKEN,Accept:'application/vnd.github+json','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28'},
+            body:JSON.stringify({body})
+          });
+          if (!response.ok) throw new Error('Comment POST failed: '+response.status);
+          const comment = await response.json();
+          console.log(JSON.stringify({id:comment.id,url:comment.html_url,author:comment.user.login,created_at:comment.created_at}));
+          NODE
