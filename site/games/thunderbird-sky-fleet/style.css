@@ -152,23 +152,18 @@ kbd { display: inline-block; border: 1px solid rgba(240, 194, 90, .6); border-ra
 .skip-pro{position:absolute;right:12px;top:calc(max(10px,env(safe-area-inset-top)) + 84px);z-index:6;padding:8px 14px;border-radius:999px;border:1px solid rgba(255,220,150,.6);background:rgba(10,14,36,.7);color:#ffe6b0;font:700 13px sans-serif;cursor:pointer}
 .skip-pro[hidden]{display:none}
 
-/* 会話ウィンドウ（顔・名前・文字送り）。チュートリアルはリオの通信 */
-.talk { position: absolute; z-index: 7; display: flex; gap: 10px; align-items: center; padding: 8px 12px 8px 8px; border-radius: 12px; background: linear-gradient(180deg, rgba(14, 10, 4, .92), rgba(30, 18, 6, .92)); border: 2px solid rgba(240, 194, 90, .75); box-shadow: 0 6px 24px rgba(0, 0, 0, .55); pointer-events: none; }
+/* 会話ウィンドウ：引き算。暗い面と細い線だけ。名前は色付きの文字 */
+.talk { position: absolute; z-index: 7; display: flex; gap: 12px; align-items: center; padding: 8px 14px 8px 8px; border-radius: 10px; background: rgba(8, 10, 18, .95); border: 1px solid rgba(255, 255, 255, .14); pointer-events: none; }
 .talk[hidden] { display: none; }
-.talk canvas { width: 80px; height: 80px; flex: none; border-radius: 8px; border: 2px solid rgba(240, 194, 90, .6); background: #120c06; }
+.talk canvas { width: 64px; height: 64px; flex: none; border-radius: 8px; }
 .talk-body { min-width: 0; flex: 1; }
-#talkName { display: inline-block; font-family: var(--serif); font-size: 13px; letter-spacing: .15em; padding: 1px 10px; border-radius: 4px; background: var(--gold); color: #2a1604; }
-.talk p { margin: 4px 0 0; font-family: var(--serif); font-size: 17px; line-height: 1.45; color: #fff6dc; min-height: 1.45em; }
-.talk.rio { border-color: rgba(120, 220, 255, .85); background: linear-gradient(180deg, rgba(4, 18, 30, .93), rgba(6, 30, 46, .93)); }
-.talk.rio #talkName { background: #8fdcff; color: #04202e; }
-.talk.comm canvas { animation: comm 0.18s steps(2) infinite; }
-.talk.comm #talkName::after { content: '　通信'; font-size: 11px; letter-spacing: .05em; }
-.talk.boss { border-color: rgba(255, 80, 60, .9); background: linear-gradient(180deg, rgba(30, 4, 4, .94), rgba(50, 8, 6, .94)); }
-.talk.boss #talkName { background: #ff5a44; color: #fff; }
-.talk.boss p { color: #ffd2c6; }
-.talk.sena #talkName { background: var(--gold); }
-.talk.shout p { font-size: 24px; color: #ffb0a0; }
-@keyframes comm { 0% { filter: none; } 100% { filter: brightness(1.25) contrast(1.2); } }
+#talkName { display: block; font-size: 11px; font-weight: 700; letter-spacing: .2em; color: #f0c25a; }
+.talk p { margin: 3px 0 0; font-family: var(--serif); font-size: 17px; line-height: 1.45; color: #f6f1e6; min-height: 1.45em; }
+.talk.rio #talkName { color: #7fd8ff; }
+.talk.comm #talkName::after { content: '・通信'; letter-spacing: .05em; opacity: .7; }
+.talk.boss #talkName { color: #ff6a50; }
+.talk.boss p { color: #ffd8cc; }
+.talk.shout p { font-size: 22px; }
 .talk-keys { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .talk-keys:empty { display: none; }
 .talk-keys span { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; color: #dffcff; }
@@ -187,5 +182,5 @@ kbd { display: inline-block; border: 1px solid rgba(240, 194, 90, .6); border-ra
 .boss-card .bc-t { color: #fff0e8; font-size: clamp(38px, 9vw, 72px); font-weight: 800; letter-spacing: .2em; -webkit-text-stroke: 1px #600; }
 .boss-card .bc-s { color: #ffd2c6; font-size: 13px; }
 @keyframes bcard { 0% { opacity: 0; transform: scaleY(0.05); } 8% { opacity: 1; transform: scaleY(1); } 15% { letter-spacing: normal; } 85% { opacity: 1; } 100% { opacity: 0; } }
-@media (max-width: 520px) { .talk p { font-size: 15px; } .talk.shout p { font-size: 21px; } .talk canvas { width: 64px; height: 64px; } }
+@media (max-width: 520px) { .talk p { font-size: 15px; } .talk.shout p { font-size: 21px; } .talk canvas { width: 56px; height: 56px; } }
 .talk-keys em { font-style: normal; font-weight: 800; color: #fff3b0; }
