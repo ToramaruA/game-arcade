@@ -39,10 +39,10 @@ const BOUNCE_R = { pat: 'spread', n: 3, arc: 1.1, period: 2.6, speed: 170, color
 const WALL = { pat: 'wall', step: 34, gapH: 110, period: 3.4, speed: 120, colors: 'br' };
 
 export const TUTORIAL = [
-  { at: 0, text: '動かす：WASD／矢印キー（スマホは画面をドラッグ）' },
-  { at: 8, text: '撃つ：J／Space を押し続ける' },
-  { at: 15, text: '青い丸は吸える：K／Shift を押し続けて充電（1発20）' },
-  { at: -1, text: '離して雷槍！ 一直線に並んだ砲台を貫け（40以上で発射）' },
+  { at: 0, text: '動かす：WASD／矢印キー（スマホは画面をドラッグ）', rio: '……セナ、聞こえるか。籠の中から通信してる。まずは翼を動かせ', key: 'move' },
+  { at: 8, text: '撃つ：J／Space を押し続ける', rio: 'いいぞ。前の偵察鳥を撃ち落とせ', key: 'fire' },
+  { at: 15, text: '青い丸は吸える：K／Shift を押し続けて充電（1発20）', rio: '砲台は装甲付きだ。青い弾を吸って、雷に変えろ', key: 'absorb' },
+  { at: -1, text: '離して雷槍！ 一直線に並んだ砲台を貫け（40以上で発射）', rio: '溜まった！ 離して雷槍、二つまとめて貫け！', key: 'lance' },
 ];
 
 // ボス6体。attacks は3つの固定攻撃パターン（共通の emit / 予告線で組み立てる）

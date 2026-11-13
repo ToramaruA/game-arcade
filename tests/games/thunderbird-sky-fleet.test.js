@@ -5,6 +5,7 @@ import {
   lancePower, absorbRadius, gaugeGain, fireInterval, parseSave, defaultSave, recordClear,
   newCampaign, advanceCampaign, needsRoute, upgradeChoices, medalCount, MEDAL_TOTAL,
 } from '../../site/games/thunderbird-sky-fleet/logic.js';
+import { TUTORIAL as TUTORIAL_LINES } from '../../site/games/thunderbird-sky-fleet/data.js';
 import * as L from '../../site/games/thunderbird-sky-fleet/logic.js';
 import { ENEMY_TYPES, ENEMY_ORDER } from '../../site/games/thunderbird-sky-fleet/data.js';
 
@@ -328,21 +329,28 @@ test('クリア可能性：自動操縦で全6海域（3波＋ボス）を最後
   assert.equal(s.phase, 'clear');
 });
 
-test('序章：主機がいきなり現れリオがさらわれる。主機は倒せず、自機は落ちない。12.6秒で第一海域の本編へ', () => {
+test('序章：警報→主機の登場→リオが盾になってさらわれる。主機は倒せず、自機は落ちない。終わると第一海域の本編へ', () => {
   const s = L.createState({ sea: 0, prologue: true, seed: 3 });
   assert.equal(s.phase, 'prologue');
-  const seen = new Set();
-  for (let i = 0; i < 60 * 13.5; i++) {
+  const seen = new Set(); const who = new Set(); let shielded = false;
+  for (let i = 0; i < 60 * (L.PROLOGUE_END - 0.5); i++) {
     L.step(s, { x: 0, y: 0, fire: i % 2 === 0, absorb: false }, L.DT);
-    for (const e of s.events) seen.add(e.type); s.events.length = 0;
+    for (const e of s.events) {
+      seen.add(e.type); if (e.type === 'say') who.add(e.who);
+      if (e.type === 'allyDown') shielded = e.x > s.player.x && Math.abs(e.y - s.player.y) < 30; // リオはセナと主機の間で光線を受ける
+    }
+    s.events.length = 0;
     assert.equal(s.player.hp, L.P.hpMax, '序章では被弾しても体力は減らない');
     if (s.boss) assert.ok(s.boss.hp > 900, '主機は倒せない');
   }
-  assert.ok(seen.has('proBoss') && seen.has('allyDown'), '主機の登場とリオの捕獲が起きる');
+  assert.ok(seen.has('proAlarm') && seen.has('proBoss') && seen.has('proBeam') && seen.has('allyDown'), '警報・主機の登場・光線・リオの捕獲が起きる');
+  assert.ok(shielded, 'リオがセナをかばう位置で撃たれる');
+  assert.deepEqual([...who].sort(), ['boss', 'rio', 'sena'], '3人とも会話する');
   for (let i = 0; i < 60; i++) { L.step(s, {}, L.DT); }
   assert.equal(s.boss, null); assert.equal(s.pro, null);
   assert.ok(s.phase === 'intro' || s.phase === 'wave', '本編へ進む');
   const t = L.createState({ sea: 0, prologue: true }); L.endPrologue(t);
   assert.equal(t.phase, 'intro', 'とばすとすぐ本編');
   assert.equal(L.createState({ sea: 1, prologue: true }).phase, 'intro', '序章は第一海域だけ');
+  assert.ok(TUTORIAL_LINES.every((x) => x.rio && x.key), 'チュートリアルはリオの通信で、操作の絵がある');
 });

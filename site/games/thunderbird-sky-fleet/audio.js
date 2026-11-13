@@ -48,6 +48,9 @@ export function createAudio(settings) {
     multi(n) { [784, 988, 1175, 1568].slice(0, 2 + Math.min(2, n)).forEach((f, i) => tone(f, { t: i * 0.07, dur: 0.3, type: 'triangle', gain: 0.12 })); },
     heal() { tone(880, { dur: 0.15, type: 'sine', gain: 0.03, slide: 1.3 }); },
     clear() { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, { t: i * 0.12, dur: 0.6, type: 'triangle', gain: 0.14 })); },
+    siren() { for (let i = 0; i < 3; i++) { tone(440, { t: i * 0.7, dur: 0.34, type: 'sawtooth', gain: 0.07, slide: 1.6 }); tone(700, { t: i * 0.7 + 0.35, dur: 0.34, type: 'sawtooth', gain: 0.07, slide: 0.63 }); } },
+    rumble() { noise(2.2, { gain: 0.5, f: 90, q: 0.7, type: 'lowpass' }); tone(42, { dur: 2, type: 'sine', gain: 0.25, slide: 0.8, attack: 0.3 }); },
+    charge() { tone(180, { dur: 1, type: 'sawtooth', gain: 0.08, slide: 5, attack: 0.05 }); noise(1, { gain: 0.12, f: 2600, q: 2 }); },
     ui() { tone(660, { dur: 0.08, type: 'triangle', gain: 0.08 }); },
   };
   // 太鼓と笛のような BGM（海域ごとに音階を少し変える）

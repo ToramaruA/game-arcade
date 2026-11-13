@@ -257,6 +257,7 @@ function updateBoss(s, dt) {
     if (b.x <= d.hx) { b.x = d.hx; b.ph = 'warn'; b.pt = 0; b.t = 0; }
     return;
   }
+  if (b.showcase && s.pro && s.pro.beam) { b.y += (H / 2 - b.y) * Math.min(1, dt * 3); return; } // 光線を溜めている間は止まる
   b.y = H / 2 + Math.sin(b.t * d.freq * Math.PI) * d.amp;
   const atk = d.attacks[b.ai];
   // 翼（主機）の開閉：赤弾の抜け道が動くのが見えるように
@@ -295,7 +296,7 @@ function updateBoss(s, dt) {
 // ボスに当たったときのダメージ処理。装甲中は通常弾が効かない。雷槍は装甲を割る
 function hitBoss(s, dmg, kind, x, y) {
   const b = s.boss; if (!b || b.hp <= 0 || b.ph === 'enter') return false;
-  if (b.showcase) { b.flash = 0.04; ev(s, 'clink', { x, y }); if (!s.pro.hitHint) { s.pro.hitHint = true; setHint(s, 'セナ「効かない……！ 装甲が厚すぎる」', 2.4); } return true; }
+  if (b.showcase) { b.flash = 0.04; ev(s, 'clink', { x, y }); return true; }
   if (kind === 'lance') {
     b.hp = Math.max(0, b.hp - dmg); b.armored = false; b.openT = P.bossOpen; b.flash = 0.25;
     ev(s, 'bossHit', { x, y, dmg, lance: true });
@@ -406,31 +407,49 @@ function updateTutorial(s, dt) {
   }
   if (tu.step === 2 && p.gauge >= P.lanceMin) { tu.step = 3; setHint(s, TUTORIAL[3].text, 99); }
   if (tu.step === 3 && p.gauge < P.lanceMin && !tu.lanced) { tu.step = 2; setHint(s, TUTORIAL[2].text, 99); }
-  if (tu.step >= 2 && !s.enemies.some((e) => e.armor)) { s.tut = null; s.waveT = 0; s.spawnIdx = 0; setHint(s, '見事！ 赤い三角の弾は、次の波から来る', 3.5); }
+  if (tu.step >= 2 && !s.enemies.some((e) => e.armor)) { s.tut = null; s.waveT = 0; s.spawnIdx = 0; setHint(s, '見事！ 赤い三角の弾は、次の波から来る', 3.5); ev(s, 'say', { who: 'rio', text: '見事だ、セナ。次は赤い三角が来る──吸えない、避けろ。……待ってる', dur: 4 }); }
 }
 
-// 序章の進行：0秒 リオと並んで飛ぶ → 2.4秒 主機が現れて撃ってくる（倒せない）→ 8秒 リオがさらわれる → 11秒 主機が去る → 12.6秒 本編へ
-export const PROLOGUE_END = 12.6;
+// 序章の進行（約17秒。とばせる）：
+// 0秒 リオと並んで飛ぶ → 3.8秒 警報・雲の下に巨大な影 → 6秒 天の主機が現れ撃ってくる（倒せない）
+// → 10.4秒 主機がセナを狙う光線 → 11.4秒 リオが盾になって撃たれ、さらわれる → 13秒 主機の宣告 → 15.6秒 去る → 17秒 本編へ
+export const PROLOGUE_END = 17;
+export const PRO = { alarm: 3.8, boss: 6, beam: 10.4, hit: 11.4, speech: 13, leave: 15.6 };
+function say(s, who, text, dur) { ev(s, 'say', { who, text, dur }); }
 function updatePrologue(s, dt) {
   const pr = s.pro; const a = pr.ally; const p = s.player;
   pr.t += dt;
-  if (pr.beat === 0) { pr.beat = 1; setHint(s, 'リオ「セナ、後ろは任せた。今夜で艦隊も終わりだ」', 2.6); }
-  if (pr.beat === 1 && pr.t >= 2.4) {
-    pr.beat = 2;
+  if (pr.beat === 0 && pr.t >= 0.9) { pr.beat = 1; say(s, 'rio', 'セナ、後ろは任せた。今夜、大艦隊の港を落とす', 1.8); }
+  if (pr.beat === 1 && pr.t >= 2.7) { pr.beat = 2; say(s, 'sena', 'うん。……終わったら、二人で暮らす約束だよ', 1.2); }
+  if (pr.beat === 2 && pr.t >= PRO.alarm) { pr.beat = 3; ev(s, 'proAlarm', {}); say(s, 'rio', '……待て。下の雲が、赤く光ってる', 2.2); }
+  if (pr.beat === 3 && pr.t >= PRO.boss) {
+    pr.beat = 4;
     const def = BOSSES[SEAS[5].boss];
     s.boss = { def, hp: 999, x: W + 220, y: H / 2, t: 0, ph: 'enter', pt: 0, ai: 0, armored: true, openT: 0, fireT: 0, k: 0, addT: 0, flash: 0, wing: 0, showcase: true };
     ev(s, 'proBoss', { name: def.name });
   }
-  if (pr.beat === 2 && pr.t >= 8) {
-    pr.beat = 3; a.captured = true; s.bullets.length = 0; s.hazards.length = 0;
-    ev(s, 'allyDown', { x: a.x, y: a.y });
-    setHint(s, 'セナ「リオ！！」', 1.6);
+  if (pr.beat === 4 && pr.t >= 6.5) { pr.beat = 4.5; say(s, 'rio', 'あれは……天の主機！ 大艦隊の心臓だ！', 1.8); }
+  if (pr.beat === 4.5 && pr.t >= 8.4) { pr.beat = 5; say(s, 'sena', '撃っても……効かない！？', 1.8); }
+  if (pr.beat === 5 && pr.t >= PRO.beam) {
+    // 主機がセナを狙う：光線の予告線。リオが間に割って入る
+    pr.beat = 6; s.bullets.length = 0; s.hazards.length = 0;
+    pr.beam = { t: 0, y: p.y };
+    ev(s, 'proBeam', {}); say(s, 'rio', 'セナ、危ない！！', 1);
   }
-  if (pr.beat === 3 && pr.t >= 9.6) { pr.beat = 4; setHint(s, '主機「雷鳥の娘よ。この男を返してほしくば、六つの海を越えて来い」', 3.2); }
-  if (pr.beat === 4 && pr.t >= 11) { pr.beat = 5; if (s.boss) { s.boss.ph = 'leave'; } s.bullets.length = 0; s.hazards.length = 0; }
-  // 僚機：自機の少し前を飛ぶ。さらわれた後は主機へ引き寄せられる
-  if (!a.captured) { a.x += (p.x + 80 - a.x) * Math.min(1, dt * 3); a.y += (p.y - 70 - a.y) * Math.min(1, dt * 3); }
-  else if (s.boss) { const tx = s.boss.x - 40, ty = s.boss.y + 70; a.x += (tx - a.x) * Math.min(1, dt * 2.2); a.y += (ty - a.y) * Math.min(1, dt * 2.2); }
+  if (pr.beat === 6 && pr.t >= PRO.hit) {
+    pr.beat = 7; a.captured = true; s.bullets.length = 0;
+    ev(s, 'allyDown', { x: a.x, y: a.y });
+    say(s, 'sena', 'リオ――！！', 1.6);
+  }
+  if (pr.beat === 7 && pr.t >= PRO.speech) { pr.beat = 8; say(s, 'boss', '雷鳥乗りの娘よ。この男は預かる。返してほしくば、六つの海を越えて来い', 2.6); }
+  if (pr.beat === 8 && pr.t >= PRO.leave) { pr.beat = 9; if (s.boss) s.boss.ph = 'leave'; s.bullets.length = 0; s.hazards.length = 0; say(s, 'sena', '……必ず、取り戻す', 1.4); }
+  if (pr.beam) pr.beam.t += dt;
+  // 僚機：自機の少し前を飛ぶ。光線の予告中はセナと主機の間に割って入る。さらわれた後は主機へ引き寄せられる
+  if (!a.captured) {
+    const k = Math.min(1, dt * (pr.beam ? 7 : 3));
+    const tx = pr.beam ? p.x + 110 : p.x + 80; const ty = pr.beam ? pr.beam.y : p.y - 70;
+    a.x += (tx - a.x) * k; a.y += (ty - a.y) * k;
+  } else if (s.boss) { const tx = s.boss.x - 40, ty = s.boss.y + 70; a.x += (tx - a.x) * Math.min(1, dt * 2.2); a.y += (ty - a.y) * Math.min(1, dt * 2.2); }
   if (pr.t >= PROLOGUE_END) endPrologue(s);
 }
 export function endPrologue(s) {

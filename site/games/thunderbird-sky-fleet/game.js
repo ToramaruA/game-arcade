@@ -1,9 +1,9 @@
 // 描画・操作・画面遷移。ルールは logic.js、絵は art.js、音は audio.js。
 import {
   createState, step, DT, P, W, H, SEAS, BOSSES, absorbRadius, parseSave, recordClear, newCampaign,
-  advanceCampaign, needsRoute, upgradeChoices, medalCount, MEDAL_TOTAL, autopilot, bossMuzzles, emit, endPrologue,
+  advanceCampaign, needsRoute, upgradeChoices, medalCount, MEDAL_TOTAL, autopilot, bossMuzzles, emit, endPrologue, PRO, PROLOGUE_END,
 } from './logic.js';
-import { UPGRADES, ROUTES, MEDALS, ENEMY_TYPES, ENEMY_ORDER } from './data.js';
+import { UPGRADES, ROUTES, MEDALS, ENEMY_TYPES, ENEMY_ORDER, TUTORIAL } from './data.js';
 import * as art from './art.js';
 import { createAudio } from './audio.js';
 
@@ -26,7 +26,7 @@ const touchMode = (window.matchMedia && matchMedia('(pointer: coarse)').matches)
 const view = { sc: 1, portrait: false, dpr: 1, cw: W, ch: H, ox: 0, oy: 0 };
 
 const app = { mode: 'title', camp: null, practice: null, state: null, ending: null, difficulty: 'normal' };
-let realT = 0; let shake = 0; let flash = 0; let hurtFlash = 0;
+let realT = 0; let shake = 0; let flash = 0; let hurtFlash = 0; let freeze = 0;
 const fx = { parts: [], texts: [], heals: [] };
 
 // ---------- 画面サイズ ----------
@@ -50,6 +50,12 @@ function layout() {
   $('hint').style.top = `${oy + (portrait ? ch - 70 : 80)}px`; $('hint').style.bottom = 'auto';
   $('banner').style.top = `${oy + ch * (portrait ? 0.4 : 0.56)}px`;
   $('bossBar').style.top = vw < 560 ? '68px' : '46px';
+  const tk = $('talk');
+  talk.low = undefined;
+  if (portrait) Object.assign(tk.style, { left: '8px', right: '8px', width: 'auto', top: `${oy + 6}px`, bottom: 'auto' });
+  else Object.assign(tk.style, { left: `${ox + cw * 0.14}px`, right: 'auto', width: `${cw * 0.72}px`, top: 'auto', bottom: `${vh - (oy + ch) + 12}px` });
+  Object.assign($('skipPro').style, portrait ? { top: `${oy + ch - 44}px` } : { top: '' });
+  $('bossCard').style.top = `${oy + ch * (portrait ? 0.3 : 0.24)}px`;
   const t = $('touch'); t.style.height = `${portrait ? ctrlH : vh}px`;
 }
 window.addEventListener('resize', layout);
@@ -120,6 +126,7 @@ function setMode(m) {
   $('touch').hidden = !(touchMode && m === 'play');
   $('keys').hidden = !(m === 'play' && !touchMode && app.state && app.state.sea === 0 && !app.practice);
   if (m !== 'play') { $('hint').classList.remove('on'); }
+  if (m !== 'play' && m !== 'pause') hideTalk();
   if (m === 'title') { show('title'); refreshTitle(); audio.stopBgm(); }
 }
 
@@ -157,7 +164,8 @@ function beginPlay() {
   touch.fire = touch.absorb = false; touch.drag = null;
   setMode('play');
   const s = app.state;
-  if (s.phase === 'prologue') { banner('序章', '奪われた僚機', 'セナと、恋人で僚機のリオ。反乱軍の夜間飛行', 2.4); audio.setSea(0, false); audio.startBgm(); }
+  hideTalk(); freeze = 0;
+  if (s.phase === 'prologue') { banner('序章', '奪われた僚機', '空を覆う大艦隊に挑む、セナと恋人のリオ。最後の夜間飛行', 2.6); audio.setSea(0, false); audio.startBgm(); }
   else { banner(`第${KANJI[s.sea]}海域`, s.seaDef.name, s.fromBoss ? 'ボス前から' : s.seaDef.intro, 3); audio.setSea(s.sea, false); audio.startBgm(); }
   $('skipPro').hidden = s.phase !== 'prologue';
 }
@@ -184,6 +192,45 @@ function text(x, y, s, o = {}) { fx.texts.push({ x, y, s, t: 0, life: o.life || 
 function burst(x, y, n, col, spd = 160, size = 3) { for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2; const v = spd * (0.3 + Math.random()); part(x, y, { vx: Math.cos(a) * v, vy: Math.sin(a) * v, col, size: size * (0.5 + Math.random()), life: 0.4 + Math.random() * 0.5 }); } }
 const doShake = (v) => { if (save.settings.shake) shake = Math.max(shake, v); };
 
+// ---------- 会話ウィンドウ（顔・名前・文字送り） ----------
+const NAMES = { sena: 'セナ', rio: 'リオ', boss: '天の主機' };
+const faceCtx = $('face').getContext('2d');
+const talk = { on: false, who: '', text: '', t: 0, dur: 0, shout: false, comm: false, tut: -1 };
+function say(who, textS, dur, o = {}) {
+  Object.assign(talk, { on: true, who, text: textS, t: 0, dur, shout: !!o.shout, comm: !!o.comm, tut: o.tut ?? -1 });
+  const el = $('talk'); el.hidden = false;
+  el.className = `talk ${who}${talk.shout ? ' shout' : ''}${talk.comm ? ' comm' : ''}`;
+  setText('talkName', NAMES[who] || '');
+  $('talkKeys').innerHTML = o.keys || '';
+  $('talkText').textContent = '';
+}
+function hideTalk() { talk.on = false; talk.tut = -1; $('talk').hidden = true; for (const id of ['btnFire', 'btnAbsorb']) $(id).classList.remove('guide'); }
+function updateTalk(dt) {
+  if (!talk.on) return;
+  talk.t += dt;
+  const n = Math.min(talk.text.length, Math.floor(talk.t * 32) + 1);
+  setText('talkText', talk.text.slice(0, n));
+  art.drawFace(faceCtx, talk.who, { shout: talk.shout, comm: talk.comm, t: realT });
+  if (talk.dur > 0 && talk.t > talk.dur + 0.5) hideTalk();
+  // スマホ縦：序章はボスが画面の上に来るので、会話枠を下に置く
+  const low = view.portrait && app.state && app.state.phase === 'prologue';
+  if (view.portrait && talk.low !== low) { talk.low = low; $('talk').style.top = low ? `${view.oy + view.ch - 150}px` : `${view.oy + 6}px`; }
+}
+// チュートリアル：リオが籠の中から通信で教える。操作はキー／ボタンの絵で見せ、スマホは押すボタンを光らせる
+function tutKeys(step) {
+  const K = (k) => `<kbd>${k}</kbd>`;
+  if (touchMode) return ['<span>画面のどこでも <em>ドラッグ</em> で移動</span>', '<span><span class="tb f">撃つ</span> を押し続ける</span>', '<span><span class="tb a">吸う</span> を押し続けて、青い丸を吸う</span>', '<span><span class="tb a">吸う</span> から指を離すと雷槍</span>'][step];
+  return [`<span>${K('W')}${K('A')}${K('S')}${K('D')} か 矢印キー で移動</span>`, `<span>${K('J')} か ${K('Space')} を押し続けて撃つ</span>`, `<span>${K('K')} か ${K('Shift')} を押し続けて、青い丸を吸う</span>`, `<span>${K('K')} を離すと雷槍</span>`][step];
+}
+function syncTutorial(s) {
+  const step = s.tut ? s.tut.step : -1;
+  if (step === talk.tut) return;
+  if (step < 0) { if (talk.tut >= 0) hideTalk(); return; }
+  say('rio', TUTORIAL[step].rio, 0, { comm: true, keys: tutKeys(step), tut: step });
+  $('btnFire').classList.toggle('guide', step === 1);
+  $('btnAbsorb').classList.toggle('guide', step >= 2);
+}
+
 function handleEvents(s) {
   const p = s.player;
   for (const e of s.events) {
@@ -198,7 +245,7 @@ function handleEvents(s) {
       case 'multi': text(e.x, e.y - 30, `${e.kills}機 同時撃破！`, { col: '#ffe08a', size: 30, life: 1.6 }); audio.sfx.multi(e.kills); break;
       case 'boom': burst(e.x, e.y, e.r > 25 ? 34 : 18, e.by === 'lance' ? '#cffcff' : '#ffb35a', e.r > 25 ? 220 : 150, e.r > 25 ? 5 : 3); part(e.x, e.y, { kind: 'ring', col: '#ffe6a0', life: 0.45, size: e.r * 2.2 }); audio.sfx.boom(e.r > 25); if (e.r > 25) doShake(3); break;
       case 'spark': burst(e.x, e.y, e.missile ? 10 : 3, e.missile ? '#ff9a6a' : '#fff0b0', 90, 2); audio.sfx.spark(); break;
-      case 'clink': burst(e.x, e.y, 4, '#ffe6a0', 120, 2); if (s.phase === 'prologue' && Math.random() < 0.35) text(e.x - 10, e.y - 18, '無効', { col: '#ff9a8a', size: 16, life: 0.6 }); else if (Math.random() < 0.25) text(e.x - 10, e.y - 14, '装甲', { col: '#ffe08a', size: 13, life: 0.5 }); audio.sfx.clink(); break;
+      case 'clink': burst(e.x, e.y, 4, '#ffe6a0', 120, 2); if (s.phase === 'prologue') { burst(e.x, e.y, 6, '#ffffff', 160, 2); if (Math.random() < 0.5) text(e.x - 14 + Math.random() * 20, e.y - 20, '無効', { col: '#ff9a8a', size: 22, life: 0.6 }); } else if (Math.random() < 0.25) text(e.x - 10, e.y - 14, '装甲', { col: '#ffe08a', size: 13, life: 0.5 }); audio.sfx.clink(); break;
       case 'reflect': burst(e.x, e.y, 6, '#ffffff', 140, 2); text(e.x, e.y - 16, '反射', { col: '#ffb5a0', size: 13, life: 0.5 }); audio.sfx.clink(); break;
       case 'hurt': doShake(9); hurtFlash = 0.45; burst(p.x, p.y, 20, '#ff6a4a', 200, 3); audio.sfx.hurt(); break;
       case 'heal': fx.heals.push({ x: e.x, y: e.y, tx: e.tx, ty: e.ty, t: 0 }); text(e.tx, e.ty - 30, '+修理', { col: '#9dffc0', size: 12, life: 0.6 }); audio.sfx.heal(); break;
@@ -211,10 +258,13 @@ function handleEvents(s) {
       case 'bounce': part(e.x, e.y, { kind: 'ring', col: '#bff', life: 0.25, size: 18 }); break;
       case 'practiceRefill': text(p.x, p.y - 40, '練習：体力回復', { col: '#bffcff', size: 14 }); break;
       case 'armor': break;
-      case 'proBoss': banner('警報', e.name, '倒せない──装甲が厚すぎる。弾をかわせ', 3, 'boss'); audio.sfx.warn(); doShake(10); flash = 0.35; audio.setSea(5, true); break;
+      case 'say': say(e.who, e.text, e.dur, { shout: e.text.includes('！！'), comm: e.who === 'rio' && s.phase !== 'prologue' }); break;
+      case 'proAlarm': audio.stopBgm(); audio.sfx.siren(); audio.sfx.rumble(); doShake(5); break;
+      case 'proBoss': { const c = $('bossCard'); c.classList.remove('on'); void c.offsetWidth; c.classList.add('on'); audio.sfx.boom(true); audio.sfx.rumble(); doShake(16); flash = 0.55; freeze = 0.12; audio.setSea(5, true); audio.startBgm(); break; }
+      case 'proBeam': audio.sfx.charge(); break;
       case 'proGraze': burst(p.x, p.y, 8, '#ff9a6a', 120, 2); audio.sfx.clink(); break;
-      case 'allyDown': burst(e.x, e.y, 80, '#ffb35a', 280, 5); part(e.x, e.y, { kind: 'ring', col: '#fff', life: 0.8, size: 220 }); text(W / 2 - 120, H / 2, 'リオ――！！', { col: '#ff8a7a', size: 52, life: 2.2 }); audio.sfx.boom(true); audio.sfx.hurt(); doShake(18); hurtFlash = 0.8; flash = 0.4; break;
-      case 'proEnd': $('skipPro').hidden = true; if (app.camp) { app.camp.proSeen = true; save.progress = JSON.parse(JSON.stringify(app.camp)); persist(); } banner('第一海域', s.seaDef.name, 'リオを取り戻す。まずは雷鳥の扱いを思い出せ', 3); audio.setSea(0, false); break;
+      case 'allyDown': burst(e.x, e.y, 80, '#ffb35a', 280, 5); part(e.x, e.y, { kind: 'ring', col: '#fff', life: 0.8, size: 220 }); audio.sfx.lance(4); audio.sfx.boom(true); audio.sfx.hurt(); doShake(18); hurtFlash = 0.8; flash = 0.9; freeze = 0.55; break;
+      case 'proEnd': $('skipPro').hidden = true; hideTalk(); $('bossCard').classList.remove('on'); audio.startBgm(); if (app.camp) { app.camp.proSeen = true; save.progress = JSON.parse(JSON.stringify(app.camp)); persist(); } banner('第一海域', s.seaDef.name, 'リオを取り戻す。まずは雷鳥の扱いを思い出せ', 3); audio.setSea(0, false); break;
       default: break;
     }
   }
@@ -233,6 +283,7 @@ function updateFx(dt) {
   fx.texts = fx.texts.filter((t) => t.t < t.life);
   for (const h of fx.heals) h.t += dt;
   fx.heals = fx.heals.filter((h) => h.t < 0.45);
+  updateTalk(dt);
   if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) $('banner').classList.remove('on'); }
 }
 
@@ -263,10 +314,91 @@ function drawFx() {
   for (const t of fx.texts) drawText(t.x, t.y, t.s, t.size, t.col, Math.min(1, (1 - t.t / t.life) * 2));
 }
 
+// ---------- 序章の演出 ----------
+const SHOW_BOSS = BOSSES[SEAS[5].boss];
+// 空が赤黒く沈み、雲の下を巨大な影が昇ってくる
+function drawProBack(s, t) {
+  const pt = s.pro.t;
+  if (pt < PRO.alarm) return;
+  const k = Math.min(1, (pt - PRO.alarm) / 1.2) * (pt > PRO.leave ? Math.max(0.35, 1 - (pt - PRO.leave) / 1.4) : 1);
+  ctx.fillStyle = `rgba(30,0,4,${0.5 * k})`; ctx.fillRect(-50, -50, W + 100, H + 100);
+  const pulse = 0.5 + 0.5 * Math.sin(pt * 7);
+  const g = ctx.createRadialGradient(W * 0.75, H + 60, 20, W * 0.75, H + 60, 420);
+  g.addColorStop(0, `rgba(255,40,20,${0.45 * k * (0.6 + 0.4 * pulse)})`); g.addColorStop(1, 'rgba(255,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(-50, -50, W + 100, H + 100);
+  if (pt < PRO.boss) {
+    const u = (pt - PRO.alarm) / (PRO.boss - PRO.alarm);
+    const fake = { def: SHOW_BOSS, x: 0, y: 0, t: pt, hp: 999, armored: true, flash: 0, wing: 0.3, ph: 'warn', pt: 0, ai: 0 };
+    ctx.save(); ctx.translate(W * 0.68 - u * 40, H + 260 - u * 340); ctx.scale(2.1, 2.1);
+    ctx.globalAlpha = 0.75; ctx.filter = 'brightness(0)';
+    art.drawBoss(ctx, fake, pt, []);
+    ctx.restore();
+    const eg = ctx.createRadialGradient(W * 0.68 - u * 40, H + 250 - u * 340, 2, W * 0.68 - u * 40, H + 250 - u * 340, 60);
+    eg.addColorStop(0, `rgba(255,230,190,${0.9 * pulse})`); eg.addColorStop(0.25, 'rgba(255,40,20,.8)'); eg.addColorStop(1, 'rgba(255,0,0,0)');
+    ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(W * 0.68 - u * 40, H + 250 - u * 340, 60, 0, Math.PI * 2); ctx.fill();
+  }
+}
+// 主機の光線：予告（細い赤線と溜め）→ リオが割り込んで受ける
+function drawProFront(s, t) {
+  const bm = s.pro.beam; const b = s.boss;
+  if (!bm || !b) return;
+  const mx = b.x - 90; const my = b.y;
+  const a = s.pro.ally;
+  if (!a.captured) {
+    const k = Math.min(1, bm.t / 1);
+    const r = 10 + k * 40;
+    const g = ctx.createRadialGradient(mx, my, 0, mx, my, r); g.addColorStop(0, '#fff'); g.addColorStop(0.3, 'rgba(255,90,60,.95)'); g.addColorStop(1, 'rgba(255,0,0,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(mx, my, r, 0, Math.PI * 2); ctx.fill();
+    if (Math.floor(t * 16) % 2 === 0) {
+      ctx.strokeStyle = 'rgba(255,60,40,.9)'; ctx.lineWidth = 2 + k * 3; ctx.setLineDash([18, 10]);
+      ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(s.player.x, bm.y); ctx.stroke(); ctx.setLineDash([]);
+    }
+  } else if (bm.t < 1.7) {
+    const w = 26 * (1 - Math.max(0, bm.t - 1) / 0.7);
+    for (const [lw, col] of [[w * 2.2, 'rgba(255,60,30,.45)'], [w, 'rgba(255,200,160,.95)'], [w * 0.4, '#fff']]) {
+      ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, lw); ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(a.x + 20, a.y); ctx.stroke();
+    }
+  }
+}
+// 画面の上下の黒帯（映画のような帯）と、警報の帯
+function drawProScreen(s, t) {
+  const pt = s.pro.t; const Wc = cv.width; const Hc = cv.height; const d = view.dpr;
+  const inK = Math.min(1, pt / 0.6) * Math.min(1, Math.max(0, (PROLOGUE_END - pt) / 0.6));
+  const bh = Math.round(Hc * 0.075 * inK);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, Wc, bh); ctx.fillRect(0, Hc - bh, Wc, bh);
+  if (pt >= PRO.alarm && pt < PRO.boss + 0.8) {
+    const blink = Math.floor(pt * 4) % 2 === 0;
+    ctx.fillStyle = `rgba(255,0,0,${blink ? 0.16 : 0.06})`; ctx.fillRect(0, 0, Wc, Hc);
+    // 画面中央の大きな WARNING（点滅）
+    if (pt < PRO.boss) {
+      ctx.save(); ctx.globalAlpha = blink ? 0.95 : 0.35; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const fs = Math.min(Wc * 0.13, 64 * d);
+      ctx.font = `900 ${fs}px system-ui, sans-serif`; ctx.lineWidth = 4 * d; ctx.strokeStyle = '#400'; ctx.strokeText('WARNING', Wc / 2, Hc * 0.36); ctx.fillStyle = '#ff4a30'; ctx.fillText('WARNING', Wc / 2, Hc * 0.36);
+      ctx.font = `800 ${fs * 0.32}px "Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif`; ctx.fillStyle = '#ffe0d0'; ctx.fillText('雲の下に 巨大な艦影', Wc / 2, Hc * 0.36 + fs * 0.75);
+      ctx.restore();
+    }
+    const sh = 26 * d;
+    for (const [y, dir] of view.portrait ? [[Hc - bh - sh, -1]] : [[bh, 1]]) { // 会話ウィンドウと重ならない側に出す
+      ctx.fillStyle = 'rgba(160,0,0,.88)'; ctx.fillRect(0, y, Wc, sh);
+      ctx.save(); ctx.beginPath(); ctx.rect(0, y, Wc, sh); ctx.clip();
+      ctx.fillStyle = 'rgba(255,200,0,.9)';
+      const off = (pt * 120 * d * dir) % (24 * d);
+      for (let x = -48 * d + off; x < Wc + 48 * d; x += 24 * d) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 10 * d, y); ctx.lineTo(x + 2 * d, y + sh); ctx.lineTo(x - 8 * d, y + sh); ctx.closePath(); ctx.globalAlpha = 0.25; ctx.fill(); }
+      ctx.globalAlpha = 1;
+      ctx.font = `900 ${15 * d}px system-ui, sans-serif`; ctx.textBaseline = 'middle'; ctx.fillStyle = '#ffe9d8';
+      const msg = 'WARNING ◆ 巨大反応 接近 ◆ ';
+      const mw = ctx.measureText(msg).width; const o2 = ((pt * 90 * d * dir) % mw + mw) % mw;
+      for (let x = -mw + o2; x < Wc; x += mw) ctx.fillText(msg, x, y + sh / 2 + d);
+      ctx.restore();
+    }
+  }
+}
+
 function renderPlay(s, t) {
   const sx = shake ? (Math.random() - 0.5) * shake : 0; const sy = shake ? (Math.random() - 0.5) * shake : 0;
   fieldTransform(sx, sy);
   art.drawSky(ctx, s.sea, s.t);
+  if (s.pro) drawProBack(s, t);
   for (const h of s.hazards) art.drawHazard(ctx, h, t);
   const b = s.boss;
   if (b && (b.hp > 0 || s.phase === 'bossDown')) {
@@ -308,6 +440,7 @@ function renderPlay(s, t) {
   for (const bl of s.bullets) if (bl.d <= 0) art.drawBullet(ctx, bl, t);
   for (const l of s.lances) art.drawLance(ctx, l);
   drawFx();
+  if (s.pro) drawProFront(s, t);
   // 画面全体の光
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   if (flash > 0) { ctx.fillStyle = `rgba(220,250,255,${flash * 0.5})`; ctx.fillRect(0, 0, cv.width, cv.height); }
@@ -315,6 +448,7 @@ function renderPlay(s, t) {
     const g = ctx.createRadialGradient(cv.width / 2, cv.height / 2, Math.min(cv.width, cv.height) * 0.3, cv.width / 2, cv.height / 2, Math.max(cv.width, cv.height) * 0.7);
     g.addColorStop(0, 'rgba(255,0,0,0)'); g.addColorStop(1, `rgba(255,30,10,${hurtFlash})`); ctx.fillStyle = g; ctx.fillRect(0, 0, cv.width, cv.height);
   }
+  if (s.pro) drawProScreen(s, t);
 }
 
 // タイトル：左下に翼を広げた雷鳥、右に巨大な銅の帆船と渦雲
@@ -369,7 +503,8 @@ function updateHud() {
     if (hudCache.bst !== st) { hudCache.bst = st; $('bossState').textContent = st; $('bossState').className = b.armored ? '' : 'open'; }
   }
   const h = $('hint');
-  if (s.hint && app.mode === 'play') { setText('hint', touchMode ? touchHint(s.hint) : s.hint); h.classList.add('on'); } else h.classList.remove('on');
+  syncTutorial(s);
+  if (s.hint && app.mode === 'play' && !talk.on && s.phase !== 'prologue') { setText('hint', touchMode ? touchHint(s.hint) : s.hint); h.classList.add('on'); } else h.classList.remove('on');
   $('btnAbsorb').classList.toggle('lit', p.absorbing && p.gauge >= 40);
 }
 
@@ -537,7 +672,8 @@ $('pauseTitleBtn').addEventListener('click', () => setMode('title'));
 let last = performance.now(); let acc = 0;
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now; realT += dt;
-  if (app.mode === 'play' && app.state) {
+  if (app.mode === 'play' && app.state && freeze > 0) { freeze -= dt; acc = 0; }
+  else if (app.mode === 'play' && app.state) {
     acc += dt; let n = 0;
     while (acc >= DT && n < 6) { step(app.state, AUTO ? autopilot(app.state) : readInput()); handleEvents(app.state); acc -= DT; n++; if (app.state.phase === 'clear' || app.state.phase === 'dead') break; }
     if (n >= 6) acc = 0;
