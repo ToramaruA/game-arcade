@@ -417,7 +417,7 @@ function updateTutorial(s, dt) {
   }
   if (tu.step === 2 && p.gauge >= P.lanceMin) { tu.step = 3; setHint(s, TUTORIAL[3].text, 99); }
   if (tu.step === 3 && p.gauge < P.lanceMin && !tu.lanced) { tu.step = 2; setHint(s, TUTORIAL[2].text, 99); }
-  if (tu.step >= 2 && !s.enemies.some((e) => e.armor)) { s.tut = null; s.waveT = 0; s.spawnIdx = 0; setHint(s, '見事！ 赤い三角の弾は、次の波から来る', 3.5); ev(s, 'say', { who: 'rio', text: '見事だ、セナ。次は赤い三角が来る──吸えない、避けろ。……待ってる', dur: 4 }); }
+  if (tu.step >= 2 && !s.enemies.some((e) => e.armor)) { s.tut = null; s.waveT = 0; s.spawnIdx = 0; setHint(s, '見事！ 赤い三角の弾は、次の波から来る', 3.5); ev(s, 'say', { who: 'rio', text: '見事だよ、セナ。次は赤い三角が来る──吸えないから、避けて。……待ってるね', dur: 4 }); }
 }
 
 // 序章：天の主機がいきなり現れ、その戦いの中でリオが操作を教える。雷槍で装甲を割った直後、
@@ -437,9 +437,9 @@ function updatePrologue(s, dt) {
   const ring = (n, spd, c) => { if (!b) return; for (let i = 0; i < n; i++) { const ang = Math.PI * (0.55 + (i / (n - 1)) * 0.9); addBullet(s, b.x - 70, b.y, ang, spd, c); } };
   switch (pr.stage) {
     case 'calm':
-      if (once(1, 0.9)) say(s, 'rio', 'セナ、後ろは任せた。今夜、大艦隊の港を落とす', 1.8);
-      if (once(2, 2.7)) say(s, 'sena', 'うん。……終わったら、二人で暮らす約束だよ', 1.2);
-      if (pr.t >= PRO.alarm) { proStage(s, 'alarm'); ev(s, 'proAlarm', {}); say(s, 'rio', '……待て。下の雲が、赤く光ってる', 2); }
+      if (once(1, 0.9)) say(s, 'rio', 'セナ、後ろは任せて。今夜、大艦隊の港を落とそう', 1.8);
+      if (once(2, 2.7)) say(s, 'sena', 'ああ。……終わったら、一緒に暮らそう、リオ', 1.2);
+      if (pr.t >= PRO.alarm) { proStage(s, 'alarm'); ev(s, 'proAlarm', {}); say(s, 'rio', '……待って。下の雲が、赤く光ってる', 2); }
       break;
     case 'alarm':
       if (pr.t >= PRO.boss) {
@@ -450,26 +450,26 @@ function updatePrologue(s, dt) {
       }
       break;
     case 'boss':
-      if (once(1, 0.5)) say(s, 'rio', 'あれは……天の主機！ 大艦隊の心臓だ！', 1.6);
-      if (pr.st >= 3) { proStage(s, 'tut0'); say(s, 'rio', '来るぞ、セナ！ 翼を動かして弾をかわせ！', 0, 'move'); }
+      if (once(1, 0.5)) say(s, 'rio', 'あれは……天の主機！ 大艦隊の心臓よ！', 1.6);
+      if (pr.st >= 3) { proStage(s, 'tut0'); say(s, 'rio', '来るよ、セナ！ 翼を動かして、弾をかわして！', 0, 'move'); }
       break;
     case 'tut0':
       pr.fireT += dt; if (pr.fireT > 1.5) { pr.fireT = 0; ring(9, 110, 'r'); }
-      if ((pr.st > 1.5 && p.moved > 150) || pr.st > 6) { proStage(s, 'tut1'); s.bullets.length = 0; say(s, 'rio', 'いいぞ！ 撃ち返せ！', 0, 'fire'); }
+      if ((pr.st > 1.5 && p.moved > 150) || pr.st > 6) { proStage(s, 'tut1'); s.bullets.length = 0; say(s, 'rio', 'いいよ！ 撃ち返して！', 0, 'fire'); }
       break;
     case 'tut1':
       pr.fireT += dt; if (pr.fireT > 2) { pr.fireT = 0; ring(7, 100, 'r'); }
       if (pr.beat === 0 && ((pr.clinks || 0) >= 10 || pr.st > 6)) { pr.beat = 1; pr.st = 0; say(s, 'sena', '撃っても……効かない！？', 1.3); }
-      if (pr.beat === 1 && pr.st >= 1.4) { proStage(s, 'tut2'); s.bullets.length = 0; say(s, 'rio', '装甲が厚すぎる。あいつの青い弾を吸って、雷に変えろ！', 0, 'absorb'); }
+      if (pr.beat === 1 && pr.st >= 1.4) { proStage(s, 'tut2'); s.bullets.length = 0; say(s, 'rio', '装甲が厚すぎる。あいつの青い弾を吸って、雷に変えて！', 0, 'absorb'); }
       break;
     case 'tut2':
       pr.fireT += dt; if (pr.fireT > 1.1) { pr.fireT = 0; fan(5, 0.16, 120, 'b'); }
-      if (p.gauge >= P.lanceMin) { proStage(s, 'tut3'); say(s, 'rio', '溜まった！ 正面に並んで、離せ！ 雷槍で装甲を割れ！', 0, 'lance'); }
+      if (p.gauge >= P.lanceMin) { proStage(s, 'tut3'); say(s, 'rio', '溜まった！ 正面に並んで、離して！ 雷槍で装甲を割って！', 0, 'lance'); }
       break;
     case 'tut3':
       pr.fireT += dt; if (pr.fireT > 1.6) { pr.fireT = 0; fan(3, 0.2, 110, 'b'); }
-      if (pr.lanceHit) { proStage(s, 'crack'); s.bullets.length = 0; say(s, 'rio', '割れた！ 効いてるぞ、セナ！', 1.6); }
-      else if (p.gauge < P.lanceMin && !p.absorbing && pr.st > 0.5) { proStage(s, 'tut2'); say(s, 'rio', '外れた！ もう一度、青を吸え！', 0, 'absorb'); }
+      if (pr.lanceHit) { proStage(s, 'crack'); s.bullets.length = 0; say(s, 'rio', '割れた！ 効いてるよ、セナ！', 1.6); }
+      else if (p.gauge < P.lanceMin && !p.absorbing && pr.st > 0.5) { proStage(s, 'tut2'); say(s, 'rio', '外れた！ もう一度、青を吸って！', 0, 'absorb'); }
       break;
     case 'crack':
       if (once(1, 1.7)) say(s, 'boss', '……小賢しい雷鳥乗りめ', 1.4);
@@ -483,10 +483,10 @@ function updatePrologue(s, dt) {
       if (pr.st >= 1) { proStage(s, 'hit'); a.captured = true; s.bullets.length = 0; ev(s, 'allyDown', { x: a.x, y: a.y }); say(s, 'sena', 'リオ――！！', 1.5); }
       break;
     case 'hit':
-      if (pr.st >= 1.6) { proStage(s, 'speech'); say(s, 'boss', '雷鳥乗りの娘よ。この男は預かる。返してほしくば、六つの海を越えて来い', 2.6); }
+      if (pr.st >= 1.6) { proStage(s, 'speech'); say(s, 'boss', '雷鳥乗りの小僧よ。この娘は預かる。返してほしくば、六つの海を越えて来い', 2.6); }
       break;
     case 'speech':
-      if (pr.st >= 2.6) { proStage(s, 'leave'); if (b) b.ph = 'leave'; say(s, 'sena', '待って……リオ！ ……必ず、取り戻す', 1.6); }
+      if (pr.st >= 2.6) { proStage(s, 'leave'); if (b) b.ph = 'leave'; say(s, 'sena', '待て……リオ！ ……必ず、取り戻す', 1.6); }
       break;
     case 'leave':
       if (pr.st >= 1.8) { s.tutDone = true; endPrologue(s); }

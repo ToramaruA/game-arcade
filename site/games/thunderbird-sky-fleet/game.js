@@ -19,6 +19,8 @@ const audio = createAudio(save.settings);
 const params = new URLSearchParams(location.search);
 const OG = params.has('og');
 const AUTO = params.has('auto'); // 自動操縦のデモ（動作確認用）
+// 序章の版。序章を作り直したら上げる（前の版を見た人にも、新しい序章を一度見せる）
+const PRO_VER = 3;
 const KANJI = ['一', '二', '三', '四', '五', '六'];
 
 const stage = $('stage'); const cv = $('cv'); const ctx = cv.getContext('2d');
@@ -149,7 +151,7 @@ function startCampaign(fresh = false) {
 function startSea(fromBoss = false) {
   const c = app.camp;
   save.progress = JSON.parse(JSON.stringify(c)); persist();
-  app.state = createState({ sea: c.sea, upgrades: c.upgrades, route: c.route, difficulty: c.difficulty, fromBoss, prologue: c.sea === 0 && !fromBoss && !c.proSeen, tutDone: !!c.tutSeen, seed: 1000 + c.sea * 131 + Math.floor(Math.random() * 1e6) });
+  app.state = createState({ sea: c.sea, upgrades: c.upgrades, route: c.route, difficulty: c.difficulty, fromBoss, prologue: c.sea === 0 && !fromBoss && c.proVer !== PRO_VER, tutDone: c.proVer === PRO_VER && !!c.tutSeen, seed: 1000 + c.sea * 131 + Math.floor(Math.random() * 1e6) });
   beginPlay();
 }
 function startPractice(sea, fromBoss) {
@@ -269,7 +271,7 @@ function handleEvents(s) {
       case 'proBeam': audio.sfx.charge(); break;
       case 'proGraze': burst(p.x, p.y, 8, '#ff9a6a', 120, 2); audio.sfx.clink(); break;
       case 'allyDown': burst(e.x, e.y, 80, '#ffb35a', 280, 5); part(e.x, e.y, { kind: 'ring', col: '#fff', life: 0.8, size: 220 }); audio.sfx.lance(4); audio.sfx.boom(true); audio.sfx.hurt(); doShake(18); hurtFlash = 0.8; flash = 0.9; freeze = 0.55; break;
-      case 'proEnd': $('skipPro').hidden = true; hideTalk(); $('bossCard').classList.remove('on'); audio.startBgm(); if (app.camp) { app.camp.proSeen = true; if (s.tutDone) app.camp.tutSeen = true; save.progress = JSON.parse(JSON.stringify(app.camp)); persist(); } banner('第一海域', s.seaDef.name, 'リオを取り戻す。まずは港の艦隊を破れ', 3); audio.setSea(0, false); break;
+      case 'proEnd': $('skipPro').hidden = true; hideTalk(); $('bossCard').classList.remove('on'); audio.startBgm(); if (app.camp) { app.camp.proSeen = true; app.camp.proVer = PRO_VER; app.camp.tutSeen = !!s.tutDone; save.progress = JSON.parse(JSON.stringify(app.camp)); persist(); } banner('第一海域', s.seaDef.name, 'リオを取り戻す。まずは港の艦隊を破れ', 3); audio.setSea(0, false); break;
       default: break;
     }
   }

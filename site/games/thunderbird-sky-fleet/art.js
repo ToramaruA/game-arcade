@@ -142,7 +142,7 @@ function farShape(ctx, sea, x, t) {
 // ---------- 自機：金銅の機械雷鳥 ----------
 // wing: 1=開いた翼, 0=閉じた翼（吸収中）。lights: 0〜5（翼先の充電灯）
 // 自機：機械の翼「雷鳥」を背負って飛ぶ乗り手（上から見た姿。頭が進行方向 +x）。
-// who: 'sena'（金の翼・赤い襟巻き・赤茶の髪）/ 'rio'（銀青の翼・青い襟巻き・銀髪）
+// who: 'sena'（主人公の青年。金の翼・赤い襟巻き・赤茶の短髪）/ 'rio'（恋人の女性。銀青の翼・青い襟巻き・長い銀髪）
 const RIDER = {
   sena: { wing: [C.goldL, C.gold, C.goldD], wing2: ['#ffe39a', '#d79b37', '#80501a'], edge: '#5ff4ff', coat: ['#3a2a5a', '#1d1430'], trim: C.gold, hair: ['#e0703a', '#8a2e14'], scarf: '#e8362a', skin: '#f2cfa6' },
   rio: { wing: ['#f4fbff', '#9cc0d8', '#3e5a70'], wing2: ['#e0f0ff', '#7aa0bc', '#2e4a60'], edge: '#9fe8ff', coat: ['#e8eef6', '#8a9ab0'], trim: '#6ad0ff', hair: ['#eef4ff', '#9aa8c0'], scarf: '#2a8ad8', skin: '#f2cfa6' },
@@ -182,7 +182,9 @@ export function drawBird(ctx, x, y, o = {}) {
   wingFn(-1, true);
   // 長い髪と襟巻き（後ろへたなびく）
   ctx.fillStyle = R.hair[1];
-  ctx.beginPath(); ctx.moveTo(22, -16); ctx.bezierCurveTo(8, -18 + wave(0.2), -6, -12 + wave(0.9), who === 'sena' ? -26 : -6, -10 + wave(1.6)); ctx.bezierCurveTo(-4, -6 + wave(1), 8, -6, 18, -4); ctx.fill();
+  if (who === 'rio') { // 恋人リオ：長い髪が背中までなびく
+    ctx.beginPath(); ctx.moveTo(22, -17); ctx.bezierCurveTo(4, -22 + wave(0.2), -18, -16 + wave(0.9), -40, -14 + wave(1.8)); ctx.bezierCurveTo(-22, -6 + wave(1.2), -4, -4, 18, -3); ctx.fill();
+  } else { ctx.beginPath(); ctx.moveTo(22, -16); ctx.bezierCurveTo(12, -18, 6, -14, 8, -9); ctx.bezierCurveTo(10, -6, 14, -5, 18, -4); ctx.fill(); }
   ctx.strokeStyle = R.scarf; ctx.lineCap = 'round'; ctx.lineWidth = 4.5;
   ctx.beginPath(); ctx.moveTo(15, -4); ctx.bezierCurveTo(0, -2 + wave(0), -20, -6 + wave(1), -46, -2 + wave(2.2)); ctx.stroke();
   ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(14, -3); ctx.bezierCurveTo(-2, 2 + wave(0.6), -18, 2 + wave(1.6), -38, 6 + wave(2.6)); ctx.stroke();
