@@ -35,20 +35,21 @@ function layout() {
   const portrait = vh > vw * 1.05;
   const field = !['title', 'menu'].includes(app.mode);
   const ctrlH = portrait && touchMode && field ? 134 : 0;
+  const topH = portrait && field && app.mode !== 'og' ? 86 : 0; // 縦画面ではHUDを画面の上の余白に置き、ボスを隠さない
   let sc; let cw; let ch;
   if (!field) { sc = portrait ? vw / H : Math.max(vw / W, vh / H); cw = vw; ch = vh; } // タイトルは画面いっぱいに描く
-  else if (portrait) { sc = Math.min(vw / H, (vh - ctrlH) / W); cw = H * sc; ch = W * sc; }
+  else if (portrait) { sc = Math.min(vw / H, (vh - ctrlH - topH) / W); cw = H * sc; ch = W * sc; }
   else { sc = app.mode === 'og' ? Math.max(vw / W, vh / H) : Math.min(vw / W, vh / H); cw = W * sc; ch = H * sc; }
-  const ox = field ? (vw - cw) / 2 : 0; const oy = !field ? 0 : portrait ? Math.max(0, (vh - ctrlH - ch) / 2) : (vh - ch) / 2;
+  const ox = field ? (vw - cw) / 2 : 0; const oy = !field ? 0 : portrait ? topH + Math.max(0, (vh - ctrlH - topH - ch) / 2) : (vh - ch) / 2;
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   Object.assign(view, { sc, portrait, dpr, cw, ch, ox, oy, vw, vh, ctrlH, field });
   Object.assign(cv.style, { left: `${ox}px`, top: `${oy}px`, width: `${cw}px`, height: `${ch}px` });
   cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
   stage.classList.toggle('portrait', portrait); stage.classList.toggle('landscape', !portrait);
-  const hud = $('hud'); Object.assign(hud.style, { left: `${ox}px`, top: `${oy}px`, width: `${cw}px` });
-  $('hint').style.top = `${oy + (portrait ? 118 : 80)}px`; $('hint').style.bottom = 'auto';
-  $('banner').style.top = `${oy + ch * 0.3}px`;
-  $('bossBar').style.top = cw < 560 ? '82px' : '46px';
+  const hud = $('hud'); Object.assign(hud.style, { left: `${portrait ? 0 : ox}px`, top: `${portrait ? 0 : oy}px`, width: `${portrait ? vw : cw}px` });
+  $('hint').style.top = `${oy + (portrait ? ch - 70 : 80)}px`; $('hint').style.bottom = 'auto';
+  $('banner').style.top = `${oy + ch * (portrait ? 0.4 : 0.56)}px`;
+  $('bossBar').style.top = vw < 560 ? '68px' : '46px';
   const t = $('touch'); t.style.height = `${portrait ? ctrlH : vh}px`;
 }
 window.addEventListener('resize', layout);
@@ -190,7 +191,7 @@ function handleEvents(s) {
       case 'absorb':
         part(e.x, e.y, { kind: 'suck', tx: p.x, ty: p.y, col: '#9ffbff', size: 5, life: 0.25 });
         audio.sfx.absorb(e.gauge);
-        if (e.crossed) { audio.sfx.threshold(e.crossed); text(p.x, p.y - 34, e.crossed >= 80 ? '雷槍 最大威力' : '雷槍 OK', { col: '#bffcff', size: 16 }); }
+        if (e.crossed) { audio.sfx.threshold(e.crossed); text(p.x + 40, p.y - 50, e.crossed >= 80 ? '雷槍 最大威力' : '雷槍 OK', { col: '#bffcff', size: 16 }); }
         break;
       case 'lance': audio.sfx.lance(e.power); doShake(e.power >= 4 ? 7 : 4); flash = 0.25; break;
       case 'multi': text(e.x, e.y - 30, `${e.kills}機 同時撃破！`, { col: '#ffe08a', size: 30, life: 1.6 }); audio.sfx.multi(e.kills); break;
@@ -271,7 +272,7 @@ function renderPlay(s, t) {
   for (const sh of s.shots) { ctx.fillStyle = '#ffe9a8'; ctx.fillRect(sh.x - 10, sh.y - 1.5, 16, 3); ctx.fillStyle = '#fff'; ctx.fillRect(sh.x + 2, sh.y - 1, 5, 2); }
   const p = s.player;
   if (p.absorbing) art.drawAbsorb(ctx, p.x, p.y, absorbRadius(s.upgrades), t);
-  art.drawBird(ctx, p.x, p.y, { wing: p.wing, lights: Math.floor(p.gauge / 20), t, blink: p.inv > 0, absorbing: p.absorbing });
+  art.drawBird(ctx, p.x, p.y, { wing: p.wing, lights: Math.floor(p.gauge / 20), t, blink: p.inv > 0, absorbing: p.absorbing, scale: view.portrait ? 1.25 : 1 });
   // 自機の当たり判定（小さな芯）
   ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.arc(p.x, p.y, 2.6, 0, Math.PI * 2); ctx.fill();
   for (const bl of s.bullets) if (bl.d <= 0) art.drawBullet(ctx, bl, t);
@@ -436,7 +437,7 @@ function drawEndCard(c) {
   const grd = g.createLinearGradient(0, 0, 0, 260); grd.addColorStop(0, '#2a3e6e'); grd.addColorStop(1, '#e8d6b0');
   g.fillStyle = grd; g.fillRect(0, 0, 640, 260);
   for (let i = 0; i < 5; i++) art.cloud(g, 60 + i * 140, 225, 26, 'rgba(255,255,255,.75)', 'rgba(255,255,255,.9)');
-  art.drawBird(g, 90, 90, { wing: 1, lights: 5, t: 1, scale: 1.4 });
+  art.drawBird(g, 90, 100, { wing: 1, lights: 5, t: 1, scale: 1.0 });
   g.font = '800 22px serif'; g.fillStyle = '#fff3d0'; g.fillText('セナの航海日誌', 170, 50);
   g.font = '14px sans-serif'; g.fillStyle = '#f2e6cc';
   g.fillText(`航路：${c.route ? ROUTES[c.route].name : '—'}　改修：${c.picks.map((k) => UPGRADES[k].name).join('・')}`, 170, 76);

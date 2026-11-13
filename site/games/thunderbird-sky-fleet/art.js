@@ -455,7 +455,15 @@ function bossCarrier(ctx, t, b) {
     ctx.strokeStyle = C.gold; ctx.lineWidth = 2; for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.ellipse(x, -6 + k * 5, 9, 2.5, 0, 0, TAU); ctx.stroke(); }
     if (Math.sin(t * 7 + i * 2) > 0.6) { ctx.strokeStyle = '#ffe6ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, -12); for (let k = 1; k < 5; k++) ctx.lineTo(x + (hash(k + i + Math.floor(t * 10)) - 0.5) * 30, -12 - k * 14); ctx.stroke(); }
   }
-  glow(ctx, -80, 0, 30, 'rgba(255,120,160,.6)');
+  // 船体の丸窓と、赤い帆、雷を溜める大きな目
+  ctx.fillStyle = '#ffcf7a'; for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc(-70 + i * 28, 44, 4, 0, TAU); ctx.fill(); }
+  ctx.fillStyle = 'rgba(160,20,30,.9)'; ctx.strokeStyle = C.ink; ctx.lineWidth = 2;
+  for (const sx of [-30, 40]) { ctx.beginPath(); ctx.moveTo(sx, 10); ctx.lineTo(sx, -90); ctx.quadraticCurveTo(sx + 36, -50, sx + 4, 10); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+  ctx.fillStyle = '#2a1a12'; ctx.fillRect(-32, -96, 4, 106); ctx.fillRect(38, -96, 4, 106);
+  ctx.fillStyle = metal(ctx, -110, 0, -60, 0, ['#ffe0f0', '#a03060', '#2a0610']); ctx.beginPath(); ctx.ellipse(-92, 32, 22, 16, 0, 0, TAU); ctx.fill(); ctx.stroke();
+  glow(ctx, -92, 32, 34, 'rgba(255,140,200,.8)', 0.6 + 0.4 * Math.sin(t * 5));
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-96, 32, 5, 0, TAU); ctx.fill();
+  if (Math.sin(t * 3.3) > 0.3) { ctx.strokeStyle = '#ffe6ff'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(-30, -96); for (let k = 1; k < 6; k++) ctx.lineTo(-30 + (hash(k + Math.floor(t * 12)) - 0.5) * 50, -96 - k * 16); ctx.stroke(); }
 }
 function bossEngine(ctx, t, b) {
   // 天の主機：金銅の巨大な球体。翼が開閉し、3つの砲口を持つ
@@ -498,9 +506,12 @@ export function drawBullet(ctx, b, t) {
   } else {
     const a = Math.atan2(b.vy, b.vx);
     ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(a);
-    ctx.fillStyle = '#ff4b2b'; ctx.strokeStyle = '#ffe2c8'; ctx.lineWidth = 1.6;
-    poly(ctx, [b.r + 4, 0, -b.r, -b.r, -b.r, b.r]); ctx.fill(); ctx.stroke();
-    ctx.strokeStyle = '#3a0400'; ctx.lineWidth = 1; ctx.stroke();
+    const r = b.r + 1.5; // 赤弾は暗い縁＋白い縁で、赤い背景でも浮き立たせる
+    poly(ctx, [r + 4, 0, -r, -r, -r, r]);
+    ctx.strokeStyle = 'rgba(255,245,230,.95)'; ctx.lineWidth = 4.5; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.fillStyle = '#ff3a1a'; ctx.fill();
+    ctx.strokeStyle = '#2a0200'; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.fillStyle = '#ffd0a0'; poly(ctx, [r * 0.6, 0, -r * 0.3, -r * 0.35, -r * 0.3, r * 0.35]); ctx.fill();
     ctx.restore();
   }
 }
