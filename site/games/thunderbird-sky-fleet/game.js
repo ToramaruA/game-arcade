@@ -1,7 +1,7 @@
 // 描画・操作・画面遷移。ルールは logic.js、絵は art.js、音は audio.js。
 import {
   createState, step, DT, P, W, H, SEAS, BOSSES, absorbRadius, parseSave, recordClear, newCampaign,
-  advanceCampaign, needsRoute, upgradeChoices, medalCount, MEDAL_TOTAL, autopilot, bossMuzzles, emit,
+  advanceCampaign, needsRoute, upgradeChoices, medalCount, MEDAL_TOTAL, autopilot, bossMuzzles, emit, endPrologue,
 } from './logic.js';
 import { UPGRADES, ROUTES, MEDALS, ENEMY_TYPES, ENEMY_ORDER } from './data.js';
 import * as art from './art.js';
@@ -142,7 +142,7 @@ function startCampaign(fresh = false) {
 function startSea(fromBoss = false) {
   const c = app.camp;
   save.progress = JSON.parse(JSON.stringify(c)); persist();
-  app.state = createState({ sea: c.sea, upgrades: c.upgrades, route: c.route, difficulty: c.difficulty, fromBoss, seed: 1000 + c.sea * 131 + Math.floor(Math.random() * 1e6) });
+  app.state = createState({ sea: c.sea, upgrades: c.upgrades, route: c.route, difficulty: c.difficulty, fromBoss, prologue: c.sea === 0 && !fromBoss && !c.proSeen, seed: 1000 + c.sea * 131 + Math.floor(Math.random() * 1e6) });
   beginPlay();
 }
 function startPractice(sea, fromBoss) {
@@ -157,8 +157,9 @@ function beginPlay() {
   touch.fire = touch.absorb = false; touch.drag = null;
   setMode('play');
   const s = app.state;
-  banner(`第${KANJI[s.sea]}海域`, s.seaDef.name, s.fromBoss ? 'ボス前から' : s.seaDef.intro, 3);
-  audio.setSea(s.sea, false); audio.startBgm();
+  if (s.phase === 'prologue') { banner('序章', '奪われた僚機', 'セナと、恋人で僚機のリオ。反乱軍の夜間飛行', 2.4); audio.setSea(0, false); audio.startBgm(); }
+  else { banner(`第${KANJI[s.sea]}海域`, s.seaDef.name, s.fromBoss ? 'ボス前から' : s.seaDef.intro, 3); audio.setSea(s.sea, false); audio.startBgm(); }
+  $('skipPro').hidden = s.phase !== 'prologue';
 }
 function togglePause() {
   if (app.mode === 'play') {
@@ -197,7 +198,7 @@ function handleEvents(s) {
       case 'multi': text(e.x, e.y - 30, `${e.kills}機 同時撃破！`, { col: '#ffe08a', size: 30, life: 1.6 }); audio.sfx.multi(e.kills); break;
       case 'boom': burst(e.x, e.y, e.r > 25 ? 34 : 18, e.by === 'lance' ? '#cffcff' : '#ffb35a', e.r > 25 ? 220 : 150, e.r > 25 ? 5 : 3); part(e.x, e.y, { kind: 'ring', col: '#ffe6a0', life: 0.45, size: e.r * 2.2 }); audio.sfx.boom(e.r > 25); if (e.r > 25) doShake(3); break;
       case 'spark': burst(e.x, e.y, e.missile ? 10 : 3, e.missile ? '#ff9a6a' : '#fff0b0', 90, 2); audio.sfx.spark(); break;
-      case 'clink': burst(e.x, e.y, 4, '#ffe6a0', 120, 2); if (Math.random() < 0.25) text(e.x - 10, e.y - 14, '装甲', { col: '#ffe08a', size: 13, life: 0.5 }); audio.sfx.clink(); break;
+      case 'clink': burst(e.x, e.y, 4, '#ffe6a0', 120, 2); if (s.phase === 'prologue' && Math.random() < 0.35) text(e.x - 10, e.y - 18, '無効', { col: '#ff9a8a', size: 16, life: 0.6 }); else if (Math.random() < 0.25) text(e.x - 10, e.y - 14, '装甲', { col: '#ffe08a', size: 13, life: 0.5 }); audio.sfx.clink(); break;
       case 'reflect': burst(e.x, e.y, 6, '#ffffff', 140, 2); text(e.x, e.y - 16, '反射', { col: '#ffb5a0', size: 13, life: 0.5 }); audio.sfx.clink(); break;
       case 'hurt': doShake(9); hurtFlash = 0.45; burst(p.x, p.y, 20, '#ff6a4a', 200, 3); audio.sfx.hurt(); break;
       case 'heal': fx.heals.push({ x: e.x, y: e.y, tx: e.tx, ty: e.ty, t: 0 }); text(e.tx, e.ty - 30, '+修理', { col: '#9dffc0', size: 12, life: 0.6 }); audio.sfx.heal(); break;
@@ -210,6 +211,10 @@ function handleEvents(s) {
       case 'bounce': part(e.x, e.y, { kind: 'ring', col: '#bff', life: 0.25, size: 18 }); break;
       case 'practiceRefill': text(p.x, p.y - 40, '練習：体力回復', { col: '#bffcff', size: 14 }); break;
       case 'armor': break;
+      case 'proBoss': banner('警報', e.name, '倒せない──装甲が厚すぎる。弾をかわせ', 3, 'boss'); audio.sfx.warn(); doShake(10); flash = 0.35; audio.setSea(5, true); break;
+      case 'proGraze': burst(p.x, p.y, 8, '#ff9a6a', 120, 2); audio.sfx.clink(); break;
+      case 'allyDown': burst(e.x, e.y, 80, '#ffb35a', 280, 5); part(e.x, e.y, { kind: 'ring', col: '#fff', life: 0.8, size: 220 }); text(W / 2 - 120, H / 2, 'リオ――！！', { col: '#ff8a7a', size: 52, life: 2.2 }); audio.sfx.boom(true); audio.sfx.hurt(); doShake(18); hurtFlash = 0.8; flash = 0.4; break;
+      case 'proEnd': $('skipPro').hidden = true; if (app.camp) { app.camp.proSeen = true; save.progress = JSON.parse(JSON.stringify(app.camp)); persist(); } banner('第一海域', s.seaDef.name, 'リオを取り戻す。まずは雷鳥の扱いを思い出せ', 3); audio.setSea(0, false); break;
       default: break;
     }
   }
@@ -237,6 +242,12 @@ function drawText(x, y, s, size, col, alpha = 1) {
   ctx.globalAlpha = alpha; ctx.font = `800 ${size}px "Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif`; ctx.textAlign = 'center';
   ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(20,8,2,.85)'; ctx.strokeText(s, 0, 0); ctx.fillStyle = col; ctx.fillText(s, 0, 0);
   ctx.restore();
+}
+// スマホでは、キー操作の説明をボタン操作の説明に言い換える
+function touchHint(t) {
+  return t.replace('動かす：WASD／矢印キー（スマホは画面をドラッグ）', '動かす：画面のどこでもドラッグ')
+    .replace('J／Space を押し続ける', '「撃つ」を押し続ける')
+    .replace('K／Shift を押し続けて', '「吸う」を押し続けて');
 }
 function drawFx() {
   for (const h of fx.heals) {
@@ -268,6 +279,25 @@ function renderPlay(s, t) {
     else art.drawBoss(ctx, b, t, warn);
   }
   for (const e of s.enemies) art.drawEnemy(ctx, e, t);
+  // 序章：僚機リオ（銀青の雷鳥）。さらわれた後は主機から伸びる赤い鎖で引かれていく
+  if (s.pro && s.pro.ally) {
+    const a = s.pro.ally;
+    if (a.captured && b) {
+      // 太い鎖（輪を連ねる）と、リオを閉じこめる籠
+      const x0 = b.x - 30, y0 = b.y + 30, dx = a.x - x0, dy = a.y - y0, len = Math.hypot(dx, dy), n = Math.max(2, Math.floor(len / 16));
+      ctx.save(); ctx.translate(x0, y0); ctx.rotate(Math.atan2(dy, dx));
+      for (let i = 0; i < n; i++) { ctx.strokeStyle = i % 2 ? '#ff6a4a' : '#ffb07a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(i * 16 + 8, 0, 10, i % 2 ? 3 : 6, 0, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.restore();
+      const jx = Math.sin(t * 40) * 3;
+      ctx.strokeStyle = '#ffcf9a'; ctx.lineWidth = 3;
+      for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(a.x + i * 14 + jx, a.y - 32); ctx.lineTo(a.x + i * 14 + jx, a.y + 30); ctx.stroke(); }
+      ctx.beginPath(); ctx.ellipse(a.x + jx, a.y - 32, 36, 8, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.save(); ctx.filter = 'hue-rotate(170deg) saturate(.7) brightness(1.15)';
+    art.drawBird(ctx, a.x, a.y, { wing: a.captured ? 0.3 : 1, t: t + 0.4, scale: 0.72, blink: a.captured });
+    ctx.restore();
+    if (!a.captured) { if (view.portrait) drawText(a.x + 46, a.y, 'リオ', 15, '#bfe8ff', 1); else drawText(a.x, a.y - 44, 'リオ', 15, '#bfe8ff', 1); }
+  }
   // 自機の弾
   for (const sh of s.shots) { ctx.fillStyle = '#ffe9a8'; ctx.fillRect(sh.x - 10, sh.y - 1.5, 16, 3); ctx.fillStyle = '#fff'; ctx.fillRect(sh.x + 2, sh.y - 1, 5, 2); }
   const p = s.player;
@@ -328,18 +358,18 @@ function updateHud() {
   setText('gaugeNum', String(Math.round(p.gauge)));
   const lv = p.gauge >= 80 ? 'lv2' : p.gauge >= 40 ? 'lv1' : '';
   if (hudCache.lv !== lv) { hudCache.lv = lv; $('gauge').className = `gauge ${lv}`; }
-  const wave = s.boss ? 'ボス' : `${Math.min(3, s.waveIdx + 1)}/3`;
+  const wave = s.phase === 'prologue' ? '序章' : s.boss ? 'ボス' : `${Math.min(3, s.waveIdx + 1)}/3`;
   setText('seaChip', view.cw < 560 ? `第${KANJI[s.sea]}海域・${wave}` : `第${KANJI[s.sea]}海域 ${s.seaDef.name}・${wave}${app.practice ? '・練習' : ''}`);
   const b = s.boss;
   $('bossBar').hidden = !(b && b.ph !== 'enter' && b.hp > 0);
   if (b) {
     setText('bossName', b.def.name);
-    $('bossFill').style.width = `${(b.hp / P.bossHp) * 100}%`;
+    $('bossFill').style.width = `${Math.min(1, b.hp / P.bossHp) * 100}%`;
     const st = b.armored ? '装甲' : '弱点露出';
     if (hudCache.bst !== st) { hudCache.bst = st; $('bossState').textContent = st; $('bossState').className = b.armored ? '' : 'open'; }
   }
   const h = $('hint');
-  if (s.hint && app.mode === 'play') { setText('hint', s.hint); h.classList.add('on'); } else h.classList.remove('on');
+  if (s.hint && app.mode === 'play') { setText('hint', touchMode ? touchHint(s.hint) : s.hint); h.classList.add('on'); } else h.classList.remove('on');
   $('btnAbsorb').classList.toggle('lit', p.absorbing && p.gauge >= 40);
 }
 
@@ -407,6 +437,7 @@ function onDead() {
   $('deadInfo').textContent = `${s.deadAtBoss ? `${s.boss.def.name}との戦いで` : `第${Math.min(3, s.waveIdx + 1)}波で`}墜落。改修は海域に入った時のまま、入口からやり直せる。`;
   $('retryBossBtn').hidden = !s.deadAtBoss;
 }
+$('skipPro').addEventListener('click', () => { if (app.state && app.state.phase === 'prologue') { endPrologue(app.state); handleEvents(app.state); } });
 $('retryBtn').addEventListener('click', () => { audio.ensure(); if (app.practice) startPractice(app.practice.sea, app.practice.fromBoss); else startSea(); });
 $('retryBossBtn').addEventListener('click', () => { audio.ensure(); if (app.practice) startPractice(app.practice.sea, true); else startSea(true); });
 $('deadTitleBtn').addEventListener('click', () => setMode('title'));

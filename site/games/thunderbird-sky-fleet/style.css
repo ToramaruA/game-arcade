@@ -149,3 +149,5 @@ kbd { display: inline-block; border: 1px solid rgba(240, 194, 90, .6); border-ra
   .cards { grid-template-columns: 1fr; }
   .card { min-height: 0; }
 }
+.skip-pro{position:absolute;right:12px;top:calc(max(10px,env(safe-area-inset-top)) + 84px);z-index:6;padding:8px 14px;border-radius:999px;border:1px solid rgba(255,220,150,.6);background:rgba(10,14,36,.7);color:#ffe6b0;font:700 13px sans-serif;cursor:pointer}
+.skip-pro[hidden]{display:none}

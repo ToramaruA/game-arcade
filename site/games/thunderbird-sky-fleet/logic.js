@@ -42,6 +42,11 @@ export function createState(run = {}) {
     result: null, deadAtBoss: false,
   };
   if (s.fromBoss) { s.phase = 'waveGap'; s.waveIdx = 3; s.phaseT = 0; }
+  else if (run.prologue && sea === 0) {
+    // 序章：いきなり天の主機が現れ、僚機のリオがさらわれる（倒せない）
+    s.phase = 'prologue';
+    s.pro = { t: 0, beat: 0, ally: { x: 230, y: H / 2 - 80, captured: false, gone: false } };
+  }
   return s;
 }
 
@@ -246,8 +251,9 @@ function updateBoss(s, dt) {
   const d = b.def;
   b.t += dt; b.pt += dt; b.flash = Math.max(0, b.flash - dt);
   if (!b.armored) { b.openT -= dt; if (b.openT <= 0) { b.armored = true; ev(s, 'armor', {}); } }
+  if (b.ph === 'leave') { b.x += 220 * dt; b.y += (H / 2 - 40 - b.y) * dt; return; }
   if (b.ph === 'enter') {
-    b.x -= 130 * dt;
+    b.x -= (b.showcase ? 320 : 200) * dt;
     if (b.x <= d.hx) { b.x = d.hx; b.ph = 'warn'; b.pt = 0; b.t = 0; }
     return;
   }
@@ -289,6 +295,7 @@ function updateBoss(s, dt) {
 // ボスに当たったときのダメージ処理。装甲中は通常弾が効かない。雷槍は装甲を割る
 function hitBoss(s, dmg, kind, x, y) {
   const b = s.boss; if (!b || b.hp <= 0 || b.ph === 'enter') return false;
+  if (b.showcase) { b.flash = 0.04; ev(s, 'clink', { x, y }); if (!s.pro.hitHint) { s.pro.hitHint = true; setHint(s, 'セナ「効かない……！ 装甲が厚すぎる」', 2.4); } return true; }
   if (kind === 'lance') {
     b.hp = Math.max(0, b.hp - dmg); b.armored = false; b.openT = P.bossOpen; b.flash = 0.25;
     ev(s, 'bossHit', { x, y, dmg, lance: true });
@@ -312,6 +319,7 @@ function hitBoss(s, dmg, kind, x, y) {
 function hurt(s) {
   const p = s.player;
   if (p.inv > 0 || s.phase === 'bossDown' || s.phase === 'clear') return false;
+  if (s.phase === 'prologue') { p.inv = 0.8; ev(s, 'proGraze', { x: p.x, y: p.y }); return true; }
   p.hp -= 1; p.inv = P.inv; s.stats.hits += 1;
   ev(s, 'hurt', { x: p.x, y: p.y, hp: p.hp });
   if (p.hp <= 0) {
@@ -391,8 +399,8 @@ function updatePlayer(s, input, dt) {
 function updateTutorial(s, dt) {
   const tu = s.tut; const p = s.player;
   tu.t += dt;
-  if (tu.step === 0 && tu.t >= 8) { tu.step = 1; setHint(s, TUTORIAL[1].text, 99); for (const y of [170, 270, 370]) spawnEnemy(s, { type: 'scout', y, fire: null, speed: 80 }); }
-  if (tu.step === 1 && (tu.t >= 15 || (tu.t > 10 && !s.enemies.length))) {
+  if (tu.step === 0 && (tu.t >= 5 || (tu.t >= 2.5 && p.moved > 120))) { tu.step = 1; setHint(s, TUTORIAL[1].text, 99); for (const y of [170, 270, 370]) spawnEnemy(s, { type: 'scout', y, fire: null, speed: 80 }); }
+  if (tu.step === 1 && (tu.t >= 11 || (tu.t > 6.5 && !s.enemies.length))) {
     tu.step = 2; setHint(s, TUTORIAL[2].text, 99);
     for (const hx of [720, 850]) spawnEnemy(s, { type: 'gunship', y: 270, hx, hp: 2, armor: true, stay: 1e9, fire: { pat: 'stream', n: 2, gap: 0.4, period: 2.2, speed: 120, colors: 'b' } });
   }
@@ -401,14 +409,48 @@ function updateTutorial(s, dt) {
   if (tu.step >= 2 && !s.enemies.some((e) => e.armor)) { s.tut = null; s.waveT = 0; s.spawnIdx = 0; setHint(s, '見事！ 赤い三角の弾は、次の波から来る', 3.5); }
 }
 
+// 序章の進行：0秒 リオと並んで飛ぶ → 2.4秒 主機が現れて撃ってくる（倒せない）→ 8秒 リオがさらわれる → 11秒 主機が去る → 12.6秒 本編へ
+export const PROLOGUE_END = 12.6;
+function updatePrologue(s, dt) {
+  const pr = s.pro; const a = pr.ally; const p = s.player;
+  pr.t += dt;
+  if (pr.beat === 0) { pr.beat = 1; setHint(s, 'リオ「セナ、後ろは任せた。今夜で艦隊も終わりだ」', 2.6); }
+  if (pr.beat === 1 && pr.t >= 2.4) {
+    pr.beat = 2;
+    const def = BOSSES[SEAS[5].boss];
+    s.boss = { def, hp: 999, x: W + 220, y: H / 2, t: 0, ph: 'enter', pt: 0, ai: 0, armored: true, openT: 0, fireT: 0, k: 0, addT: 0, flash: 0, wing: 0, showcase: true };
+    ev(s, 'proBoss', { name: def.name });
+  }
+  if (pr.beat === 2 && pr.t >= 8) {
+    pr.beat = 3; a.captured = true; s.bullets.length = 0; s.hazards.length = 0;
+    ev(s, 'allyDown', { x: a.x, y: a.y });
+    setHint(s, 'セナ「リオ！！」', 1.6);
+  }
+  if (pr.beat === 3 && pr.t >= 9.6) { pr.beat = 4; setHint(s, '主機「雷鳥の娘よ。この男を返してほしくば、六つの海を越えて来い」', 3.2); }
+  if (pr.beat === 4 && pr.t >= 11) { pr.beat = 5; if (s.boss) { s.boss.ph = 'leave'; } s.bullets.length = 0; s.hazards.length = 0; }
+  // 僚機：自機の少し前を飛ぶ。さらわれた後は主機へ引き寄せられる
+  if (!a.captured) { a.x += (p.x + 80 - a.x) * Math.min(1, dt * 3); a.y += (p.y - 70 - a.y) * Math.min(1, dt * 3); }
+  else if (s.boss) { const tx = s.boss.x - 40, ty = s.boss.y + 70; a.x += (tx - a.x) * Math.min(1, dt * 2.2); a.y += (ty - a.y) * Math.min(1, dt * 2.2); }
+  if (pr.t >= PROLOGUE_END) endPrologue(s);
+}
+export function endPrologue(s) {
+  if (s.phase !== 'prologue') return;
+  s.boss = null; s.bullets.length = 0; s.hazards.length = 0; s.enemies.length = 0; s.lances.length = 0;
+  s.pro = null; s.phase = 'intro'; s.phaseT = 0; s.seaT = 0;
+  s.player.hp = P.hpMax; s.player.inv = 0; s.player.gauge = 0; s.stats.hits = 0;
+  setHint(s, '', 0);
+  ev(s, 'proEnd', {});
+}
+
 function updateDirector(s, dt) {
   s.phaseT += dt;
+  if (s.phase === 'prologue') { updatePrologue(s, dt); return; }
   if (s.phase === 'intro') {
-    if (s.phaseT >= 2.6) startWave(s, 0);
+    if (s.phaseT >= 1.5) startWave(s, 0);
     return;
   }
   if (s.phase === 'waveGap') {
-    if (s.phaseT >= 2.2) {
+    if (s.phaseT >= 1.3) {
       if (s.waveIdx < 3) startWave(s, s.waveIdx);
       else { s.phase = 'boss'; s.phaseT = 0; spawnBoss(s); }
     }
@@ -427,7 +469,7 @@ function updateDirector(s, dt) {
     return;
   }
   if (s.phase === 'bossDown') {
-    if (s.phaseT >= 2.6) finishSea(s);
+    if (s.phaseT >= 2.0) finishSea(s);
   }
 }
 

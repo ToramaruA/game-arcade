@@ -5,6 +5,7 @@ import {
   lancePower, absorbRadius, gaugeGain, fireInterval, parseSave, defaultSave, recordClear,
   newCampaign, advanceCampaign, needsRoute, upgradeChoices, medalCount, MEDAL_TOTAL,
 } from '../../site/games/thunderbird-sky-fleet/logic.js';
+import * as L from '../../site/games/thunderbird-sky-fleet/logic.js';
 import { ENEMY_TYPES, ENEMY_ORDER } from '../../site/games/thunderbird-sky-fleet/data.js';
 
 // 波の外（敵の出ない状態）で自機の操作だけを試すための状態
@@ -325,4 +326,23 @@ test('クリア可能性：自動操縦で全6海域（3波＋ボス）を最後
   const s = createState({ sea: 0 });
   run(s, (st) => autopilot(st), 400);
   assert.equal(s.phase, 'clear');
+});
+
+test('序章：主機がいきなり現れリオがさらわれる。主機は倒せず、自機は落ちない。12.6秒で第一海域の本編へ', () => {
+  const s = L.createState({ sea: 0, prologue: true, seed: 3 });
+  assert.equal(s.phase, 'prologue');
+  const seen = new Set();
+  for (let i = 0; i < 60 * 13.5; i++) {
+    L.step(s, { x: 0, y: 0, fire: i % 2 === 0, absorb: false }, L.DT);
+    for (const e of s.events) seen.add(e.type); s.events.length = 0;
+    assert.equal(s.player.hp, L.P.hpMax, '序章では被弾しても体力は減らない');
+    if (s.boss) assert.ok(s.boss.hp > 900, '主機は倒せない');
+  }
+  assert.ok(seen.has('proBoss') && seen.has('allyDown'), '主機の登場とリオの捕獲が起きる');
+  for (let i = 0; i < 60; i++) { L.step(s, {}, L.DT); }
+  assert.equal(s.boss, null); assert.equal(s.pro, null);
+  assert.ok(s.phase === 'intro' || s.phase === 'wave', '本編へ進む');
+  const t = L.createState({ sea: 0, prologue: true }); L.endPrologue(t);
+  assert.equal(t.phase, 'intro', 'とばすとすぐ本編');
+  assert.equal(L.createState({ sea: 1, prologue: true }).phase, 'intro', '序章は第一海域だけ');
 });
