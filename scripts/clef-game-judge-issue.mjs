@@ -66,7 +66,30 @@ async function main() {
     signal:AbortSignal.timeout(30000),
   });
   if (!post.ok) throw new Error('GitHub comment API HTTP '+post.status);
-  console.log('Clef '+(designMode ? 'design' : 'idea')+' review: '+decision.status+' (issue #'+issue.number+').');
+  const postedComment = await post.json();
+  if (!Number.isSafeInteger(postedComment?.id) || postedComment?.user?.login !== 'github-actions[bot]') {
+    throw new Error('GitHub result comment response invalid; relay not posted');
+  }
+
+  // GitHub PR conversation bot comments are supported as immediate ChatGPT event triggers.
+  // Keep the actual Clef verdict on its original review Issue; the relay has metadata only.
+  // PR #70 is a permanent, unmerged event bridge. It must remain open.
+  const relayPayload = {
+    schema_version: 1,
+    source_issue: issue.number,
+    source_comment_id: postedComment.id,
+    phase: designMode ? 'design' : 'idea',
+    revision: designMode ? revision : null,
+    status: decision.status,
+  };
+  const relay = await fetch('https://api.github.com/repos/'+repo+'/issues/70/comments', {
+    method:'POST',
+    headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},
+    body:JSON.stringify({body:'<!-- clef-review-relay:v1 -->\n'+JSON.stringify(relayPayload)}),
+    signal:AbortSignal.timeout(30000),
+  });
+  if (!relay.ok) throw new Error('ChatGPT wakeup relay HTTP '+relay.status);
+  console.log('Clef '+(designMode ? 'design' : 'idea')+' review: '+decision.status+' (issue #'+issue.number+'); event relay posted to PR #70.');
   if (failed) process.exitCode = 1;
 }
 main().catch(e => { console.error('Review action failed: '+String(e.message).slice(0,100)); process.exitCode=1; });
