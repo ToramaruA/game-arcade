@@ -23,7 +23,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           node --input-type=module <<'NODE'
-          const body = '<!-- clef-event-probe:v1 -->\n' + JSON.stringify({test_only:true,nonce:'clef-event-live-20261113-v3',phase:'design',revision:1,status:'revise'}) + '\nSynthetic event routing test only. No Clef call. No game work.';
+          const body = '<!-- clef-pr-wakeup-test:v1 -->\n' + JSON.stringify({test_only:true,nonce:'clef-original-marker-retest-20261113',phase:'design',revision:1,status:'revise'}) + '\nSynthetic event routing test only. No Clef call. No game work.';
           const response = await fetch('https://api.github.com/repos/ToramaruA/game-arcade/issues/70/comments', {
             method:'POST',
             headers:{Authorization:'Bearer '+process.env.GH_TOKEN,Accept:'application/vnd.github+json','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28'},
