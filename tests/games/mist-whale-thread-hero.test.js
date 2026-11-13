@@ -185,6 +185,21 @@ test('鎧蜂：身構えてから突進する。牙灯：点線の予告のあ�
   assert.ok(s2.player.hearts < hearts, '光線に当たるとハートが減る');
 });
 
+test('鎧蜂：光の糸が当たると、その場で弾け飛んで消える（灯からのやり直しでも戻らない）', () => {
+  const st = L.createLevelState(11);
+  const bee = st.enemies.find((e) => e.kind === 'bee');
+  st.enemies.forEach((e) => { if (e !== bee) e.dead = true; });
+  bee.cool = 99; bee.state = 'patrol';
+  st.player.x = bee.x - 3 * TS; st.player.y = bee.y - 20; st.player.face = 1; st.player.invuln = 99;
+  assert.equal(L.pickTarget(st, 1)?.ref, bee, '鎧蜂を狙える');
+  const evs = [];
+  for (let i = 0; i < 20 && !bee.dead; i++) { run(st, 1, { threadPressed: i === 0 }); evs.push(...(st.events || [])); }
+  assert.ok(bee.dead, '糸が当たったら倒れる');
+  assert.ok(!bee.bound && !bee.drag, '縛る・引くを挟まずに消える');
+  st.player.hearts = 3; st.player.y = 99 * TS; run(st, 60);
+  assert.ok(bee.dead, '落ちて灯から再開しても、弾けた蜂は戻らない');
+});
+
 test('海蛇：縛ると背中が足場になり、糸喰いは近くの糸を食いちぎる', () => {
   const st = calm(L.createLevelState(9));
   const sp = st.enemies.find((e) => e.kind === 'serpent');
