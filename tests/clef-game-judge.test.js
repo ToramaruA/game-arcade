@@ -32,3 +32,9 @@ test('Clef responses are parsed and checked, with no fictitious explanation',()=
   delete answers.B_replay;
   assert.throws(()=>interpretResponse(request,{result:{answers}}),/score invalid/);
 });
+
+test('deferred idea review is visibly labeled DEFERRED, not OK',()=>{
+ const body=resultComment({schema_version:1,status:'deferred',reason:'Cloudflare Workers AI daily free allocation exhausted (error code 3036).',retry_after:'2026-11-14T00:00:00.000Z'});
+ assert.match(body,/## Clef review: DEFERRED/);
+ assert.doesNotMatch(body,/## Clef review: OK/);
+});
