@@ -1,8 +1,30 @@
 // Invoked from a restricted GitHub Actions issues event. API credentials are never logged.
 import fs from 'node:fs';
 import {reserveAttempt} from './clef-budget.mjs';
+import {findPriorDesignResult} from './clef-review-replay.mjs';
 import {parseRequest,buildPayload,interpretResponse,resultComment} from './clef-game-judge-core.mjs';
 import {parseDesignRequest,buildDesignPayload,interpretDesignResponse,designResultComment} from './clef-design-judge-core.mjs';
+
+async function postRelay({repo,token,issueNumber,sourceCommentId,phase,revision,status}) {
+  // GitHub PR conversation bot comments are supported as immediate ChatGPT event triggers.
+  // Keep the actual Clef verdict on its original review Issue; the relay has metadata only.
+  // PR #70 is a permanent, unmerged event bridge. It must remain open.
+  const relayPayload = {
+    schema_version: 1,
+    source_issue: issueNumber,
+    source_comment_id: sourceCommentId,
+    phase,
+    revision,
+    status,
+  };
+  const relay = await fetch('https://api.github.com/repos/'+repo+'/issues/70/comments', {
+    method:'POST',
+    headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},
+    body:JSON.stringify({body:'<!-- clef-review-relay:v1 -->\n'+JSON.stringify(relayPayload)}),
+    signal:AbortSignal.timeout(30000),
+  });
+  if (!relay.ok) throw new Error('ChatGPT wakeup relay HTTP '+relay.status);
+}
 
 async function main() {
   const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH,'utf8'));
@@ -27,6 +49,22 @@ async function main() {
     designMode = object?.phase === 'design';
   } catch {
     // The original idea-review format may include a JSON code fence.
+  }
+  // Same-revision retries after relay failure re-use the existing Clef result.
+  if (designMode) {
+    const parsed = parseDesignRequest(issue.body);
+    revision = parsed.revision;
+    const previous = await findPriorDesignResult({
+      commentUrl, revision,
+      headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json',
+        'X-GitHub-Api-Version':'2022-11-28'},
+    });
+    if (previous) {
+      await postRelay({repo,token,issueNumber:issue.number,sourceCommentId:previous.id,
+        phase:'design',revision,status:previous.status});
+      console.log('Recovered existing Clef result and relayed to PR #70 without another API call.');
+      return;
+    }
   }
   try {
     const request = designMode ? parseDesignRequest(issue.body) : parseRequest(issue.body);
@@ -71,24 +109,8 @@ async function main() {
     throw new Error('GitHub result comment response invalid; relay not posted');
   }
 
-  // GitHub PR conversation bot comments are supported as immediate ChatGPT event triggers.
-  // Keep the actual Clef verdict on its original review Issue; the relay has metadata only.
-  // PR #70 is a permanent, unmerged event bridge. It must remain open.
-  const relayPayload = {
-    schema_version: 1,
-    source_issue: issue.number,
-    source_comment_id: postedComment.id,
-    phase: designMode ? 'design' : 'idea',
-    revision: designMode ? revision : null,
-    status: decision.status,
-  };
-  const relay = await fetch('https://api.github.com/repos/'+repo+'/issues/70/comments', {
-    method:'POST',
-    headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},
-    body:JSON.stringify({body:'<!-- clef-review-relay:v1 -->\n'+JSON.stringify(relayPayload)}),
-    signal:AbortSignal.timeout(30000),
-  });
-  if (!relay.ok) throw new Error('ChatGPT wakeup relay HTTP '+relay.status);
+  await postRelay({repo,token,issueNumber:issue.number,sourceCommentId:postedComment.id,
+    phase:designMode?'design':'idea',revision:designMode?revision:null,status:decision.status});
   console.log('Clef '+(designMode ? 'design' : 'idea')+' review: '+decision.status+' (issue #'+issue.number+'); event relay posted to PR #70.');
   if (failed) process.exitCode = 1;
 }
