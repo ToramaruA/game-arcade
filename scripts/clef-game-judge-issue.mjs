@@ -17,6 +17,36 @@ async function postRelay({repo,token,issueNumber,sourceCommentId,phase,revision,
     revision,
     status,
   };
+  const commentUrl = 'https://api.github.com/repos/'+repo+'/issues/70/comments';
+  const headers = {Authorization:'Bearer '+token,Accept:'application/vnd.github+json',
+    'X-GitHub-Api-Version':'2022-11-28'};
+  // A retry can reuse the same Clef result. Read the relay's existing comments
+  // first so one source verdict never wakes ChatGPT twice.
+  for (let page=1;page<=100;page++) {
+    const check = await fetch(commentUrl+'?per_page=100&page='+page, {
+      headers,signal:AbortSignal.timeout(30000),
+    });
+    if (!check.ok) throw new Error('Cannot check existing Clef relay HTTP '+check.status);
+    const comments = await check.json();
+    if (!Array.isArray(comments)) throw new Error('Invalid existing Clef relay comments');
+    for (const comment of comments) {
+      if (comment.user?.login !== 'github-actions[bot]' ||
+          !comment.body?.startsWith('<!-- clef-review-relay:v1 -->\n')) continue;
+      let existing;
+      try { existing = JSON.parse(comment.body.slice('<!-- clef-review-relay:v1 -->\n'.length)); }
+      catch { continue; }
+      if (existing?.source_issue !== issueNumber ||
+          existing?.source_comment_id !== sourceCommentId) continue;
+      if (existing.schema_version !== 1 || existing.phase !== phase ||
+          existing.revision !== revision || existing.status !== status) {
+        throw new Error('Conflicting Clef relay for source comment '+sourceCommentId);
+      }
+      console.log('Clef result '+sourceCommentId+' is already relayed to PR #70; skip duplicate.');
+      return;
+    }
+    if (comments.length < 100) break;
+    if (page === 100) throw new Error('Too many relay comments to verify safely');
+  }
   const relay = await fetch('https://api.github.com/repos/'+repo+'/issues/70/comments', {
     method:'POST',
     headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},
