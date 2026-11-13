@@ -9,8 +9,8 @@ permissions:
   issues: write
 
 concurrency:
-  group: clef-review-issue-${{ github.event.issue.number }}
-  cancel-in-progress: true
+  group: clef-planning-daily-budget
+  cancel-in-progress: false
 
 jobs:
   review:
