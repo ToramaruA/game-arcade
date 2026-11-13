@@ -134,7 +134,7 @@ export function resultComment(result) {
   const fence = String.fromCharCode(96).repeat(3);
   const lines = [
     REVIEW_MARKER,
-    result.status==='error'?'## Clef review: ERROR':result.status==='revise'?'## Clef review: REVISE':'## Clef review: OK',
+    '## Clef review: '+String(result.status).toUpperCase(),
     '',
     'Machine-readable decision (scores are model estimates, not measured player enjoyment):',
     '',

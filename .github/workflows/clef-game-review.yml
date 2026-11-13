@@ -10,7 +10,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: clef-planning-daily-budget
+  group: clef-planning-review
   cancel-in-progress: false
 
 jobs:
