@@ -1,7 +1,7 @@
 // 描画・操作・画面遷移。ルールは logic.js、絵は art.js、音は audio.js。
 import {
   createState, step, DT, P, W, H, SEAS, BOSSES, absorbRadius, parseSave, recordClear, newCampaign,
-  advanceCampaign, needsRoute, upgradeChoices, medalCount, MEDAL_TOTAL, autopilot, bossMuzzles, emit, endPrologue, PRO, PROLOGUE_END,
+  advanceCampaign, needsRoute, upgradeChoices, medalCount, MEDAL_TOTAL, autopilot, bossMuzzles, emit, endPrologue, PRO,
 } from './logic.js';
 import { UPGRADES, ROUTES, MEDALS, ENEMY_TYPES, ENEMY_ORDER, TUTORIAL } from './data.js';
 import * as art from './art.js';
@@ -149,7 +149,7 @@ function startCampaign(fresh = false) {
 function startSea(fromBoss = false) {
   const c = app.camp;
   save.progress = JSON.parse(JSON.stringify(c)); persist();
-  app.state = createState({ sea: c.sea, upgrades: c.upgrades, route: c.route, difficulty: c.difficulty, fromBoss, prologue: c.sea === 0 && !fromBoss && !c.proSeen, seed: 1000 + c.sea * 131 + Math.floor(Math.random() * 1e6) });
+  app.state = createState({ sea: c.sea, upgrades: c.upgrades, route: c.route, difficulty: c.difficulty, fromBoss, prologue: c.sea === 0 && !fromBoss && !c.proSeen, tutDone: !!c.tutSeen, seed: 1000 + c.sea * 131 + Math.floor(Math.random() * 1e6) });
   beginPlay();
 }
 function startPractice(sea, fromBoss) {
@@ -165,7 +165,7 @@ function beginPlay() {
   setMode('play');
   const s = app.state;
   hideTalk(); freeze = 0;
-  if (s.phase === 'prologue') { banner('序章', '奪われた僚機', '空を覆う大艦隊に挑む、セナと恋人のリオ。最後の夜間飛行', 2.6); audio.setSea(0, false); audio.startBgm(); }
+  if (s.phase === 'prologue') { banner('序章', '奪われた僚機', 'セナと恋人リオ、最後の夜間飛行', 2.2); audio.setSea(0, false); audio.startBgm(); }
   else { banner(`第${KANJI[s.sea]}海域`, s.seaDef.name, s.fromBoss ? 'ボス前から' : s.seaDef.intro, 3); audio.setSea(s.sea, false); audio.startBgm(); }
   $('skipPro').hidden = s.phase !== 'prologue';
 }
@@ -213,8 +213,9 @@ function updateTalk(dt) {
   art.drawFace(faceCtx, talk.who, { shout: talk.shout, comm: talk.comm, t: realT });
   if (talk.dur > 0 && talk.t > talk.dur + 0.5) hideTalk();
   // スマホ縦：序章はボスが画面の上に来るので、会話枠を下に置く
-  const low = view.portrait && app.state && app.state.phase === 'prologue';
-  if (view.portrait && talk.low !== low) { talk.low = low; $('talk').style.top = low ? `${view.oy + view.ch - 150}px` : `${view.oy + 6}px`; }
+  const ps = app.state && app.state.phase === 'prologue' ? app.state.pro.stage : '';
+  const low = view.portrait && ps ? 'top' : 'field'; // 序章：主役2人は画面の下、主機は中ほどに来るので、会話は一番上に重ねる
+  if (view.portrait && talk.low !== low) { talk.low = low; $('talk').style.top = low === 'low' ? `${view.oy + view.ch - 150}px` : low === 'top' ? '4px' : `${view.oy + 6}px`; }
 }
 // チュートリアル：リオが籠の中から通信で教える。操作はキー／ボタンの絵で見せ、スマホは押すボタンを光らせる
 function tutKeys(step) {
@@ -258,13 +259,19 @@ function handleEvents(s) {
       case 'bounce': part(e.x, e.y, { kind: 'ring', col: '#bff', life: 0.25, size: 18 }); break;
       case 'practiceRefill': text(p.x, p.y - 40, '練習：体力回復', { col: '#bffcff', size: 14 }); break;
       case 'armor': break;
-      case 'say': say(e.who, e.text, e.dur, { shout: e.text.includes('！！'), comm: e.who === 'rio' && s.phase !== 'prologue' }); break;
+      case 'say': {
+        const ki = ['move', 'fire', 'absorb', 'lance'].indexOf(e.keys);
+        say(e.who, e.text, e.dur, { shout: e.text.includes('！！'), comm: e.who === 'rio' && s.phase !== 'prologue', keys: ki >= 0 ? tutKeys(ki) : '' });
+        $('btnFire').classList.toggle('guide', ki === 1); $('btnAbsorb').classList.toggle('guide', ki >= 2);
+        break;
+      }
+      case 'proCrack': burst(e.x, e.y, 70, '#cffcff', 300, 5); burst(e.x, e.y, 30, '#ffd36a', 220, 4); part(e.x, e.y, { kind: 'ring', col: '#bffcff', life: 0.7, size: 260 }); text(e.x - 60, e.y - 60, '装甲破壊！', { col: '#bffcff', size: 34, life: 1.6 }); audio.sfx.boom(true); doShake(14); flash = 0.7; freeze = 0.3; break;
       case 'proAlarm': audio.stopBgm(); audio.sfx.siren(); audio.sfx.rumble(); doShake(5); break;
       case 'proBoss': { const c = $('bossCard'); c.classList.remove('on'); void c.offsetWidth; c.classList.add('on'); audio.sfx.boom(true); audio.sfx.rumble(); doShake(16); flash = 0.55; freeze = 0.12; audio.setSea(5, true); audio.startBgm(); break; }
       case 'proBeam': audio.sfx.charge(); break;
       case 'proGraze': burst(p.x, p.y, 8, '#ff9a6a', 120, 2); audio.sfx.clink(); break;
       case 'allyDown': burst(e.x, e.y, 80, '#ffb35a', 280, 5); part(e.x, e.y, { kind: 'ring', col: '#fff', life: 0.8, size: 220 }); audio.sfx.lance(4); audio.sfx.boom(true); audio.sfx.hurt(); doShake(18); hurtFlash = 0.8; flash = 0.9; freeze = 0.55; break;
-      case 'proEnd': $('skipPro').hidden = true; hideTalk(); $('bossCard').classList.remove('on'); audio.startBgm(); if (app.camp) { app.camp.proSeen = true; save.progress = JSON.parse(JSON.stringify(app.camp)); persist(); } banner('第一海域', s.seaDef.name, 'リオを取り戻す。まずは雷鳥の扱いを思い出せ', 3); audio.setSea(0, false); break;
+      case 'proEnd': $('skipPro').hidden = true; hideTalk(); $('bossCard').classList.remove('on'); audio.startBgm(); if (app.camp) { app.camp.proSeen = true; if (s.tutDone) app.camp.tutSeen = true; save.progress = JSON.parse(JSON.stringify(app.camp)); persist(); } banner('第一海域', s.seaDef.name, 'リオを取り戻す。まずは港の艦隊を破れ', 3); audio.setSea(0, false); break;
       default: break;
     }
   }
@@ -316,18 +323,19 @@ function drawFx() {
 
 // ---------- 序章の演出 ----------
 const SHOW_BOSS = BOSSES[SEAS[5].boss];
+let proBar = 0;
 // 空が赤黒く沈み、雲の下を巨大な影が昇ってくる
 function drawProBack(s, t) {
-  const pt = s.pro.t;
-  if (pt < PRO.alarm) return;
-  const k = Math.min(1, (pt - PRO.alarm) / 1.2) * (pt > PRO.leave ? Math.max(0.35, 1 - (pt - PRO.leave) / 1.4) : 1);
+  const pt = s.pro.t; const stg = s.pro.stage;
+  if (stg === 'calm') return;
+  const k = Math.min(1, (pt - PRO.alarm) / 1.2) * (stg === 'leave' ? Math.max(0.35, 1 - s.pro.st / 1.4) : stg.startsWith('tut') ? 0.75 : 1);
   ctx.fillStyle = `rgba(30,0,4,${0.5 * k})`; ctx.fillRect(-50, -50, W + 100, H + 100);
   const pulse = 0.5 + 0.5 * Math.sin(pt * 7);
   const g = ctx.createRadialGradient(W * 0.75, H + 60, 20, W * 0.75, H + 60, 420);
   g.addColorStop(0, `rgba(255,40,20,${0.45 * k * (0.6 + 0.4 * pulse)})`); g.addColorStop(1, 'rgba(255,0,0,0)');
   ctx.fillStyle = g; ctx.fillRect(-50, -50, W + 100, H + 100);
-  if (pt < PRO.boss) {
-    const u = (pt - PRO.alarm) / (PRO.boss - PRO.alarm);
+  if (stg === 'alarm') {
+    const u = Math.min(1, (pt - PRO.alarm) / (PRO.boss - PRO.alarm));
     const fake = { def: SHOW_BOSS, x: 0, y: 0, t: pt, hp: 999, armored: true, flash: 0, wing: 0.3, ph: 'warn', pt: 0, ai: 0 };
     ctx.save(); ctx.translate(W * 0.68 - u * 40, H + 260 - u * 340); ctx.scale(2.1, 2.1);
     ctx.globalAlpha = 0.75; ctx.filter = 'brightness(0)';
@@ -362,15 +370,17 @@ function drawProFront(s, t) {
 }
 // 画面の上下の黒帯（映画のような帯）と、警報の帯
 function drawProScreen(s, t) {
-  const pt = s.pro.t; const Wc = cv.width; const Hc = cv.height; const d = view.dpr;
-  const inK = Math.min(1, pt / 0.6) * Math.min(1, Math.max(0, (PROLOGUE_END - pt) / 0.6));
-  const bh = Math.round(Hc * 0.075 * inK);
+  const pt = s.pro.t; const Wc = cv.width; const Hc = cv.height; const d = view.dpr; const stg = s.pro.stage;
+  // 黒帯：演出の場面だけ。操作を教える間は視界を広く
+  const want = stg.startsWith('tut') ? 0 : stg === 'leave' ? Math.max(0, 1 - s.pro.st / 1.4) : 1;
+  proBar += (want - proBar) * 0.08;
+  const bh = Math.round(Hc * 0.075 * proBar);
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, Wc, bh); ctx.fillRect(0, Hc - bh, Wc, bh);
-  if (pt >= PRO.alarm && pt < PRO.boss + 0.8) {
+  if (stg === 'alarm' || (stg === 'boss' && s.pro.st < 0.8)) {
     const blink = Math.floor(pt * 4) % 2 === 0;
     ctx.fillStyle = `rgba(255,0,0,${blink ? 0.16 : 0.06})`; ctx.fillRect(0, 0, Wc, Hc);
     // 画面中央の大きな WARNING（点滅）
-    if (pt < PRO.boss) {
+    if (stg === 'alarm') {
       ctx.save(); ctx.globalAlpha = blink ? 0.95 : 0.35; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const fs = Math.min(Wc * 0.13, 64 * d);
       ctx.font = `900 ${fs}px system-ui, sans-serif`; ctx.lineWidth = 4 * d; ctx.strokeStyle = '#400'; ctx.strokeText('WARNING', Wc / 2, Hc * 0.36); ctx.fillStyle = '#ff4a30'; ctx.fillText('WARNING', Wc / 2, Hc * 0.36);
@@ -425,16 +435,14 @@ function renderPlay(s, t) {
       for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(a.x + i * 14 + jx, a.y - 32); ctx.lineTo(a.x + i * 14 + jx, a.y + 30); ctx.stroke(); }
       ctx.beginPath(); ctx.ellipse(a.x + jx, a.y - 32, 36, 8, 0, 0, Math.PI * 2); ctx.stroke();
     }
-    ctx.save(); ctx.filter = 'hue-rotate(170deg) saturate(.7) brightness(1.15)';
-    art.drawBird(ctx, a.x, a.y, { wing: a.captured ? 0.3 : 1, t: t + 0.4, scale: 0.72, blink: a.captured });
-    ctx.restore();
+    art.drawBird(ctx, a.x, a.y, { wing: a.captured ? 0.3 : 1, t: t + 0.4, scale: view.portrait ? 1.35 : 0.95, who: 'rio', hurt: a.captured });
     if (!a.captured) { if (view.portrait) drawText(a.x + 46, a.y, 'リオ', 15, '#bfe8ff', 1); else drawText(a.x, a.y - 44, 'リオ', 15, '#bfe8ff', 1); }
   }
   // 自機の弾
   for (const sh of s.shots) { ctx.fillStyle = '#ffe9a8'; ctx.fillRect(sh.x - 10, sh.y - 1.5, 16, 3); ctx.fillStyle = '#fff'; ctx.fillRect(sh.x + 2, sh.y - 1, 5, 2); }
   const p = s.player;
   if (p.absorbing) art.drawAbsorb(ctx, p.x, p.y, absorbRadius(s.upgrades), t);
-  art.drawBird(ctx, p.x, p.y, { wing: p.wing, lights: Math.floor(p.gauge / 20), t, blink: p.inv > 0, absorbing: p.absorbing, scale: view.portrait ? 1.25 : 1 });
+  art.drawBird(ctx, p.x, p.y, { wing: p.wing, lights: Math.floor(p.gauge / 20), t, blink: p.inv > 0, absorbing: p.absorbing, scale: view.portrait ? 1.5 : 1.1 });
   // 自機の当たり判定（小さな芯）
   ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.arc(p.x, p.y, 2.6, 0, Math.PI * 2); ctx.fill();
   for (const bl of s.bullets) if (bl.d <= 0) art.drawBullet(ctx, bl, t);
@@ -718,5 +726,6 @@ requestAnimationFrame(frame);
 // 動作確認用（Playwright から状態を作るため）
 window.__tb = {
   app, startPractice, startCampaign, get save() { return save; },
+  stepWith(inp) { step(app.state, inp); handleEvents(app.state); },
   ff(sec) { const s = app.state; for (let i = 0; i < sec * 60 && s.phase !== 'clear' && s.phase !== 'dead'; i++) { step(s, autopilot(s)); handleEvents(s); } fx.parts.length = 0; fx.texts.length = 0; bannerTimer = 0.01; },
 };

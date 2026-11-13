@@ -141,62 +141,87 @@ function farShape(ctx, sea, x, t) {
 
 // ---------- 自機：金銅の機械雷鳥 ----------
 // wing: 1=開いた翼, 0=閉じた翼（吸収中）。lights: 0〜5（翼先の充電灯）
+// 自機：機械の翼「雷鳥」を背負って飛ぶ乗り手（上から見た姿。頭が進行方向 +x）。
+// who: 'sena'（金の翼・赤い襟巻き・赤茶の髪）/ 'rio'（銀青の翼・青い襟巻き・銀髪）
+const RIDER = {
+  sena: { wing: [C.goldL, C.gold, C.goldD], wing2: ['#ffe39a', '#d79b37', '#80501a'], edge: '#5ff4ff', coat: ['#3a2a5a', '#1d1430'], trim: C.gold, hair: ['#e0703a', '#8a2e14'], scarf: '#e8362a', skin: '#f2cfa6' },
+  rio: { wing: ['#f4fbff', '#9cc0d8', '#3e5a70'], wing2: ['#e0f0ff', '#7aa0bc', '#2e4a60'], edge: '#9fe8ff', coat: ['#e8eef6', '#8a9ab0'], trim: '#6ad0ff', hair: ['#eef4ff', '#9aa8c0'], scarf: '#2a8ad8', skin: '#f2cfa6' },
+};
 export function drawBird(ctx, x, y, o = {}) {
-  const { wing = 1, lights = 0, t = 0, scale = 1, blink = false, absorbing = false } = o;
+  const { wing = 1, lights = 0, t = 0, scale = 1, blink = false, absorbing = false, who = 'sena', hurt = false } = o;
+  const R = RIDER[who] || RIDER.sena;
   if (blink && Math.floor(t * 18) % 2 === 0) ctx.globalAlpha = 0.35;
-  ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
-  const flap = Math.sin(t * 9) * 0.08 * wing;
-  // 推進の光
-  glow(ctx, -34, 2, 22, absorbing ? 'rgba(95,244,255,.7)' : 'rgba(255,190,90,.8)', 0.9);
-  // 尾羽
-  for (let i = -1; i <= 1; i++) {
-    ctx.save(); ctx.rotate(Math.PI + i * 0.32);
-    ctx.fillStyle = metal(ctx, 0, -5, 0, 5, [C.goldL, C.gold, C.goldD]);
-    poly(ctx, [10, -5, 40, -7, 46, 0, 40, 7, 10, 5]); ctx.fill(); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.6; ctx.stroke();
-    ctx.restore();
-  }
-  // 翼（上下に2枚、3枚の羽板で関節を作る）
-  const wingFn = (sgn) => {
-    const open = 0.36 + 0.64 * wing;
-    ctx.save(); ctx.scale(1, sgn);
-    ctx.translate(2, -4);
-    ctx.rotate(-(Math.PI / 2 + 0.28) - (1 - wing) * 1.05 + flap);
-    for (let k = 0; k < 3; k++) {
-      const len = (50 - k * 9) * open; const w0 = 13 - k * 2;
-      ctx.save(); ctx.rotate(-k * 0.3 * open);
-      ctx.fillStyle = metal(ctx, 0, -w0, len, w0, k === 0 ? [C.goldL, C.gold, C.goldD] : k === 1 ? ['#ffe39a', '#d79b37', '#80501a'] : ['#e6b45e', '#a8701f', '#5a3510']);
-      poly(ctx, [-4, -w0 * 0.6, len * 0.6, -w0, len + 8, -2, len * 0.65, w0 * 0.7, -4, w0 * 0.5]);
-      ctx.fill(); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.8; ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,245,210,.7)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(4, -w0 * 0.3); ctx.lineTo(len * 0.8, -3); ctx.stroke();
-      rivets(ctx, [6, 0, len * 0.4, -w0 * 0.25], 1.4);
+  ctx.save(); ctx.translate(x, y); ctx.scale(scale * 1.2, scale * 1.2);
+  const flap = Math.sin(t * 7) * 0.07 * wing;
+  const wave = (k) => Math.sin(t * 9 - k) * 3.5;
+  const open = hurt ? 0.2 : 0.3 + 0.7 * wing;
+  // 翼：背中の機関から、刃のような羽板を扇状に。dir=-1 は奥の翼（上へ）、+1 は手前の翼（下へ）
+  const wingFn = (dir, far) => {
+    ctx.save(); ctx.translate(-2, -9);
+    ctx.rotate(dir < 0 ? -0.35 - flap - (1 - open) * 0.6 : 0.2 + flap + (1 - open) * 0.5);
+    const pal = far ? R.wing2 : R.wing;
+    for (let k = 4; k >= 0; k--) {
+      const len = (40 - k * 4) * (0.4 + 0.6 * open); const w0 = 5 - k * 0.35;
+      ctx.save(); ctx.rotate(dir * (0.42 + k * 0.24 * open) + Math.PI);
+      ctx.fillStyle = metal(ctx, 0, -w0, len, w0, pal);
+      poly(ctx, [0, -w0 * 0.5, len * 0.72, -w0, len + 9, 0, len * 0.7, w0 * 0.7, 0, w0 * 0.5]);
+      ctx.fill(); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(4, -w0 * 0.25); ctx.lineTo(len * 0.85, -1.2); ctx.stroke();
+      if (!far && k < 5) {
+        const on = k < lights;
+        if (on) glow(ctx, len + 1, 0, 10, 'rgba(95,244,255,.95)', 0.9);
+        ctx.fillStyle = on ? '#eaffff' : 'rgba(40,24,8,.8)'; ctx.beginPath(); ctx.arc(len + 1, 0, 2.3, 0, TAU); ctx.fill();
+      }
       ctx.restore();
     }
-    // 翼先の充電灯
-    const n = sgn < 0 ? [0, 1, 2] : [3, 4];
-    n.forEach((li, j) => {
-      const px = (38 - j * 12) * open; const py = 4 + j * 4;
-      const on = li < lights;
-      if (on) glow(ctx, px, py, 9, 'rgba(95,244,255,.9)', 0.9);
-      ctx.fillStyle = on ? '#e9ffff' : '#3b2a14'; ctx.beginPath(); ctx.arc(px, py, 2.6, 0, TAU); ctx.fill();
-    });
     ctx.restore();
   };
-  wingFn(-1);
-  // 胴体
-  ctx.fillStyle = metal(ctx, 0, -12, 0, 14, [C.goldL, C.gold, C.bronze, '#4a2a0c']);
-  ctx.beginPath(); ctx.moveTo(32, 0); ctx.bezierCurveTo(24, -14, -10, -14, -30, -4); ctx.lineTo(-30, 5); ctx.bezierCurveTo(-10, 15, 24, 13, 32, 0); ctx.fill();
-  ctx.strokeStyle = C.ink; ctx.lineWidth = 2; ctx.stroke();
-  // 胸の装甲板の線
-  ctx.strokeStyle = 'rgba(60,30,6,.7)'; ctx.lineWidth = 1.2;
-  for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(-4 - i * 9, 0, 11, -1.1, 1.1); ctx.stroke(); }
-  rivets(ctx, [-18, -7, -18, 7, 2, -9, 2, 9], 1.3);
-  // 頭・くちばし・とさか
-  ctx.fillStyle = metal(ctx, 18, -10, 18, 10, [C.goldL, C.gold, C.goldD]);
-  ctx.beginPath(); ctx.ellipse(26, -2, 12, 9, 0, 0, TAU); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#fff1c4'; poly(ctx, [35, -5, 54, 0, 35, 4]); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = C.red; poly(ctx, [20, -10, 14, -22, 26, -12, 24, -24, 31, -11]); ctx.fill(); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.4; ctx.stroke();
-  glow(ctx, 29, -4, 8, 'rgba(95,244,255,.9)'); ctx.fillStyle = '#eaffff'; ctx.beginPath(); ctx.arc(29, -4, 2.4, 0, TAU); ctx.fill();
-  wingFn(1);
+  // 推進の光（足元と背中）
+  const jet = absorbing ? 'rgba(95,244,255,.7)' : 'rgba(255,190,90,.85)';
+  glow(ctx, -44, 4, 16, jet, 0.9); glow(ctx, -8, -12, 14, jet, 0.7);
+  wingFn(-1, true);
+  // 長い髪と襟巻き（後ろへたなびく）
+  ctx.fillStyle = R.hair[1];
+  ctx.beginPath(); ctx.moveTo(22, -16); ctx.bezierCurveTo(8, -18 + wave(0.2), -6, -12 + wave(0.9), who === 'sena' ? -26 : -6, -10 + wave(1.6)); ctx.bezierCurveTo(-4, -6 + wave(1), 8, -6, 18, -4); ctx.fill();
+  ctx.strokeStyle = R.scarf; ctx.lineCap = 'round'; ctx.lineWidth = 4.5;
+  ctx.beginPath(); ctx.moveTo(15, -4); ctx.bezierCurveTo(0, -2 + wave(0), -20, -6 + wave(1), -46, -2 + wave(2.2)); ctx.stroke();
+  ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(14, -3); ctx.bezierCurveTo(-2, 2 + wave(0.6), -18, 2 + wave(1.6), -38, 6 + wave(2.6)); ctx.stroke();
+  // 脚（後ろへ伸ばし、片膝を少し曲げる）と長靴
+  const kick = Math.sin(t * 5) * 1.5;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = R.coat[1]; ctx.lineWidth = 6.5;
+  ctx.beginPath(); ctx.moveTo(-12, 3); ctx.lineTo(-26, 9 + kick); ctx.lineTo(-38, 8 + kick); ctx.stroke();
+  ctx.strokeStyle = R.coat[0]; ctx.beginPath(); ctx.moveTo(-12, 1); ctx.lineTo(-28, 3); ctx.lineTo(-41, 1 - kick * 0.5); ctx.stroke();
+  for (const [bx, by] of [[-40, 8 + kick], [-43, 1 - kick * 0.5]]) {
+    ctx.fillStyle = metal(ctx, bx, by - 4, bx, by + 4, ['#6a4020', '#2a1608']);
+    poly(ctx, [bx + 5, by - 3, bx - 5, by - 3.5, bx - 7, by + 2.5, bx + 4, by + 3]); ctx.fill();
+    ctx.strokeStyle = R.trim; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bx + 4, by - 3); ctx.lineTo(bx + 4, by + 3); ctx.stroke();
+  }
+  // 胴（飛行服の上着。金の縁取り）
+  ctx.fillStyle = metal(ctx, 0, -9, 0, 7, [R.coat[0], R.coat[1]]);
+  ctx.beginPath(); ctx.moveTo(17, -6); ctx.quadraticCurveTo(4, -11, -13, -3); ctx.quadraticCurveTo(-15, 4, -10, 5); ctx.quadraticCurveTo(4, 6, 16, 2); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = C.ink; ctx.lineWidth = 1.6; ctx.stroke();
+  ctx.strokeStyle = R.trim; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(15, 1); ctx.quadraticCurveTo(2, 4, -10, 3); ctx.stroke();
+  // 背中の雷鳥機関（翼の付け根。雷が溜まると光る）
+  ctx.fillStyle = metal(ctx, -6, -16, -6, -4, [C.goldL, C.gold, C.goldD]);
+  ctx.beginPath(); ctx.ellipse(-3, -10, 10, 5.5, -0.15, 0, TAU); ctx.fill(); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.4; ctx.stroke();
+  const core = Math.min(1, lights / 5);
+  glow(ctx, -3, -10, 8 + core * 9, `rgba(95,244,255,${0.3 + core * 0.65})`);
+  ctx.fillStyle = core > 0 ? '#eaffff' : '#5a3a14'; ctx.beginPath(); ctx.arc(-3, -10, 2.6, 0, TAU); ctx.fill();
+  // 頭（横顔：前を見る。ゴーグルを額に）
+  ctx.fillStyle = R.skin; ctx.beginPath(); ctx.ellipse(23, -10, 7, 7.5, 0.25, 0, TAU); ctx.fill();
+  ctx.strokeStyle = C.ink; ctx.lineWidth = 1.3; ctx.stroke();
+  ctx.fillStyle = metal(ctx, 16, -20, 26, -8, [R.hair[0], R.hair[1]]);
+  ctx.beginPath(); ctx.moveTo(29, -14); ctx.quadraticCurveTo(24, -21, 15, -17); ctx.quadraticCurveTo(13, -10, 17, -5); ctx.quadraticCurveTo(19, -11, 23, -12); ctx.quadraticCurveTo(26, -14, 29, -14); ctx.fill();
+  ctx.fillStyle = '#4a2c12'; ctx.fillRect(18, -17.5, 9, 2.4);
+  ctx.fillStyle = R.edge; ctx.beginPath(); ctx.arc(26, -16.5, 2.6, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#2a1408'; ctx.beginPath(); ctx.ellipse(26.6, -10.4, 1.1, 1.6, 0, 0, TAU); ctx.fill();
+  // 腕（前へ伸ばす。手甲が光る＝ここから撃つ）
+  ctx.strokeStyle = R.coat[0]; ctx.lineWidth = 4.5; ctx.beginPath(); ctx.moveTo(12, -3); ctx.quadraticCurveTo(22, 0, 32, -1); ctx.stroke();
+  ctx.fillStyle = metal(ctx, 30, -4, 36, 3, [C.goldL, C.gold, C.goldD]); ctx.beginPath(); ctx.ellipse(34, -1, 4.2, 3.2, 0, 0, TAU); ctx.fill();
+  glow(ctx, 39, -1, 9, absorbing ? 'rgba(95,244,255,.85)' : 'rgba(255,230,160,.75)');
+  wingFn(1, false);
+  if (hurt) { for (let i = 0; i < 4; i++) { ctx.fillStyle = 'rgba(255,220,120,.9)'; ctx.beginPath(); ctx.arc(-6 + Math.sin(t * 30 + i) * 22, Math.cos(t * 23 + i * 2) * 18, 1.6, 0, TAU); ctx.fill(); } }
   ctx.restore();
   ctx.globalAlpha = 1;
 }
@@ -557,74 +582,101 @@ export function drawAbsorb(ctx, x, y, r, t) {
   ctx.restore();
 }
 
-// ---------- 会話ウィンドウの顔（120×120） ----------
-// who: 'sena'（主人公。金の飛行帽にゴーグル、赤い襟巻き）/ 'rio'（恋人で僚機。銀青の飛行帽）/ 'boss'（天の主機の仮面）
+// ---------- 会話ウィンドウの顔（160×160 の胸像） ----------
+// who: 'sena'（主人公。赤茶の長い髪、金の瞳、額にゴーグル、赤い襟巻き、背に金の翼）
+//      'rio'（恋人で僚機。銀髪、青い瞳、白い飛行服、背に銀青の翼）/ 'boss'（天の主機の仮面）
 export function drawFace(ctx, who, o = {}) {
   const { shout = false, comm = false, t = 0 } = o;
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, 120, 120);
-  const bg = ctx.createLinearGradient(0, 0, 0, 120);
-  if (who === 'boss') { bg.addColorStop(0, '#2a0404'); bg.addColorStop(1, '#0a0000'); }
-  else if (who === 'rio') { bg.addColorStop(0, '#12405a'); bg.addColorStop(1, '#061824'); }
-  else { bg.addColorStop(0, '#6a3a12'); bg.addColorStop(1, '#1c0e04'); }
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, 120, 120);
+  const S = ctx.canvas.width / 160;
+  ctx.setTransform(S, 0, 0, S, 0, 0); ctx.clearRect(0, 0, 160, 160);
+  const bg = ctx.createRadialGradient(80, 60, 10, 80, 80, 120);
+  if (who === 'boss') { bg.addColorStop(0, '#4a0808'); bg.addColorStop(1, '#0a0000'); }
+  else if (who === 'rio') { bg.addColorStop(0, '#2a6a8a'); bg.addColorStop(1, '#061824'); }
+  else { bg.addColorStop(0, '#a85a1a'); bg.addColorStop(1, '#2a1004'); }
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, 160, 160);
   if (who === 'boss') {
-    // 仮面：銅板、鋲、通気口、ひとつ目
-    ctx.fillStyle = metal(ctx, 20, 10, 100, 110, ['#8a5a28', '#4a2a10', '#1a0a04']);
-    ctx.beginPath(); ctx.moveTo(60, 8); ctx.lineTo(104, 30); ctx.lineTo(98, 92); ctx.lineTo(60, 114); ctx.lineTo(22, 92); ctx.lineTo(16, 30); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = '#0a0402'; ctx.lineWidth = 3; ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,200,140,.35)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(60, 12); ctx.lineTo(60, 44); ctx.stroke();
-    for (const [x, y] of [[30, 34], [90, 34], [28, 84], [92, 84], [60, 104]]) { ctx.fillStyle = '#e8b060'; ctx.beginPath(); ctx.arc(x, y, 2.6, 0, Math.PI * 2); ctx.fill(); }
-    for (let i = 0; i < 4; i++) { ctx.fillStyle = '#0a0402'; ctx.fillRect(42, 78 + i * 6, 36, 3); }
+    ctx.fillStyle = metal(ctx, 20, 10, 140, 150, ['#9a6a30', '#4a2a10', '#1a0a04']);
+    poly(ctx, [80, 8, 140, 38, 132, 122, 80, 152, 28, 122, 20, 38]); ctx.fill();
+    ctx.strokeStyle = '#0a0402'; ctx.lineWidth = 4; ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,200,140,.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(80, 14); ctx.lineTo(80, 52); ctx.moveTo(40, 44); ctx.lineTo(62, 60); ctx.moveTo(120, 44); ctx.lineTo(98, 60); ctx.stroke();
+    for (const [x, y] of [[38, 44], [122, 44], [36, 112], [124, 112], [80, 140]]) { ctx.fillStyle = '#e8b060'; ctx.beginPath(); ctx.arc(x, y, 3.4, 0, TAU); ctx.fill(); }
+    for (let i = 0; i < 4; i++) { ctx.fillStyle = '#0a0402'; ctx.fillRect(54, 104 + i * 8, 52, 4); }
     const pulse = 0.75 + Math.sin(t * 6) * 0.25;
-    const g = ctx.createRadialGradient(60, 54, 2, 60, 54, 30); g.addColorStop(0, `rgba(255,240,200,${pulse})`); g.addColorStop(0.3, `rgba(255,60,30,${pulse})`); g.addColorStop(1, 'rgba(255,0,0,0)');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(60, 54, 30, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#ff3a20'; ctx.beginPath(); ctx.ellipse(60, 54, 14, 9, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fff4d0'; ctx.beginPath(); ctx.ellipse(60, 54, 4, 7, 0, 0, Math.PI * 2); ctx.fill();
+    const g = ctx.createRadialGradient(80, 72, 2, 80, 72, 42); g.addColorStop(0, `rgba(255,240,200,${pulse})`); g.addColorStop(0.3, `rgba(255,60,30,${pulse})`); g.addColorStop(1, 'rgba(255,0,0,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(80, 72, 42, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#ff3a20'; ctx.beginPath(); ctx.ellipse(80, 72, 19, 12, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#fff4d0'; ctx.beginPath(); ctx.ellipse(80, 72, 5, 10, 0, 0, TAU); ctx.fill();
     return;
   }
-  const isRio = who === 'rio';
-  const skin = '#f2cfa6'; const hair = isRio ? '#1c2230' : '#6a2c14';
-  // 首と襟
-  ctx.fillStyle = isRio ? '#1d3a5a' : '#3a2410'; ctx.beginPath(); ctx.moveTo(14, 120); ctx.quadraticCurveTo(60, 88, 106, 120); ctx.fill();
-  ctx.fillStyle = skin; ctx.fillRect(50, 84, 20, 16);
-  if (!isRio) { ctx.fillStyle = '#d8322a'; ctx.beginPath(); ctx.moveTo(30, 104); ctx.quadraticCurveTo(60, 92, 92, 104); ctx.lineTo(96, 114); ctx.quadraticCurveTo(60, 104, 26, 116); ctx.fill(); ctx.beginPath(); ctx.moveTo(84, 106); ctx.lineTo(104, 96); ctx.lineTo(100, 112); ctx.fill(); }
+  const rio = who === 'rio';
+  const hairA = rio ? '#f4f8ff' : '#f08a4a'; const hairB = rio ? '#8a98b4' : '#8a2a12';
+  const eyeA = rio ? '#9fe0ff' : '#ffd36a'; const eyeB = rio ? '#1e5a9a' : '#a4500e';
+  const skin = '#f7d9bc'; const skinD = '#e0b090';
+  const hairG = () => { const g = ctx.createLinearGradient(0, 20, 0, 140); g.addColorStop(0, hairA); g.addColorStop(1, hairB); return g; };
+  // 背の翼（肩の後ろに羽板）
+  for (const sg of [-1, 1]) for (let k = 0; k < 4; k++) {
+    ctx.save(); ctx.translate(80 + sg * 34, 128); ctx.rotate(sg * (0.5 + k * 0.28) - Math.PI / 2);
+    ctx.fillStyle = metal(ctx, 0, -6, 60, 6, rio ? ['#f4fbff', '#9cc0d8', '#3e5a70'] : [C.goldL, C.gold, C.goldD]);
+    poly(ctx, [0, -5, 46 - k * 4, -7, 62 - k * 5, 0, 44 - k * 4, 6, 0, 5]); ctx.fill(); ctx.strokeStyle = 'rgba(20,10,4,.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.restore();
+  }
   // 後ろ髪
-  ctx.fillStyle = hair; ctx.beginPath(); ctx.ellipse(60, isRio ? 54 : 62, isRio ? 30 : 34, isRio ? 32 : 38, 0, 0, Math.PI * 2); ctx.fill();
-  // 顔
-  ctx.fillStyle = skin; ctx.beginPath(); ctx.moveTo(34, 50); ctx.quadraticCurveTo(34, 88, 60, 92); ctx.quadraticCurveTo(86, 88, 86, 50); ctx.quadraticCurveTo(60, 40, 34, 50); ctx.fill();
-  // 前髪
-  ctx.fillStyle = hair; ctx.beginPath(); ctx.moveTo(30, 52); ctx.quadraticCurveTo(40, 30, 60, 34); ctx.quadraticCurveTo(84, 30, 90, 54);
-  if (isRio) { ctx.lineTo(80, 46); ctx.lineTo(72, 56); ctx.lineTo(64, 44); ctx.lineTo(52, 54); ctx.lineTo(44, 44); ctx.lineTo(36, 58); }
-  else { ctx.lineTo(82, 50); ctx.lineTo(76, 60); ctx.lineTo(68, 48); ctx.lineTo(58, 58); ctx.lineTo(50, 46); ctx.lineTo(40, 60); ctx.lineTo(34, 70); }
+  ctx.fillStyle = hairG();
+  ctx.beginPath();
+  if (rio) { ctx.moveTo(44, 70); ctx.quadraticCurveTo(40, 22, 80, 18); ctx.quadraticCurveTo(122, 22, 116, 72); ctx.lineTo(112, 100); ctx.lineTo(48, 100); }
+  else { ctx.moveTo(40, 70); ctx.quadraticCurveTo(36, 18, 80, 16); ctx.quadraticCurveTo(126, 18, 120, 70); ctx.quadraticCurveTo(128, 118, 134, 146); ctx.lineTo(26, 146); ctx.quadraticCurveTo(32, 118, 40, 70); }
+  ctx.fill();
+  // 体（飛行服・襟・金具）
+  ctx.fillStyle = rio ? metal(ctx, 0, 120, 0, 160, ['#f0f4fa', '#9aa8c0']) : metal(ctx, 0, 120, 0, 160, ['#4a3670', '#1d1430']);
+  ctx.beginPath(); ctx.moveTo(20, 160); ctx.quadraticCurveTo(28, 124, 62, 118); ctx.lineTo(98, 118); ctx.quadraticCurveTo(132, 124, 140, 160); ctx.fill();
+  ctx.strokeStyle = rio ? '#6ad0ff' : C.gold; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(62, 122); ctx.lineTo(80, 160); ctx.moveTo(98, 122); ctx.lineTo(80, 160); ctx.stroke();
+  ctx.fillStyle = metal(ctx, 70, 136, 90, 152, [C.goldL, C.gold, C.goldD]); ctx.beginPath(); ctx.arc(80, 146, 6, 0, TAU); ctx.fill();
+  glow(ctx, 80, 146, 10, 'rgba(95,244,255,.8)');
+  // 首
+  ctx.fillStyle = skinD; ctx.fillRect(70, 100, 20, 22);
+  // 襟巻き
+  ctx.fillStyle = rio ? '#2a8ad8' : '#e0302a';
+  ctx.beginPath(); ctx.moveTo(56, 116); ctx.quadraticCurveTo(80, 128, 104, 116); ctx.lineTo(108, 128); ctx.quadraticCurveTo(80, 140, 52, 128); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(100, 124); ctx.quadraticCurveTo(126, 128, 146, 112 + Math.sin(t * 4) * 4); ctx.lineTo(142, 126); ctx.quadraticCurveTo(124, 138, 102, 132); ctx.fill();
+  // 顔（細めのあご）
+  ctx.fillStyle = skin;
+  ctx.beginPath(); ctx.moveTo(52, 62); ctx.quadraticCurveTo(52, 92, 66, 104); ctx.quadraticCurveTo(80, 114, 94, 104); ctx.quadraticCurveTo(108, 92, 108, 62); ctx.quadraticCurveTo(80, 44, 52, 62); ctx.fill();
+  ctx.fillStyle = 'rgba(224,150,120,.25)'; ctx.beginPath(); ctx.ellipse(62, 88, 7, 4, 0, 0, TAU); ctx.ellipse(98, 88, 7, 4, 0, 0, TAU); ctx.fill();
+  // 目（大きめ。上まぶたの線、虹彩のグラデーション、光）
+  for (const [ex, sg] of [[66, -1], [94, 1]]) {
+    const eh = shout ? 8 : rio ? 8 : 10;
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(ex, 78, 8, eh, 0, 0, TAU); ctx.fill();
+    const ig = ctx.createLinearGradient(0, 70, 0, 88); ig.addColorStop(0, eyeB); ig.addColorStop(1, eyeA);
+    ctx.fillStyle = ig; ctx.beginPath(); ctx.ellipse(ex + sg * 0.5, 79, 5.6, shout ? 6.5 : 8, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#1a0a04'; ctx.beginPath(); ctx.ellipse(ex + sg * 0.5, 79, 2.4, 3.6, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex - 2, 75, 2.2, 0, TAU); ctx.arc(ex + 2, 83, 1, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#2a1408'; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.ellipse(ex, 78, 8.5, eh, 0, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
+    ctx.lineWidth = 2; ctx.beginPath();
+    if (shout) { ctx.moveTo(ex - 9, 63 - sg * 1); ctx.lineTo(ex + 8, 66 + sg * 1); } else { ctx.moveTo(ex - 8, 65); ctx.quadraticCurveTo(ex, 61, ex + 8, 64); }
+    ctx.strokeStyle = hairB; ctx.stroke();
+  }
+  // 鼻と口
+  ctx.strokeStyle = skinD; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(81, 88); ctx.lineTo(79, 93); ctx.stroke();
+  if (shout) { ctx.fillStyle = '#7a2018'; ctx.beginPath(); ctx.ellipse(80, 101, 6, 5, 0, 0, TAU); ctx.fill(); }
+  else { ctx.strokeStyle = '#a04838'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(75, 100); ctx.quadraticCurveTo(80, rio ? 101 : 103, 85, 100); ctx.stroke(); }
+  if (shout && !rio) { ctx.fillStyle = 'rgba(170,230,255,.9)'; ctx.beginPath(); ctx.ellipse(58, 90, 2.4, 5, 0, 0, TAU); ctx.fill(); }
+  // 前髪（束で描く）
+  ctx.fillStyle = hairG();
+  ctx.beginPath(); ctx.moveTo(46, 74); ctx.quadraticCurveTo(44, 34, 80, 30); ctx.quadraticCurveTo(118, 34, 114, 74);
+  const tips = rio ? [[108, 62], [100, 70], [94, 56], [86, 68], [78, 54], [70, 66], [62, 54], [54, 68], [50, 60]] : [[110, 66], [104, 58], [98, 72], [90, 56], [82, 70], [72, 54], [64, 68], [58, 56], [52, 76], [48, 92]];
+  for (const [x, y] of tips) ctx.lineTo(x, y);
   ctx.closePath(); ctx.fill();
-  // 飛行帽とゴーグル
-  ctx.fillStyle = isRio ? metal(ctx, 24, 10, 96, 40, ['#e8f4ff', '#8ab0c8', '#3a5468']) : metal(ctx, 24, 10, 96, 40, [C.goldL, C.gold, C.goldD]);
-  ctx.beginPath(); ctx.moveTo(26, 44); ctx.quadraticCurveTo(28, 10, 60, 10); ctx.quadraticCurveTo(92, 10, 94, 44); ctx.quadraticCurveTo(60, 30, 26, 44); ctx.fill();
-  ctx.strokeStyle = '#1a0e06'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = '#3a2410'; ctx.fillRect(28, 30, 64, 6);
-  for (const gx of [46, 74]) {
-    ctx.fillStyle = '#5a3a18'; ctx.beginPath(); ctx.arc(gx, 30, 10, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = isRio ? '#9fe8ff' : '#7fe0d0'; ctx.beginPath(); ctx.arc(gx, 30, 7, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.arc(gx - 2, 27, 2.4, 0, Math.PI * 2); ctx.fill();
+  if (!rio) { ctx.beginPath(); ctx.moveTo(108, 66); ctx.quadraticCurveTo(116, 90, 112, 112); ctx.quadraticCurveTo(106, 92, 104, 70); ctx.fill(); }
+  ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(60, 40); ctx.quadraticCurveTo(80, 34, 98, 42); ctx.stroke();
+  // ゴーグル（額の上）
+  ctx.fillStyle = '#4a2c12'; ctx.fillRect(44, 42, 72, 7);
+  for (const gx of [64, 96]) {
+    ctx.fillStyle = metal(ctx, gx - 12, 34, gx + 12, 58, [C.goldL, C.gold, C.goldD]); ctx.beginPath(); ctx.arc(gx, 45, 12, 0, TAU); ctx.fill();
+    ctx.fillStyle = rio ? '#9fe8ff' : '#7fe0d0'; ctx.beginPath(); ctx.arc(gx, 45, 8.5, 0, TAU); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.beginPath(); ctx.arc(gx - 3, 42, 3, 0, TAU); ctx.fill();
   }
-  // 目
-  for (const [ex, sg] of [[49, -1], [71, 1]]) {
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(ex, 66, 6, shout ? 6 : 5, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = isRio ? '#2a5a8a' : '#7a3a10'; ctx.beginPath(); ctx.ellipse(ex, 66.5, 3.8, shout ? 4 : 4.4, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex - 1.2, 64.5, 1.3, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#2a1408'; ctx.lineWidth = 2.2; ctx.beginPath();
-    if (shout) { ctx.moveTo(ex - 7, 57 + sg * -1); ctx.lineTo(ex + 7, 59 - sg * -1); } else { ctx.moveTo(ex - 7, 58); ctx.lineTo(ex + 7, 57 + (isRio ? 0 : 1)); }
-    ctx.stroke();
-  }
-  // 口
-  ctx.strokeStyle = '#7a3020'; ctx.lineWidth = 2; ctx.beginPath();
-  if (shout) { ctx.fillStyle = '#5a1810'; ctx.ellipse(60, 80, 6, 5, 0, 0, Math.PI * 2); ctx.fill(); }
-  else { ctx.moveTo(55, 79); ctx.quadraticCurveTo(60, isRio ? 82 : 81, 65, 79); ctx.stroke(); }
-  if (shout && !isRio) { ctx.fillStyle = 'rgba(160,220,255,.9)'; ctx.beginPath(); ctx.ellipse(42, 74, 2, 4, 0, 0, Math.PI * 2); ctx.fill(); }
-  ctx.fillStyle = 'rgba(255,120,110,.25)'; ctx.beginPath(); ctx.ellipse(42, 74, 5, 3, 0, 0, Math.PI * 2); ctx.ellipse(78, 74, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
   if (comm) {
-    // 通信の走査線と乱れ
-    ctx.fillStyle = 'rgba(0,30,40,.35)'; for (let y = 0; y < 120; y += 4) ctx.fillRect(0, y, 120, 2);
-    const ny = (t * 70) % 140 - 10; ctx.fillStyle = 'rgba(180,240,255,.18)'; ctx.fillRect(0, ny, 120, 8);
+    ctx.fillStyle = 'rgba(0,30,40,.35)'; for (let y = 0; y < 160; y += 4) ctx.fillRect(0, y, 160, 2);
+    const ny = (t * 90) % 180 - 10; ctx.fillStyle = 'rgba(180,240,255,.2)'; ctx.fillRect(0, ny, 160, 10);
   }
 }

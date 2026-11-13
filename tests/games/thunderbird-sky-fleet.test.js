@@ -329,28 +329,48 @@ test('クリア可能性：自動操縦で全6海域（3波＋ボス）を最後
   assert.equal(s.phase, 'clear');
 });
 
-test('序章：警報→主機の登場→リオが盾になってさらわれる。主機は倒せず、自機は落ちない。終わると第一海域の本編へ', () => {
+// 序章を人のように遊ぶ：動く → 撃つ → 青を吸う → 主機の正面で離す
+function proBot(s) {
+  const pr = s.pro; if (!pr) return {};
+  const p = s.player; const b = s.boss;
+  switch (pr.stage) {
+    case 'tut0': return { my: Math.sin(s.t * 3) > 0 ? 1 : -1 };
+    case 'tut1': return { fire: true };
+    case 'tut2': return { absorb: true, my: b ? Math.sign(b.y - p.y) * 0.3 : 0 };
+    case 'tut3': return { absorb: !b || Math.abs(b.y - p.y) > 30 };
+    default: return {};
+  }
+}
+test('序章：主機が現れ、その戦いの中でリオが操作を教える。雷槍で装甲を割った後にリオがさらわれ、本編へ', () => {
   const s = L.createState({ sea: 0, prologue: true, seed: 3 });
   assert.equal(s.phase, 'prologue');
-  const seen = new Set(); const who = new Set(); let shielded = false;
-  for (let i = 0; i < 60 * (L.PROLOGUE_END - 0.5); i++) {
-    L.step(s, { x: 0, y: 0, fire: i % 2 === 0, absorb: false }, L.DT);
+  const seen = new Set(); const who = new Set(); const stages = []; let shielded = false; let keys = [];
+  for (let i = 0; i < 60 * 90 && s.phase === 'prologue'; i++) {
+    L.step(s, proBot(s), L.DT);
     for (const e of s.events) {
-      seen.add(e.type); if (e.type === 'say') who.add(e.who);
+      seen.add(e.type); if (e.type === 'say') { who.add(e.who); if (e.keys) keys.push(e.keys); }
+      if (e.type === 'proStage') stages.push(e.stage);
       if (e.type === 'allyDown') shielded = e.x > s.player.x && Math.abs(e.y - s.player.y) < 30; // リオはセナと主機の間で光線を受ける
     }
     s.events.length = 0;
-    assert.equal(s.player.hp, L.P.hpMax, '序章では被弾しても体力は減らない');
+    if (s.phase === 'prologue') assert.equal(s.player.hp, L.P.hpMax, '序章では被弾しても体力は減らない');
     if (s.boss) assert.ok(s.boss.hp > 900, '主機は倒せない');
   }
-  assert.ok(seen.has('proAlarm') && seen.has('proBoss') && seen.has('proBeam') && seen.has('allyDown'), '警報・主機の登場・光線・リオの捕獲が起きる');
+  assert.notEqual(s.phase, 'prologue', '序章は終わる');
+  const order = ['alarm', 'boss', 'tut0', 'tut1', 'tut2', 'tut3', 'crack', 'beam', 'hit', 'speech', 'leave'];
+  assert.deepEqual(stages.filter((x, i) => stages.indexOf(x) === i), order, '警報→登場→操作（動く・撃つ・吸う・雷槍）→装甲が割れる→光線→さらわれる、の順');
+  assert.deepEqual([...new Set(keys)], ['move', 'fire', 'absorb', 'lance'], 'リオが操作を一つずつ教える');
+  assert.ok(seen.has('proCrack'), '雷槍で主機の装甲が割れる');
+  assert.ok(stages.indexOf('hit') > stages.indexOf('tut3'), 'リオがさらわれるのはチュートリアルの後');
   assert.ok(shielded, 'リオがセナをかばう位置で撃たれる');
-  assert.deepEqual([...who].sort(), ['boss', 'rio', 'sena'], '3人とも会話する');
-  for (let i = 0; i < 60; i++) { L.step(s, {}, L.DT); }
+  assert.deepEqual([...who].sort(), ['boss', 'rio', 'sena'], '3人とも話す');
   assert.equal(s.boss, null); assert.equal(s.pro, null);
-  assert.ok(s.phase === 'intro' || s.phase === 'wave', '本編へ進む');
+  for (let i = 0; i < 60 * 3; i++) L.step(s, {}, L.DT);
+  assert.equal(s.phase, 'wave'); assert.equal(s.tut, null, '序章で教えたので、第一波のチュートリアルは繰り返さない');
   const t = L.createState({ sea: 0, prologue: true }); L.endPrologue(t);
   assert.equal(t.phase, 'intro', 'とばすとすぐ本編');
+  for (let i = 0; i < 60 * 3; i++) L.step(t, {}, L.DT);
+  assert.ok(t.tut, 'とばした場合は第一波でチュートリアルを行う');
   assert.equal(L.createState({ sea: 1, prologue: true }).phase, 'intro', '序章は第一海域だけ');
-  assert.ok(TUTORIAL_LINES.every((x) => x.rio && x.key), 'チュートリアルはリオの通信で、操作の絵がある');
+  assert.ok(TUTORIAL_LINES.every((x) => x.rio && x.key), 'とばした場合のチュートリアルもリオの通信で、操作の絵がある');
 });

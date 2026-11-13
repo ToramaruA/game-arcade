@@ -39,13 +39,13 @@ export function createState(run = {}) {
     nextId: 1, score: 0, hint: '', hintT: 0,
     tut: null,
     stats: { hits: 0, kills: 0, lanceMax: 0, lances: 0, absorbed: 0, killsByType: {} },
-    result: null, deadAtBoss: false,
+    result: null, deadAtBoss: false, tutDone: !!run.tutDone,
   };
   if (s.fromBoss) { s.phase = 'waveGap'; s.waveIdx = 3; s.phaseT = 0; }
   else if (run.prologue && sea === 0) {
     // 序章：いきなり天の主機が現れ、僚機のリオがさらわれる（倒せない）
     s.phase = 'prologue';
-    s.pro = { t: 0, beat: 0, ally: { x: 230, y: H / 2 - 80, captured: false, gone: false } };
+    s.pro = { t: 0, st: 0, beat: 0, stage: 'calm', fireT: 0, clinks: 0, lanceHit: false, ally: { x: 230, y: H / 2 - 80, captured: false, gone: false } };
   }
   return s;
 }
@@ -257,7 +257,14 @@ function updateBoss(s, dt) {
     if (b.x <= d.hx) { b.x = d.hx; b.ph = 'warn'; b.pt = 0; b.t = 0; }
     return;
   }
-  if (b.showcase && s.pro && s.pro.beam) { b.y += (H / 2 - b.y) * Math.min(1, dt * 3); return; } // 光線を溜めている間は止まる
+  if (b.showcase) {
+    // 序章の主機は自分では攻撃しない（弾は序章の進行が撃つ）。雷槍を教える間はセナの正面へ寄ってくる
+    const st = s.pro && s.pro.stage;
+    const ty = st === 'tut3' ? s.player.y : s.pro && s.pro.beam ? H / 2 : H / 2 + Math.sin(b.t * 0.6 * Math.PI) * 40;
+    b.y += (ty - b.y) * Math.min(1, dt * (st === 'tut3' ? 2.5 : 1.5));
+    if (!b.armored) { b.openT -= dt; if (b.openT <= 0) b.armored = true; }
+    return;
+  }
   b.y = H / 2 + Math.sin(b.t * d.freq * Math.PI) * d.amp;
   const atk = d.attacks[b.ai];
   // 翼（主機）の開閉：赤弾の抜け道が動くのが見えるように
@@ -296,7 +303,10 @@ function updateBoss(s, dt) {
 // ボスに当たったときのダメージ処理。装甲中は通常弾が効かない。雷槍は装甲を割る
 function hitBoss(s, dmg, kind, x, y) {
   const b = s.boss; if (!b || b.hp <= 0 || b.ph === 'enter') return false;
-  if (b.showcase) { b.flash = 0.04; ev(s, 'clink', { x, y }); return true; }
+  if (b.showcase) {
+    if (kind === 'lance' && s.pro && s.pro.stage === 'tut3') { s.pro.lanceHit = true; b.armored = false; b.openT = 3; b.flash = 0.5; ev(s, 'proCrack', { x, y }); return true; }
+    b.flash = 0.04; ev(s, 'clink', { x, y }); if (s.pro) s.pro.clinks = (s.pro.clinks || 0) + 1; return true;
+  }
   if (kind === 'lance') {
     b.hp = Math.max(0, b.hp - dmg); b.armored = false; b.openT = P.bossOpen; b.flash = 0.25;
     ev(s, 'bossHit', { x, y, dmg, lance: true });
@@ -410,47 +420,86 @@ function updateTutorial(s, dt) {
   if (tu.step >= 2 && !s.enemies.some((e) => e.armor)) { s.tut = null; s.waveT = 0; s.spawnIdx = 0; setHint(s, '見事！ 赤い三角の弾は、次の波から来る', 3.5); ev(s, 'say', { who: 'rio', text: '見事だ、セナ。次は赤い三角が来る──吸えない、避けろ。……待ってる', dur: 4 }); }
 }
 
-// 序章の進行（約17秒。とばせる）：
-// 0秒 リオと並んで飛ぶ → 3.8秒 警報・雲の下に巨大な影 → 6秒 天の主機が現れ撃ってくる（倒せない）
-// → 10.4秒 主機がセナを狙う光線 → 11.4秒 リオが盾になって撃たれ、さらわれる → 13秒 主機の宣告 → 15.6秒 去る → 17秒 本編へ
-export const PROLOGUE_END = 17;
-export const PRO = { alarm: 3.8, boss: 6, beam: 10.4, hit: 11.4, speech: 13, leave: 15.6 };
-function say(s, who, text, dur) { ev(s, 'say', { who, text, dur }); }
+// 序章：天の主機がいきなり現れ、その戦いの中でリオが操作を教える。雷槍で装甲を割った直後、
+// 主機の光線からセナをかばってリオがさらわれる。段階（stage）ごとに進む。とばせる。
+//  calm（並んで飛ぶ）→ alarm（警報・巨大な影）→ boss（登場）→ tut0 動く → tut1 撃つ（効かない）
+//  → tut2 青を吸う → tut3 雷槍で装甲を割る → crack → beam（リオが割り込む）→ hit（さらわれる）→ speech → leave → 本編
+export const PRO = { alarm: 3.8, boss: 6 };
+export const PROLOGUE_TUT = ['tut0', 'tut1', 'tut2', 'tut3'];
+function say(s, who, text, dur, keys = '') { ev(s, 'say', { who, text, dur, keys }); }
+function proStage(s, st) { s.pro.stage = st; s.pro.st = 0; s.pro.beat = 0; s.pro.fireT = 0; ev(s, 'proStage', { stage: st }); }
 function updatePrologue(s, dt) {
-  const pr = s.pro; const a = pr.ally; const p = s.player;
-  pr.t += dt;
-  if (pr.beat === 0 && pr.t >= 0.9) { pr.beat = 1; say(s, 'rio', 'セナ、後ろは任せた。今夜、大艦隊の港を落とす', 1.8); }
-  if (pr.beat === 1 && pr.t >= 2.7) { pr.beat = 2; say(s, 'sena', 'うん。……終わったら、二人で暮らす約束だよ', 1.2); }
-  if (pr.beat === 2 && pr.t >= PRO.alarm) { pr.beat = 3; ev(s, 'proAlarm', {}); say(s, 'rio', '……待て。下の雲が、赤く光ってる', 2.2); }
-  if (pr.beat === 3 && pr.t >= PRO.boss) {
-    pr.beat = 4;
-    const def = BOSSES[SEAS[5].boss];
-    s.boss = { def, hp: 999, x: W + 220, y: H / 2, t: 0, ph: 'enter', pt: 0, ai: 0, armored: true, openT: 0, fireT: 0, k: 0, addT: 0, flash: 0, wing: 0, showcase: true };
-    ev(s, 'proBoss', { name: def.name });
+  const pr = s.pro; const a = pr.ally; const p = s.player; const b = s.boss;
+  pr.t += dt; pr.st += dt;
+  const once = (k, at) => { if (pr.beat < k && pr.st >= at) { pr.beat = k; return true; } return false; };
+  // 主機の弾（序章では当たっても体力は減らない）
+  const fan = (n, spread, spd, c) => { if (!b) return; const ang = Math.atan2(p.y - b.y, p.x - (b.x - 90)); for (let i = 0; i < n; i++) addBullet(s, b.x - 90, b.y, ang + (i - (n - 1) / 2) * spread, spd, c); };
+  const ring = (n, spd, c) => { if (!b) return; for (let i = 0; i < n; i++) { const ang = Math.PI * (0.55 + (i / (n - 1)) * 0.9); addBullet(s, b.x - 70, b.y, ang, spd, c); } };
+  switch (pr.stage) {
+    case 'calm':
+      if (once(1, 0.9)) say(s, 'rio', 'セナ、後ろは任せた。今夜、大艦隊の港を落とす', 1.8);
+      if (once(2, 2.7)) say(s, 'sena', 'うん。……終わったら、二人で暮らす約束だよ', 1.2);
+      if (pr.t >= PRO.alarm) { proStage(s, 'alarm'); ev(s, 'proAlarm', {}); say(s, 'rio', '……待て。下の雲が、赤く光ってる', 2); }
+      break;
+    case 'alarm':
+      if (pr.t >= PRO.boss) {
+        proStage(s, 'boss');
+        const def = BOSSES[SEAS[5].boss];
+        s.boss = { def, hp: 999, x: W + 220, y: H / 2, t: 0, ph: 'enter', pt: 0, ai: 0, armored: true, openT: 0, fireT: 0, k: 0, addT: 0, flash: 0, wing: 0, showcase: true };
+        ev(s, 'proBoss', { name: def.name });
+      }
+      break;
+    case 'boss':
+      if (once(1, 0.5)) say(s, 'rio', 'あれは……天の主機！ 大艦隊の心臓だ！', 1.6);
+      if (pr.st >= 3) { proStage(s, 'tut0'); say(s, 'rio', '来るぞ、セナ！ 翼を動かして弾をかわせ！', 0, 'move'); }
+      break;
+    case 'tut0':
+      pr.fireT += dt; if (pr.fireT > 1.5) { pr.fireT = 0; ring(9, 110, 'r'); }
+      if ((pr.st > 1.5 && p.moved > 150) || pr.st > 6) { proStage(s, 'tut1'); s.bullets.length = 0; say(s, 'rio', 'いいぞ！ 撃ち返せ！', 0, 'fire'); }
+      break;
+    case 'tut1':
+      pr.fireT += dt; if (pr.fireT > 2) { pr.fireT = 0; ring(7, 100, 'r'); }
+      if (pr.beat === 0 && ((pr.clinks || 0) >= 10 || pr.st > 6)) { pr.beat = 1; pr.st = 0; say(s, 'sena', '撃っても……効かない！？', 1.3); }
+      if (pr.beat === 1 && pr.st >= 1.4) { proStage(s, 'tut2'); s.bullets.length = 0; say(s, 'rio', '装甲が厚すぎる。あいつの青い弾を吸って、雷に変えろ！', 0, 'absorb'); }
+      break;
+    case 'tut2':
+      pr.fireT += dt; if (pr.fireT > 1.1) { pr.fireT = 0; fan(5, 0.16, 120, 'b'); }
+      if (p.gauge >= P.lanceMin) { proStage(s, 'tut3'); say(s, 'rio', '溜まった！ 正面に並んで、離せ！ 雷槍で装甲を割れ！', 0, 'lance'); }
+      break;
+    case 'tut3':
+      pr.fireT += dt; if (pr.fireT > 1.6) { pr.fireT = 0; fan(3, 0.2, 110, 'b'); }
+      if (pr.lanceHit) { proStage(s, 'crack'); s.bullets.length = 0; say(s, 'rio', '割れた！ 効いてるぞ、セナ！', 1.6); }
+      else if (p.gauge < P.lanceMin && !p.absorbing && pr.st > 0.5) { proStage(s, 'tut2'); say(s, 'rio', '外れた！ もう一度、青を吸え！', 0, 'absorb'); }
+      break;
+    case 'crack':
+      if (once(1, 1.7)) say(s, 'boss', '……小賢しい雷鳥乗りめ', 1.4);
+      if (pr.st >= 3.1) {
+        proStage(s, 'beam'); s.bullets.length = 0;
+        pr.beam = { t: 0, y: p.y };
+        ev(s, 'proBeam', {}); say(s, 'rio', 'セナ、危ない！！', 1);
+      }
+      break;
+    case 'beam':
+      if (pr.st >= 1) { proStage(s, 'hit'); a.captured = true; s.bullets.length = 0; ev(s, 'allyDown', { x: a.x, y: a.y }); say(s, 'sena', 'リオ――！！', 1.5); }
+      break;
+    case 'hit':
+      if (pr.st >= 1.6) { proStage(s, 'speech'); say(s, 'boss', '雷鳥乗りの娘よ。この男は預かる。返してほしくば、六つの海を越えて来い', 2.6); }
+      break;
+    case 'speech':
+      if (pr.st >= 2.6) { proStage(s, 'leave'); if (b) b.ph = 'leave'; say(s, 'sena', '待って……リオ！ ……必ず、取り戻す', 1.6); }
+      break;
+    case 'leave':
+      if (pr.st >= 1.8) { s.tutDone = true; endPrologue(s); }
+      break;
+    default: break;
   }
-  if (pr.beat === 4 && pr.t >= 6.5) { pr.beat = 4.5; say(s, 'rio', 'あれは……天の主機！ 大艦隊の心臓だ！', 1.8); }
-  if (pr.beat === 4.5 && pr.t >= 8.4) { pr.beat = 5; say(s, 'sena', '撃っても……効かない！？', 1.8); }
-  if (pr.beat === 5 && pr.t >= PRO.beam) {
-    // 主機がセナを狙う：光線の予告線。リオが間に割って入る
-    pr.beat = 6; s.bullets.length = 0; s.hazards.length = 0;
-    pr.beam = { t: 0, y: p.y };
-    ev(s, 'proBeam', {}); say(s, 'rio', 'セナ、危ない！！', 1);
-  }
-  if (pr.beat === 6 && pr.t >= PRO.hit) {
-    pr.beat = 7; a.captured = true; s.bullets.length = 0;
-    ev(s, 'allyDown', { x: a.x, y: a.y });
-    say(s, 'sena', 'リオ――！！', 1.6);
-  }
-  if (pr.beat === 7 && pr.t >= PRO.speech) { pr.beat = 8; say(s, 'boss', '雷鳥乗りの娘よ。この男は預かる。返してほしくば、六つの海を越えて来い', 2.6); }
-  if (pr.beat === 8 && pr.t >= PRO.leave) { pr.beat = 9; if (s.boss) s.boss.ph = 'leave'; s.bullets.length = 0; s.hazards.length = 0; say(s, 'sena', '……必ず、取り戻す', 1.4); }
   if (pr.beam) pr.beam.t += dt;
   // 僚機：自機の少し前を飛ぶ。光線の予告中はセナと主機の間に割って入る。さらわれた後は主機へ引き寄せられる
   if (!a.captured) {
     const k = Math.min(1, dt * (pr.beam ? 7 : 3));
-    const tx = pr.beam ? p.x + 110 : p.x + 80; const ty = pr.beam ? pr.beam.y : p.y - 70;
+    const tx = pr.beam ? p.x + 110 : p.x + 60; const ty = pr.beam ? pr.beam.y : p.y + (p.y > H / 2 ? -80 : 80);
     a.x += (tx - a.x) * k; a.y += (ty - a.y) * k;
-  } else if (s.boss) { const tx = s.boss.x - 40, ty = s.boss.y + 70; a.x += (tx - a.x) * Math.min(1, dt * 2.2); a.y += (ty - a.y) * Math.min(1, dt * 2.2); }
-  if (pr.t >= PROLOGUE_END) endPrologue(s);
+  } else if (b) { const tx = b.x - 40, ty = b.y + 70; const k = Math.min(1, dt * (pr.stage === 'leave' ? 8 : 2.2)); a.x += (tx - a.x) * k; a.y += (ty - a.y) * k; }
 }
 export function endPrologue(s) {
   if (s.phase !== 'prologue') return;
@@ -495,7 +544,7 @@ function updateDirector(s, dt) {
 function startWave(s, i) {
   s.phase = 'wave'; s.phaseT = 0; s.waveIdx = i; s.waveT = 0; s.spawnIdx = 0;
   const wave = s.seaDef.waves[i];
-  if (wave.tutorial && !s.practice && s.sea === 0) { s.tut = { step: 0, t: 0 }; setHint(s, TUTORIAL[0].text, 99); }
+  if (wave.tutorial && !s.practice && s.sea === 0 && !s.tutDone) { s.tut = { step: 0, t: 0 }; setHint(s, TUTORIAL[0].text, 99); }
   else if (wave.hint) setHint(s, wave.hint, 5);
   ev(s, 'wave', { idx: i, name: wave.name });
 }
