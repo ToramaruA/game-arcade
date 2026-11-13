@@ -185,7 +185,13 @@ function handleEvents() {
       case 'down': audio.play('down'); toast('ミオは霧に包まれた… 灯から再開', 1600); break;
       case 'respawn': updateHud(); break;
       case 'checkpoint': audio.play('checkpoint'); toast('灯をともした', 900); break;
-      case 'defeat': audio.play('defeat'); burst(ev.x, ev.y, '#e9dcff', 20, 200, 0.8, 3); ring(ev.x, ev.y, '#e9dcff', 40, 0.5); break;
+      case 'defeat':
+        audio.play('defeat');
+        if (ev.how === 'pop') { // 鎧蜂が弾け飛ぶ：鎧の破片と仮面のかけらが散る
+          burst(ev.x, ev.y, '#ffd76a', 26, 320, 0.7, 4); burst(ev.x, ev.y, '#f4efe6', 14, 260, 0.9, 3); burst(ev.x, ev.y, '#8a5a2a', 12, 220, 0.6, 3);
+          ring(ev.x, ev.y, '#ffe9a0', 56, 0.45); shake = reduce ? 0 : Math.max(shake, 0.18);
+        } else { burst(ev.x, ev.y, '#e9dcff', 20, 200, 0.8, 3); ring(ev.x, ev.y, '#e9dcff', 40, 0.5); }
+        break;
       case 'eaten': audio.play('eaten'); toast('糸を食いちぎられた！', 900); burst(px, py - 10, '#ffd76a', 8, 100, 0.5, 2); break;
       case 'nothread': audio.play('nothread'); break;
       case 'lampwarn': if (nearX(ev, 500)) audio.play('lampwarn'); break;
@@ -584,7 +590,7 @@ for (const b of $('noteTabs').querySelectorAll('button')) b.addEventListener('cl
 
 const FOES = [
   { kind: 'moth', name: '影蛾', text: '近づくと「！」のあと突っこむ。縛って J で引けば、鈴やいばらへ投げられる。' },
-  { kind: 'bee', name: '鎧蜂', text: '地をはう重い蜂。身をかがめたら突進の合図。跳んでかわす。' },
+  { kind: 'bee', name: '鎧蜂', text: '地をはう重い蜂。身をかがめたら突進の合図。光の糸を当てれば弾け飛ぶ。' },
   { kind: 'lamp', name: '牙灯', text: '赤い点線のあとに光線。糸で引くと向きが変わる。光線は敵も消す。' },
   { kind: 'serpent', name: '海蛇', text: '浴槽の霧の波紋から跳ねる。縛ると2.6秒、背中が橋になる。' },
   { kind: 'eater', name: '糸喰い', text: '糸の近くに寄ると食いちぎる。しばらく糸が使えない。' },

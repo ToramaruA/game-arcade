@@ -381,6 +381,8 @@ function attach(st) {
       t.ref.target = Math.max(t.ref.xmin, Math.min(t.ref.xmax, pcx(p) - t.ref.w / 2)); th.ship = t.ref; break;
     case 'enemy': {
       const e = t.ref;
+      // 鎧蜂は糸が当たった瞬間に弾け飛ぶ（重くて強い敵だったので、糸1本で倒せる手応えに）
+      if (e.kind === 'bee') { killEnemy(st, e, 'pop'); th.release = 0.15; break; }
       if (e.kind === 'window') { e.state = 'flinch'; e.timer = 0.5; e.cool = WINDOW.flinchCool; e.arm = 0; th.release = 0.2; emit(st, 'flinch'); break; }
       e.bound = e.kind === 'serpent' ? THREAD.serpentBind : THREAD.bind;
       e.drag = null; emit(st, 'bind');
@@ -705,7 +707,7 @@ export function enemyTouches(st, e, p) {
 }
 
 // ───────────────────────── 敵の動き ─────────────────────────
-function killEnemy(st, e) { e.dead = true; e.drag = null; e.bound = 0; emit(st, 'defeat', { x: e.x, y: e.y, kind: e.kind }); }
+function killEnemy(st, e, how = '') { e.dead = true; e.drag = null; e.bound = 0; emit(st, 'defeat', { x: e.x, y: e.y, kind: e.kind, how }); }
 
 function updateEnemies(st, dt) {
   const p = st.player; const px = pcx(p); const py = pcy(p);
