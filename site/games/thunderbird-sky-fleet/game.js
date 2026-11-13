@@ -192,9 +192,8 @@ function text(x, y, s, o = {}) { fx.texts.push({ x, y, s, t: 0, life: o.life || 
 function burst(x, y, n, col, spd = 160, size = 3) { for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2; const v = spd * (0.3 + Math.random()); part(x, y, { vx: Math.cos(a) * v, vy: Math.sin(a) * v, col, size: size * (0.5 + Math.random()), life: 0.4 + Math.random() * 0.5 }); } }
 const doShake = (v) => { if (save.settings.shake) shake = Math.max(shake, v); };
 
-// ---------- 会話ウィンドウ（顔・名前・文字送り） ----------
+// ---------- 会話ウィンドウ（名前・文字送り） ----------
 const NAMES = { sena: 'セナ', rio: 'リオ', boss: '天の主機' };
-const faceCtx = $('face').getContext('2d');
 const talk = { on: false, who: '', text: '', t: 0, dur: 0, shout: false, comm: false, tut: -1 };
 function say(who, textS, dur, o = {}) {
   Object.assign(talk, { on: true, who, text: textS, t: 0, dur, shout: !!o.shout, comm: !!o.comm, tut: o.tut ?? -1 });
@@ -210,7 +209,6 @@ function updateTalk(dt) {
   talk.t += dt;
   const n = Math.min(talk.text.length, Math.floor(talk.t * 32) + 1);
   setText('talkText', talk.text.slice(0, n));
-  art.drawFace(faceCtx, talk.who, { shout: talk.shout, comm: talk.comm, t: realT });
   if (talk.dur > 0 && talk.t > talk.dur + 0.5) hideTalk();
   // スマホ縦：序章はボスが画面の上に来るので、会話枠を下に置く
   const ps = app.state && app.state.phase === 'prologue' ? app.state.pro.stage : '';

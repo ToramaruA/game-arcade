@@ -153,9 +153,8 @@ kbd { display: inline-block; border: 1px solid rgba(240, 194, 90, .6); border-ra
 .skip-pro[hidden]{display:none}
 
 /* 会話ウィンドウ：引き算。暗い面と細い線だけ。名前は色付きの文字 */
-.talk { position: absolute; z-index: 7; display: flex; gap: 12px; align-items: center; padding: 8px 14px 8px 8px; border-radius: 10px; background: rgba(8, 10, 18, .95); border: 1px solid rgba(255, 255, 255, .14); pointer-events: none; }
+.talk { position: absolute; z-index: 7; display: flex; gap: 12px; align-items: center; padding: 8px 14px; border-radius: 10px; background: rgba(8, 10, 18, .95); border: 1px solid rgba(255, 255, 255, .14); pointer-events: none; }
 .talk[hidden] { display: none; }
-.talk canvas { width: 64px; height: 64px; flex: none; border-radius: 8px; }
 .talk-body { min-width: 0; flex: 1; }
 #talkName { display: block; font-size: 11px; font-weight: 700; letter-spacing: .2em; color: #f0c25a; }
 .talk p { margin: 3px 0 0; font-family: var(--serif); font-size: 17px; line-height: 1.45; color: #f6f1e6; min-height: 1.45em; }
@@ -182,5 +181,5 @@ kbd { display: inline-block; border: 1px solid rgba(240, 194, 90, .6); border-ra
 .boss-card .bc-t { color: #fff0e8; font-size: clamp(38px, 9vw, 72px); font-weight: 800; letter-spacing: .2em; -webkit-text-stroke: 1px #600; }
 .boss-card .bc-s { color: #ffd2c6; font-size: 13px; }
 @keyframes bcard { 0% { opacity: 0; transform: scaleY(0.05); } 8% { opacity: 1; transform: scaleY(1); } 15% { letter-spacing: normal; } 85% { opacity: 1; } 100% { opacity: 0; } }
-@media (max-width: 520px) { .talk p { font-size: 15px; } .talk.shout p { font-size: 21px; } .talk canvas { width: 56px; height: 56px; } }
+@media (max-width: 520px) { .talk p { font-size: 15px; } .talk.shout p { font-size: 21px; } }
 .talk-keys em { font-style: normal; font-weight: 800; color: #fff3b0; }
