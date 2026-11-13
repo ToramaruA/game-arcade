@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>雷鳥戦記 — 雲上の大艦隊</title>
+  <meta name="description" content="撃つか、吸うか、逃げるか。青い弾を雷に変え、赤い弾を避け、空の大艦隊を貫け。金銅の機械雷鳥で6海域を進むブラウザシューティング。">
+  <link rel="canonical" href="https://game-arcade-bdt.pages.dev/games/thunderbird-sky-fleet/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="雷鳥戦記 — 雲上の大艦隊">
+  <meta property="og:description" content="撃つか、吸うか、逃げるか。青い弾を雷に変え、赤い弾を避け、空の大艦隊を貫け。金銅の機械雷鳥で6海域を進むブラウザシューティング。">
+  <meta property="og:url" content="https://game-arcade-bdt.pages.dev/games/thunderbird-sky-fleet/">
+  <meta property="og:image" content="https://game-arcade-bdt.pages.dev/games/thunderbird-sky-fleet/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#0a1230">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="game" class="game">
+    <h1 class="sr">雷鳥戦記 — 雲上の大艦隊</h1>
+    <section class="stage" id="stage">
+      <canvas id="cv" aria-label="ゲーム画面。左半分を動き、敵の青い弾を吸い、赤い弾を避けて雷槍を放つ"></canvas>
+
+      <div class="hud" id="hud" hidden>
+        <div class="hud-l">
+          <div class="hp" id="hp" aria-label="体力"></div>
+          <div class="gauge" id="gauge" aria-label="雷ゲージ">
+            <span class="g-label">雷</span>
+            <div class="g-bar"><div class="g-fill" id="gaugeFill"></div><i class="g-tick" style="left:40%"></i><i class="g-tick" style="left:80%"></i></div>
+            <b class="g-num" id="gaugeNum">0</b>
+          </div>
+        </div>
+        <div class="hud-r">
+          <div class="chip" id="seaChip">第一海域</div>
+          <button id="pauseBtn" class="chip btn icon" type="button" aria-label="一時停止とメニュー">❚❚</button>
+        </div>
+        <div class="boss-bar" id="bossBar" hidden><span id="bossName">ボス</span><div class="bb"><div class="bb-fill" id="bossFill"></div></div><em id="bossState">装甲</em></div>
+      </div>
+      <div id="hint" class="hint" role="status" aria-live="polite"></div>
+      <div id="banner" class="banner" aria-live="polite"></div>
+      <div id="talk" class="talk" aria-live="polite" hidden><div class="talk-body"><b id="talkName"></b><p id="talkText"></p><div id="talkKeys" class="talk-keys"></div></div></div>
+      <div id="bossCard" class="boss-card" aria-hidden="true"><span class="bc-k">大艦隊の心臓</span><span class="bc-t">天 の 主 機</span><span class="bc-s">─ 空を覆う大艦隊を動かす、最終兵器 ─</span></div>
+      <button id="skipPro" class="skip-pro" type="button" hidden>序章をとばす ▶</button>
+      <div id="keys" class="keys" hidden><span><kbd>WASD</kbd>移動</span><span><kbd>J</kbd>撃つ</span><span><kbd>K</kbd>吸う・離して雷槍</span></div>
+
+      <div id="touch" class="touch" hidden>
+        <div class="drag-pad" id="dragPad"><span>ドラッグで移動<br>（画面のどこでも）</span></div>
+        <button id="btnAbsorb" class="tbtn absorb" type="button"><b>吸う</b><small>離すと雷槍</small></button>
+        <button id="btnFire" class="tbtn fire" type="button"><b>撃つ</b><small>押し続ける</small></button>
+      </div>
+
+      <div id="ogLogo" class="og-logo" hidden><span class="lg-a">雷鳥戦記</span><span class="lg-b">雲上の大艦隊</span></div>
+
+      <div id="title" class="screen title-screen">
+        <div class="logo"><span class="lg-a">雷鳥戦記</span><span class="lg-b">— 雲上の大艦隊 —</span></div>
+        <button id="startBtn" class="big-btn" type="button">航海開始</button>
+        <div class="title-sub">
+          <span id="contInfo" class="cont-info"></span>
+          <button id="newBtn" class="link-btn" type="button" hidden>はじめから</button>
+          <button id="diffBtn" class="link-btn" type="button" hidden>難度：通常</button>
+        </div>
+        <nav class="title-nav">
+          <button id="practiceBtn" class="link-btn" type="button">海域練習</button>
+          <button id="logBtn" class="link-btn" type="button">航海日誌</button>
+          <button id="setBtn" class="link-btn" type="button">設定</button>
+        </nav>
+      </div>
+
+      <div id="pause" class="screen panel-screen" hidden>
+        <div class="panel">
+          <h2>一時停止</h2>
+          <p class="sub" id="pauseInfo"></p>
+          <div class="btns col">
+            <button id="resumeBtn" class="big-btn" type="button">再開</button>
+            <button id="pauseSetBtn" class="ghost-btn" type="button">設定</button>
+            <button id="pauseTitleBtn" class="ghost-btn" type="button">タイトルへ（この海域は入口から）</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="settings" class="screen panel-screen" hidden>
+        <div class="panel">
+          <h2>設定</h2>
+          <label class="row"><span>効果音・音楽</span><input id="setSound" type="checkbox"></label>
+          <label class="row"><span>音量</span><input id="setVol" type="range" min="0" max="1" step="0.05"></label>
+          <label class="row"><span>画面の揺れ</span><input id="setShake" type="checkbox"></label>
+          <div class="btns"><button id="setClose" class="big-btn" type="button">戻る</button></div>
+        </div>
+      </div>
+
+      <div id="clear" class="screen panel-screen" hidden>
+        <div class="panel wide">
+          <p class="kicker" id="clearKicker">第一海域 突破</p>
+          <h2 id="clearTitle">眠る港</h2>
+          <p class="log" id="clearLog"></p>
+          <div class="stats" id="clearStats"></div>
+          <div class="medals" id="clearMedals"></div>
+          <h3 id="choiceHead">自機改修　どちらか1つ</h3>
+          <div class="cards" id="choiceCards"></div>
+          <div class="btns" id="clearBtns"></div>
+        </div>
+      </div>
+
+      <div id="dead" class="screen panel-screen" hidden>
+        <div class="panel">
+          <p class="kicker">雷鳥、墜落</p>
+          <h2 id="deadTitle">もう一度、空へ</h2>
+          <p class="sub" id="deadInfo"></p>
+          <div class="btns col">
+            <button id="retryBossBtn" class="big-btn" type="button" hidden>ボス前から再挑戦</button>
+            <button id="retryBtn" class="big-btn" type="button">海域の入口から再挑戦</button>
+            <button id="deadTitleBtn" class="ghost-btn" type="button">タイトルへ</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="practice" class="screen panel-screen" hidden>
+        <div class="panel wide">
+          <h2>海域練習</h2>
+          <p class="sub">行ったことのある海域を何度でも。被弾しても落ちない。勲章は入口からなら取れる。</p>
+          <div class="sea-list" id="seaList"></div>
+          <div class="btns"><button id="practiceBack" class="ghost-btn" type="button">戻る</button></div>
+        </div>
+      </div>
+
+      <div id="logbook" class="screen panel-screen" hidden>
+        <div class="panel wide">
+          <h2>航海日誌</h2>
+          <p class="sub" id="medalTotal"></p>
+          <div class="log-list" id="logList"></div>
+          <h3>これまでの航海</h3>
+          <div class="runs" id="runList"></div>
+          <div class="btns"><button id="logBack" class="ghost-btn" type="button">戻る</button></div>
+        </div>
+      </div>
+
+      <div id="ending" class="screen panel-screen ending" hidden>
+        <div class="panel wide">
+          <p class="kicker">全海域 突破</p>
+          <h2>天の主機、停止</h2>
+          <p class="log">雲海が晴れた。助けた帆船たちが、港へ帆を向ける。セナは雷鳥の翼をたたみ、航海日誌の最後の頁を書いた。</p>
+          <canvas id="endCv" class="end-cv" width="640" height="260" aria-label="航海の記録の絵"></canvas>
+          <div class="stats" id="endStats"></div>
+          <p class="sub" id="endUnlock"></p>
+          <div class="btns"><button id="endSaveBtn" class="ghost-btn" type="button">日誌の絵を保存</button><button id="endTitleBtn" class="big-btn" type="button">タイトルへ</button></div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class="arcade-link"><a href="/">Game Arcade</a></footer>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
