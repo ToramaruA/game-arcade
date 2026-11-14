@@ -19,13 +19,20 @@ test('データ：カード24種（報酬21＋仲間3）、通常敵9種＋ボ�
   for (const op of ops) assert.ok(['damage', 'block', 'draw', 'weak', 'cleanse', 'retrieve', 'heal', 'energy'].includes(op));
 });
 
-test('導入：火花1枚で枝狼(HP6)を倒し、報酬3枚から選ぶ。HPは減らない', () => {
+test('練習：火花で攻撃→防壁→敵の攻撃を受ける→火花でとどめ、の2ターン。傷は戻り、報酬3枚から選ぶ', () => {
   const s = L.newRun({ seed: 3 });
-  assert.equal(s.phase, 'tutorial'); assert.deepEqual(s.battle.hand.map((c) => c.id), ['spark']);
-  L.playCard(s, s.battle.hand[0].uid, 0);
-  assert.equal(s.phase, 'reward'); assert.equal(s.reward.options.length, 3); assert.equal(s.hp, L.MAX_HP);
+  const b = s.battle;
+  assert.equal(s.phase, 'tutorial'); assert.deepEqual(b.hand.map((c) => c.id), ['spark', 'ward']);
+  assert.deepEqual(L.intentOf(s, b.foes[0]), { t: 'a', n: 6, hits: 1, total: 6, weak: false });
+  L.playCard(s, b.hand[0].uid, 0); assert.equal(b.foes[0].hp, 6);
+  L.playCard(s, b.hand[0].uid); assert.equal(b.block, 4);
+  L.endTurn(s); assert.equal(s.hp, L.MAX_HP - 2, '6のうち4を防いで2受ける');
+  assert.deepEqual(b.hand.map((c) => c.id), ['spark']);
+  L.playCard(s, b.hand[0].uid, 0);
+  assert.equal(s.phase, 'reward'); assert.equal(s.reward.options.length, 3); assert.equal(s.hp, L.MAX_HP, '練習の傷は戻る');
   L.chooseReward(s, null);
-  assert.equal(s.phase, 'battle'); assert.equal(s.node, 0, '導入は地点数に含めない');
+  assert.equal(s.phase, 'battle'); assert.equal(s.node, 0, '練習は地点数に含めない');
+  assert.ok(!s.deck.some((c) => String(c.uid).startsWith('T')), '練習の札はデッキに入らない');
 });
 
 test('ターン：エネルギー3・5枚引く・防御は次のターンに持ち越さない。手札・山札・捨て札・除外の合計は変わらない', () => {

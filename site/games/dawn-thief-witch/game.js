@@ -77,7 +77,7 @@ function cardEl(id, o = {}) {
 }
 
 // ---------- 画面 ----------
-const screens = ['title', 'battle'];
+const screens = ['title', 'battle', 'story'];
 function show(id) { for (const k of screens) $(k).hidden = k !== id; }
 function modal(html) { $('panel').innerHTML = html; $('modal').hidden = false; $('panel').scrollTop = 0; }
 function closeModal() { $('modal').hidden = true; $('panel').innerHTML = ''; }
@@ -99,8 +99,54 @@ function startRun() {
   const hard = rec.clears > 0 && $('hardChk').checked;
   const seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
   s = L.newRun({ seed, starter, hard, tutorial: true });
-  if (rec.tutorialDone) { /* 既プレイは導入を飛ばせる（画面にボタンを出す） */ }
-  enterBattleScreen();
+  playPrologue(() => enterBattleScreen());
+}
+
+// ---------- 序幕（3場面。タップで進む・とばせる） ----------
+const PROLOGUE = [
+  { lines: ['夜の王が、太陽を鎖でつないだ。', 'この国に、もう朝は来ない。'], scene: 'king' },
+  { lines: ['魔女イリスは、王の城から〈朝の種〉を盗み出した。', '地平線に植えれば、夜が明ける。'], scene: 'witch' },
+  { lines: ['王の獣たちが追ってくる。', '手を貸してくれた仲間は、檻に捕らえられた。', '……行こう。朝を取り戻しに。'], scene: 'chase' },
+];
+const story = { on: false, i: 0, t: 0, done: null };
+function playPrologue(done) {
+  story.on = true; story.i = 0; story.t = 0; story.done = done;
+  screens.forEach((k) => { $(k).hidden = true; }); $('story').hidden = false;
+  resize(); showStoryText();
+}
+function showStoryText() {
+  const p = PROLOGUE[story.i];
+  $('storyText').innerHTML = p.lines.map((l, i) => `<span style="animation-delay:${0.15 + i * 0.7}s">${l}</span>`).join('');
+  $('storyNext').textContent = story.i < PROLOGUE.length - 1 ? 'つぎへ ▶' : '旅立つ ▶';
+  $('storyDots').innerHTML = PROLOGUE.map((_, i) => `<i class="${i === story.i ? 'on' : ''}"></i>`).join('');
+}
+function storyAdvance() {
+  audio.ui();
+  if (story.i < PROLOGUE.length - 1) { story.i += 1; story.t = 0; showStoryText(); return; }
+  endStory();
+}
+function endStory() { story.on = false; $('story').hidden = true; rec.prologueSeen = true; saveRec(); const d = story.done; story.done = null; if (d) d(); }
+$('story').addEventListener('click', (e) => { if (e.target.id === 'storySkip') return; storyAdvance(); });
+$('storySkip').addEventListener('click', () => { audio.ui(); endStory(); });
+function drawStory() {
+  const c = $('storyCv'); const g = c.getContext('2d'); const d = view.dpr; const w = c.width / d; const h = c.height / d;
+  g.setTransform(d, 0, 0, d, 0, 0); story.t += 1 / 60;
+  const tt = settings.low ? 0 : t; const p = PROLOGUE[story.i]; const narrow = w < 560;
+  const k = Math.min(1, story.t / 1.2); // ゆっくり寄る
+  if (p.scene === 'king') {
+    art.drawBackdrop(g, w, h, 2, tt, 0);
+    g.save(); g.globalAlpha = 0.95; art.drawFoe(g, 'king', w * 0.5, h * 0.95, (h / 280) * (0.92 + k * 0.08), tt); g.restore();
+  } else if (p.scene === 'witch') {
+    art.drawBackdrop(g, w, h, 0, tt, 0);
+    art.drawWitch(g, w * (narrow ? 0.45 : 0.4), h * 0.93, (h / 210) * (0.9 + k * 0.1), tt);
+    art.drawGlowSeed(g, w * (narrow ? 0.45 : 0.4) + 30 * (h / 210), h * 0.93 - 70 * (h / 210), 30 + Math.sin(tt * 3) * 6);
+  } else {
+    art.drawBackdrop(g, w, h, 0, tt, 0);
+    ['rine', 'toma', 'nagi'].forEach((a, i) => art.drawCage(g, w * (0.22 + i * 0.28), h * 0.5, Math.min(h / 520, w / 420), 2, tt, a, 'locked'));
+    for (let i = 0; i < 5; i++) { const x = w * (0.1 + i * 0.2); const y = h * (0.45 + (i % 2) * 0.08); g.fillStyle = '#d8432b'; g.beginPath(); g.arc(x - 6, y, 3, 0, Math.PI * 2); g.arc(x + 6, y, 3, 0, Math.PI * 2); g.fill(); }
+  }
+  const gr = g.createLinearGradient(0, h * 0.45, 0, h); gr.addColorStop(0, 'rgba(21,16,12,0)'); gr.addColorStop(1, 'rgba(21,16,12,.85)');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
 }
 $('startBtn').addEventListener('click', () => { audio.ui(); const r = loadRun(); if (r && !confirmNew()) return; startRun(); });
 function confirmNew() { return window.confirm('保存してある旅は消えます。新しい旅を始めますか？'); }
@@ -116,7 +162,7 @@ function route() {
   handleEvents();
   if (s.chapterMsg && (s.phase === 'battle')) { const c = s.chapterMsg; s.chapterMsg = null; save(); return showChapter(c); }
   switch (s.phase) {
-    case 'tutorial': closeModal(); renderBattle(); banner('火花を、狼へ', '下の「火花」を選び、狼を選んで「使う」。狼の上の⚔6は「次に6ダメージ」の予告'); break;
+    case 'tutorial': closeModal(); renderBattle(); break;
     case 'battle': closeModal(); renderBattle(); break;
     case 'reward': renderBattle(); showReward(); break;
     case 'rest': showRest(); break;
@@ -135,9 +181,12 @@ function resize() {
   view.dpr = Math.min(2, window.devicePixelRatio || 1); view.w = r.width; view.h = r.height;
   cv.width = Math.round(r.width * view.dpr); cv.height = Math.round(r.height * view.dpr);
   const tc = $('titleCv'); tc.width = Math.round(window.innerWidth * view.dpr); tc.height = Math.round(window.innerHeight * view.dpr);
+  const sc2 = $('storyCv'); sc2.width = tc.width; sc2.height = tc.height;
   layoutScene();
 }
 window.addEventListener('resize', () => { resize(); if (s && !$('battle').hidden) renderBattle(); });
+// 手札の枚数などで場面の高さが変わったら、敵の名札と絵の位置を合わせ直す
+if (window.ResizeObserver) { let lastH = 0; new ResizeObserver(() => { const h = $('sceneWrap').getBoundingClientRect().height; if (Math.abs(h - lastH) > 1 && s && !$('battle').hidden) { lastH = h; resize(); renderBattle(); } }).observe($('sceneWrap')); }
 
 function layoutScene() {
   const w = view.w; const h = view.h; const narrow = w < 560;
@@ -163,7 +212,8 @@ function renderBattle() {
   if (!s) return;
   layoutScene();
   const b = s.battle; const fb = s.battle || s.lastBattle;
-  $('where').textContent = s.phase === 'tutorial' ? '森の入口（練習）' : `${CHAPTERS[L.chapterOf(s)].name}・${NODES[s.node]?.name || ''}${s.hard ? '・長い夜' : ''}`;
+  $('where').textContent = s.phase === 'tutorial' || s.reward?.from === 'tutorial' ? '森の入口（練習）' : `${CHAPTERS[L.chapterOf(s)].name}・${NODES[s.node]?.name || ''}${s.hard ? '・長い夜' : ''}`;
+  document.querySelector('.piles').hidden = s.phase === 'tutorial';
   $('drawN').textContent = b ? b.draw.length : 0; $('discN').textContent = b ? b.discard.length : 0;
   // 自分
   $('hpFill').style.width = `${(s.hp / MAX_HP) * 100}%`; $('hpTxt').textContent = `HP ${s.hp}/${MAX_HP}`;
@@ -208,12 +258,44 @@ function renderBattle() {
   const cut = b && b.cage === 'locked';
   $('cutBtn').hidden = !cut;
   if (cut) { const ok = L.canCut(s).ok; $('cutBtn').disabled = !ok; $('cutBtn').innerHTML = `鎖を切る <small>2</small><span class="wide"> 残り${b.chains}本</span>`; }
-  $('endBtn').hidden = s.phase === 'tutorial';
+  $('endBtn').hidden = false;
   $('endBtn').classList.toggle('warn', ui.endWarned);
   $('endBtn').textContent = ui.endWarned ? 'まだ使える。終える？' : 'ターン終了';
   // 手札
   renderHand();
   renderConfirm();
+  renderCoach();
+}
+
+// ---------- 練習の案内（その時に何をするか・何が起きたかを一言で） ----------
+function renderCoach() {
+  const box = $('coach');
+  document.querySelectorAll('.glow').forEach((el) => el.classList.remove('glow'));
+  if (!s || s.phase !== 'tutorial' || !s.battle) { box.hidden = true; return; }
+  const b = s.battle; const wolf = b.foes[0];
+  const has = (id) => b.hand.find((c) => c.id === id);
+  const sel = ui.sel && b.hand.find((c) => c.uid === ui.sel);
+  let msg = ''; let glow = [];
+  if (b.turn === 1 && has('spark') && !sel) {
+    msg = '狼の上の <b>⚔6</b> は「次に<b>6ダメージ</b>で噛みつく」という予告。<br>まず<b>〈火花〉</b>で攻撃しよう。カードをタップ。';
+    glow = [`#hand .card[data-uid="${has('spark').uid}"]`, '.foe .intent'];
+  } else if (sel && !$('useBtn').disabled) {
+    msg = sel.id === 'spark' ? '下の数字が、使ったあとの結果。<b>「使う」</b>で炎が飛ぶ。' : '防壁は自分にかける札。<b>「使う」</b>を押そう。';
+    glow = ['#useBtn'];
+  } else if (sel) {
+    msg = '次に、<b>狙う敵をタップ</b>。敵が何体もいるときは、ここで選ぶ。'; glow = ['.foe'];
+  } else if (b.turn === 1 && has('ward')) {
+    msg = `狼のHPが <b>12→${wolf.hp}</b> に減った。エネルギー（左下の●）を1つ使った。<br>次は<b>〈防壁〉</b>で、噛みつきに備えよう。`;
+    glow = [`#hand .card[data-uid="${has('ward').uid}"]`, '.fhp'];
+  } else if (b.turn === 1) {
+    msg = `<b>🛡${b.block}</b>＝次に受けるダメージを${b.block}減らす。<br>やることを終えたら<b>「ターン終了」</b>。今度は狼が動く。`;
+    glow = ['#endBtn', '#blockBadge'];
+  } else if (b.turn === 2 && has('spark') && !sel) {
+    msg = `狼の噛みつき6のうち、<b>防壁で4防いで2だけ</b>受けた（HP ${s.hp}）。防御はターンが終わると消える。<br>狼の次の予告は<b>⚔4</b>（敵の行動は順番に変わる）。次の手札が来た。<b>〈火花〉でとどめ</b>を。`;
+    glow = [`#hand .card[data-uid="${has('spark').uid}"]`, '.hpbar'];
+  } else { box.hidden = true; return; }
+  box.innerHTML = `<span class="coach-k">練習</span>${msg}`; box.hidden = false;
+  for (const q of glow) document.querySelectorAll(q).forEach((el) => el.classList.add('glow'));
 }
 
 function renderHand() {
@@ -244,7 +326,7 @@ function selectCard(uid) {
   if (ui.sel === uid) { cancelSel(); return; }
   audio.pluck(CARDS[c.id].no % 7);
   ui.sel = uid; ui.target = null;
-  if (CARDS[c.id].target === 'enemy') { const alive = L.living(s); if (alive.length === 1) ui.target = alive[0].key; }
+  if (CARDS[c.id].target === 'enemy' && s.phase !== 'tutorial') { const alive = L.living(s); if (alive.length === 1) ui.target = alive[0].key; }
   renderBattle();
 }
 function onFoe(key) {
@@ -326,9 +408,10 @@ $('cutBtn').addEventListener('click', () => {
 });
 $('endBtn').addEventListener('click', () => endTurn());
 function endTurn() {
-  if (ui.lock > 0 || !s.battle || s.phase !== 'battle') return;
+  if (ui.lock > 0 || !s.battle || (s.phase !== 'battle' && s.phase !== 'tutorial')) return;
   const b = s.battle;
   const usable = b.hand.some((c) => CARDS[c.id].cost <= b.energy) || L.canCut(s).ok;
+  if (s.phase === 'tutorial' && usable) { toast('先に手札のカードを使おう'); return; }
   if (b.energy > 0 && usable && !ui.endWarned) { ui.endWarned = true; renderBattle(); return; }
   ui.endWarned = false; ui.sel = null; ui.target = null;
   L.endTurn(s);
@@ -346,36 +429,54 @@ function banner(main, sub = '', dur = 2.2) { $('banner').innerHTML = `${main}${s
 function foePos(key) { const p = view.foes.find((x) => x.key === key); return p ? { x: p.x, y: (p.y + p.top) / 2 } : { x: view.w * 0.7, y: view.h * 0.5 }; }
 const sparks = [];
 function burst(x, y, col, n = 14) { if (settings.low) return; for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2; const v = 60 + Math.random() * 160; sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, life: 0.5 + Math.random() * 0.4, t: 0, col }); } }
+// 何が起きたかを一行で（画面下の帯）
+const logLines = [];
+function log(text) { logLines.push(text); while (logLines.length > 2) logLines.shift(); const el = $('actlog'); el.innerHTML = logLines.map((l, i) => `<span class="${i === logLines.length - 1 ? 'new' : ''}">${l}</span>`).join(''); el.hidden = false; clearTimeout(log.t); log.t = setTimeout(() => { el.hidden = true; logLines.length = 0; }, 4200); }
+const bolts = [];
 function handleEvents() {
   if (!s || !s.events.length) return;
   let delay = 0; const step = settings.fast ? 110 : 220;
+  // カード1枚ごとの結果をまとめて、一行にする
+  let cur = null; const flush = () => { if (!cur) return; const d = CARDS[cur.id]; const parts = [];
+    for (const [k, v] of Object.entries(cur.dmg)) { const f = (s.battle || s.lastBattle)?.foes.find((x) => x.key === Number(k)); parts.push(`${f ? f.name : '敵'}に<b>${v.dmg}</b>ダメージ${v.blocked ? `（🛡で${v.blocked}防がれた）` : ''}${v.kill ? '・倒した' : ''}`); }
+    if (cur.block) parts.push(`自分に<b>🛡${cur.block}</b>`); if (cur.heal) parts.push(`HP<b>+${cur.heal}</b>`); if (cur.draw) parts.push(`${cur.draw}枚引いた`); if (cur.weak) parts.push('敵を弱体にした'); if (cur.retrieve) parts.push(`${CARDS[cur.retrieve].name}を手札へ`);
+    log(`〈${d.name}〉 ${parts.join('、') || d.text}`); cur = null; };
+  const handBefore = s.battle ? s.battle.hand.length : 0; void handBefore;
   for (const e of s.events) {
     switch (e.type) {
-      case 'play': noteSeen([e.id]); audio.fire(); if (CARDS[e.id].ally) ui.allyFlash = { id: CARDS[e.id].ally, t: 0.9 }; break;
-      case 'hit': { const p = foePos(e.key); if (e.dmg) floatAt(p.x, p.y, `-${e.dmg}`, 'dmg'); if (e.blocked) floatAt(p.x + 30, p.y - 20, `🛡${e.blocked}`, 'blk small'); ui.hitT[e.key] = 0.3; burst(p.x, p.y, '#ffb35a'); break; }
-      case 'kill': { const p = foePos(e.key); burst(p.x, p.y, '#ffd77a', 30); break; }
-      case 'block': audio.block(); floatAt(view.witch.x + 20, view.witch.y - 120 * view.s, `🛡+${e.n}`, 'blk'); break;
-      case 'heal': if (e.n) floatAt(view.witch.x, view.witch.y - 140 * view.s, `+${e.n}`, 'small'); break;
+      case 'play': flush(); cur = { id: e.id, dmg: {}, block: 0, heal: 0, draw: 0 }; noteSeen([e.id]); audio.fire(); if (CARDS[e.id].ally) ui.allyFlash = { id: CARDS[e.id].ally, t: 0.9 };
+        if (L.isAttack(e.id)) { const tg = CARDS[e.id].target === 'all' ? view.foes.map((f) => f.key) : [e.target]; for (const k of tg) { const p = foePos(k); bolts.push({ x0: view.witch.x + 30 * view.s, y0: view.witch.y - 70 * view.s, x1: p.x, y1: p.y, t: 0 }); } }
+        break;
+      case 'hit': { if (cur) { const r = cur.dmg[e.key] || (cur.dmg[e.key] = { dmg: 0, blocked: 0 }); r.dmg += e.dmg; r.blocked += e.blocked; }
+        const p = foePos(e.key); const fd = settings.low ? 0 : 200;
+        setTimeout(() => { if (e.dmg) floatAt(p.x, p.y, `-${e.dmg}`, 'dmg'); if (e.blocked) floatAt(p.x + 30, p.y - 20, `🛡${e.blocked}`, 'blk small'); ui.hitT[e.key] = 0.3; burst(p.x, p.y, '#ffb35a'); }, fd); break; }
+      case 'draw': if (cur) cur.draw += e.n; break;
+      case 'kill': { if (cur && cur.dmg[e.key]) cur.dmg[e.key].kill = true; const p = foePos(e.key); setTimeout(() => burst(p.x, p.y, '#ffd77a', 30), 220); break; }
+      case 'block': if (cur) cur.block += e.n; audio.block(); floatAt(view.witch.x + 20, view.witch.y - 120 * view.s, `🛡+${e.n}`, 'blk'); break;
+      case 'heal': if (cur) cur.heal += e.n; if (e.n) floatAt(view.witch.x, view.witch.y - 140 * view.s, `+${e.n}`, 'small'); break;
       case 'cut': audio.chain(); burst(view.cage?.x || view.w / 2, (view.cage?.y || view.h) - 70 * view.s, '#f6ecd0', 16); banner(e.left ? '鎖を1本切った' : '', e.left ? 'あと1本。次のターンにもう一度' : ''); break;
       case 'rescue': audio.bell(); banner(`${ALLIES[e.ally].name}を救った`, `次のターン、${CARDS[ALLIES[e.ally].card].name}が手札に来る`, 2.6); break;
       case 'allyCard': banner(`${CARDS[e.id].name}が手札に`, '', 1.4); break;
       case 'cageLost': banner('檻が運び去られた', `${ALLIES[e.ally].name}は救えなかった`, 2.4); break;
       case 'hurt': {
+        flush();
+        { const f = (s.battle || s.lastBattle)?.foes.find((x) => x.key === e.key); log(`${f ? f.name : '敵'}の攻撃 ${e.dmg + e.blocked} → ${e.blocked ? `🛡で${e.blocked}防ぎ、` : ''}<b>${e.dmg}</b>受けた`); }
         const d = delay; delay += step; ui.lock += 1;
         setTimeout(() => { ui.lock -= 1; const p = foePos(e.key); ui.hitT[`atk${e.key}`] = 0.25; if (e.dmg) { floatAt(view.witch.x, view.witch.y - 110 * view.s, `-${e.dmg}`, 'hurt'); audio.hurt(); } if (e.blocked) floatAt(view.witch.x + 40, view.witch.y - 150 * view.s, `🛡${e.blocked}`, 'blk small'); void p; }, d);
         break;
       }
-      case 'foeBlock': { const p = foePos(e.key); floatAt(p.x, p.y - 30, `🛡+${e.n}`, 'blk'); break; }
-      case 'weakened': floatAt(view.witch.x, view.witch.y - 160 * view.s, '弱体', 'small'); break;
-      case 'weak': for (const f of view.foes) floatAt(f.x, f.top, '弱体', 'small'); break;
+      case 'foeBlock': { flush(); const f = (s.battle || s.lastBattle)?.foes.find((x) => x.key === e.key); log(`${f ? f.name : '敵'}が<b>🛡${e.n}</b>をまとった（次の攻撃を${e.n}防ぐ）`); const p = foePos(e.key); floatAt(p.x, p.y - 30, `🛡+${e.n}`, 'blk'); break; }
+      case 'weakened': flush(); log('<b>弱体</b>にされた：次の攻撃札が1打ごと2弱くなる'); floatAt(view.witch.x, view.witch.y - 160 * view.s, '弱体', 'small'); break;
+      case 'weak': if (cur) cur.weak = true; for (const f of view.foes) floatAt(f.x, f.top, '弱体', 'small'); break;
       case 'turn': if (e.turn > 1) { const d = delay; setTimeout(() => banner(`ターン ${e.turn}`, '', 0.8), d); } break;
       case 'battle': if (e.type !== 'tutorial') { const nd = NODES[s.node]; if (nd && s.phase === 'battle') banner(nd.name, s.node === 0 ? '敵の上は次の行動：⚔攻撃・🛡防御・☾弱体。⚔は防壁で防げる' : nd.type === 'rescue' ? `檻の中に${ALLIES[nd.ally].name}。鎖2本を切れば救える（1本2エネルギー）` : nd.type === 'boss' ? CHAPTERS[nd.ch].boss : '', 2.6); } break;
-      case 'win': audio.win(); break;
+      case 'win': audio.win(); banner('勝利', '', 1.2); break;
       case 'dead': audio.lose(); break;
-      case 'retrieve': banner(`${CARDS[e.id].name}が手札に戻った`, '', 1.2); break;
+      case 'retrieve': if (cur) cur.retrieve = e.id; banner(`${CARDS[e.id].name}が手札に戻った`, '', 1.2); break;
       default: break;
     }
   }
+  flush();
   s.events.length = 0;
 }
 
@@ -396,8 +497,9 @@ function showReward() {
   const r = s.reward; noteSeen(r.options);
   const ally = r.ally ? `<p><b>${ALLIES[r.ally].name}</b>が旅に加わった。「${ALLIES[r.ally].line}」<br><span class="sub">${CARDS[ALLIES[r.ally].card].name}がデッキに1枚入った</span></p>` : '';
   const boss = r.boss ? `<p>${CHAPTERS[NODES[s.node].ch].after}<br><span class="sub">章を越えて、HPが${L.CHAPTER_HEAL}回復した</span></p>` : '';
-  modal(`<p class="kick">${r.from === 'tutorial' ? '練習のあと' : '勝利'}</p><h2>カードを1枚選ぶ</h2>${boss}${ally}
-    <p class="sub">取らずに進むと、デッキが薄いまま（よく使う札が回りやすい）</p>
+  const tut = r.from === 'tutorial' ? `<p><b>枝狼を退けた！</b> 練習で受けた傷は戻った（HP ${s.hp}/${MAX_HP}）。<br>この先、檻に捕らえられた仲間を見つけたら、<b>鎖を切って救える</b>。</p>` : '';
+  modal(`<p class="kick">${r.from === 'tutorial' ? '練習おわり・ここから旅が始まる' : '勝利'}</p><h2>カードを1枚選ぶ</h2>${tut}${boss}${ally}
+    <p class="sub">${r.from === 'tutorial' ? '勝つたびに、3枚から1枚をデッキに加えられる。取らずに進んでもいい。' : '取らずに進むと、デッキが薄いまま（よく使う札が回りやすい）'}</p>
     <div class="cards3" id="rw"></div>
     <div class="row"><button id="skipBtn" class="btn ghost" type="button" style="color:var(--ink);border-color:var(--ink)">取らずに進む</button>
     ${r.from === 'tutorial' ? '' : `<button id="deckBtn" class="link" type="button" style="color:var(--ink)">今のデッキ（${s.deck.length}枚）</button>`}</div>`);
@@ -548,7 +650,10 @@ function frame(now) {
   if (ui.allyFlash) { ui.allyFlash.t -= dt; if (ui.allyFlash.t <= 0) ui.allyFlash = null; }
   for (const p of sparks) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 300 * dt; }
   for (let i = sparks.length - 1; i >= 0; i--) if (sparks[i].t > sparks[i].life) sparks.splice(i, 1);
-  if (!$('battle').hidden && s) drawScene();
+  for (const bt of bolts) bt.t += dt / 0.22;
+  for (let i = bolts.length - 1; i >= 0; i--) if (bolts[i].t > 1.3) bolts.splice(i, 1);
+  if (story.on) drawStory();
+  else if (!$('battle').hidden && s) drawScene();
   else if (!$('title').hidden) drawTitle();
   requestAnimationFrame(frame);
 }
@@ -574,6 +679,11 @@ function drawScene() {
     const lunge = ui.hitT[`atk${f.key}`] ? -18 * view.s : 0;
     art.drawFoe(ctx, f.id, p.x + lunge, p.y, p.s, tt, { hit: !!ui.hitT[f.key], k: f.key });
   }
+  // 防御の輪：防御があるあいだ、魔女のまわりに金の輪
+  if (b && b.block > 0) { ctx.save(); ctx.strokeStyle = 'rgba(228,169,58,.85)'; ctx.lineWidth = 3; ctx.setLineDash([10, 6]); ctx.lineDashOffset = -tt * 20; ctx.beginPath(); ctx.ellipse(view.witch.x, view.witch.y - 60 * view.s, 50 * view.s, 74 * view.s, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+  // 炎の弾：魔女の手から狙った敵へ
+  for (const bt of bolts) { if (bt.t > 1) continue; const u = bt.t; const x = bt.x0 + (bt.x1 - bt.x0) * u; const y = bt.y0 + (bt.y1 - bt.y0) * u - Math.sin(u * Math.PI) * 40 * view.s;
+    const g2 = ctx.createRadialGradient(x, y, 0, x, y, 18 * view.s); g2.addColorStop(0, '#fff3c0'); g2.addColorStop(0.4, '#ff8a3a'); g2.addColorStop(1, 'rgba(216,67,43,0)'); ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(x, y, 18 * view.s, 0, Math.PI * 2); ctx.fill(); }
   for (const p of sparks) { ctx.globalAlpha = 1 - p.t / p.life; ctx.fillStyle = p.col; ctx.fillRect(p.x - 2, p.y - 2, 4, 4); }
   ctx.globalAlpha = 1;
 }

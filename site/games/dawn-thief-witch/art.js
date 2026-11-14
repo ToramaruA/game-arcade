@@ -361,3 +361,10 @@ export function drawCardArt(ctx, id, w, h, t = 0) {
   ctx.restore();
   texture(ctx, w, h, 0.8);
 }
+
+// 序幕用：光る朝の種
+export function drawGlowSeed(ctx, x, y, r) {
+  glow(ctx, x, y, r * 3, 'rgba(255,170,80,.55)');
+  ctx.fillStyle = C.red; ctx.beginPath(); ctx.arc(x, y, r * 0.45, 0, TAU); ctx.fill();
+  ctx.fillStyle = C.goldL; ctx.beginPath(); ctx.arc(x - r * 0.12, y - r * 0.12, r * 0.16, 0, TAU); ctx.fill();
+}

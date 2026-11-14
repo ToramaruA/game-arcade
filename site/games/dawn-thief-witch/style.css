@@ -80,7 +80,7 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 .banner.on { opacity: 1; }
 .banner small { display: block; font-size: 14px; letter-spacing: .1em; color: var(--paperD); margin-top: 4px; }
 
-.dock { position: relative; flex: 0 0 auto; background: linear-gradient(#211913, #120d0a); border-top: 3px solid var(--ink); padding: 6px 0 max(8px, env(safe-area-inset-bottom)); }
+.dock { position: relative; flex: 0 0 auto; min-height: 250px; background: linear-gradient(#211913, #120d0a); border-top: 3px solid var(--ink); padding: 6px 0 max(8px, env(safe-area-inset-bottom)); }
 .dock-row { display: flex; align-items: center; gap: 8px; padding: 0 10px 6px; }
 .energy { display: flex; align-items: center; gap: 6px; font-family: var(--serif); }
 .energy b { font-size: 20px; color: var(--goldL); min-width: 1.2em; }
@@ -109,7 +109,7 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 .card.mini .tx { font-size: 10px; }
 .card.mini img { height: 48px; }
 
-.confirm { position: absolute; left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 16px)); bottom: calc(100% + 6px); display: flex; gap: 10px; align-items: center; background: rgba(21,16,12,.94); border: 2px solid var(--gold); padding: 8px; border-radius: 6px; z-index: 5; }
+.confirm { position: absolute; left: 50%; transform: translateX(-50%); width: min(620px, calc(100% - 12px)); top: 4px; min-height: calc(100% - 8px); display: flex; gap: 10px; align-items: center; background: rgba(21,16,12,.94); border: 2px solid var(--gold); padding: 8px; border-radius: 6px; z-index: 5; background: rgba(21,16,12,.98); }
 .c-card .card { transform: none; cursor: default; width: 96px; height: 136px; }
 .c-card .card img { height: 52px; }
 .c-card .card .tx { font-size: 10px; }
@@ -172,3 +172,30 @@ body.low * { animation: none !important; transition: none !important; }
 .cagetag b { color: var(--goldL); }
 .cagetag small { color: var(--paperD); }
 @media (max-width: 560px) { .card { width: 104px; height: 152px; } .card img { height: 60px; } .card .tx { font-size: 10.5px; } .cagetag { font-size: 10.5px; } }
+
+/* 序幕 */
+.story canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.story-ui { position: absolute; left: 0; right: 0; bottom: max(28px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 0 20px; text-align: center; }
+.story-text { margin: 0; display: flex; flex-direction: column; gap: 6px; font-family: var(--serif); font-size: clamp(18px, 3.4vw, 28px); line-height: 1.6; color: var(--moon); text-shadow: 0 2px 0 var(--ink), 0 0 16px #000; }
+.story-text span { opacity: 0; animation: fadein .8s ease forwards; }
+@keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.story-row { display: flex; align-items: center; gap: 16px; }
+.dots { display: flex; gap: 6px; }
+.dots i { width: 8px; height: 8px; border-radius: 50%; background: rgba(246,236,208,.35); }
+.dots i.on { background: var(--goldL); }
+.skip { position: absolute; right: 12px; top: max(10px, env(safe-area-inset-top)); color: var(--paperD); }
+/* 練習の案内 */
+.coach { position: absolute; left: 50%; transform: translateX(-50%); top: 44px; width: min(560px, calc(100% - 20px)); background: rgba(246,236,208,.96); color: var(--ink); border: 2px solid var(--ink); box-shadow: 4px 4px 0 rgba(0,0,0,.5); padding: 8px 12px 8px 12px; font-size: 14px; line-height: 1.6; z-index: 4; }
+.coach b { color: var(--redD); }
+.coach-k { display: inline-block; background: var(--red); color: var(--moon); font-size: 11px; font-weight: 800; padding: 0 6px; margin-right: 6px; letter-spacing: .1em; }
+.glow { animation: glowp 1s ease-in-out infinite !important; position: relative; z-index: 3; }
+@keyframes glowp { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,215,122,.9); } 50% { box-shadow: 0 0 0 8px rgba(255,215,122,0), 0 0 22px rgba(255,215,122,.9); } }
+/* 何が起きたかの帯 */
+.actlog { position: absolute; left: 50%; transform: translateX(-50%); bottom: 34px; width: min(600px, calc(100% - 20px)); display: flex; flex-direction: column; gap: 2px; pointer-events: none; z-index: 3; }
+.actlog span { background: rgba(21,16,12,.82); border-left: 3px solid var(--gold); padding: 3px 10px; font-size: 13px; color: var(--paperD); }
+.actlog span.new { color: var(--moon); }
+.actlog b { color: var(--goldL); }
+@media (max-width: 560px) { .coach { font-size: 13px; top: 42px; } .actlog span { font-size: 12px; } }
+
+.hand { min-height: 196px; }
+@media (max-width: 560px) { .dock { min-height: 232px; } .hand { min-height: 162px; } .confirm { justify-content: center; } }

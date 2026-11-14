@@ -96,6 +96,7 @@ export const NODES = [
   { ch: 2, type: 'rest', name: '最後の火' },
   { ch: 2, type: 'boss', name: '玉座', foes: [E('king', 60)] },
 ];
-export const TUTORIAL_NODE = { ch: 0, type: 'tutorial', name: '森の入口', foes: [E('wolf', 6)] };
+// 練習：2ターンで「攻撃する→防いで受ける→とどめ」を一度ずつ体験する（手札は決まっている）
+export const TUTORIAL_NODE = { ch: 0, type: 'tutorial', name: '森の入口', foes: [E('wolf', 12)], script: [['spark', 'ward'], ['spark']] };
 // 第一章の最初の報酬は固定（攻撃寄り・防御寄り・引き寄りの差が分かる3枚）
 export const FIRST_REWARD = ['lance', 'ashshield', 'ember'];

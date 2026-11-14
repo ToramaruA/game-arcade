@@ -75,9 +75,9 @@ function startBattle(s, nd, tutorial) {
   };
   s.battle = b;
   if (tutorial) {
-    // 操作導入：火花1枚だけ
-    b.hand = [{ uid: 'T1', id: 'spark' }];
-    b.turn = 1;
+    // 練習：決まった手札で2ターン（攻撃→防御→敵の攻撃を受ける→とどめ）
+    b.script = nd.script.map((r) => r.slice());
+    startTurn(s);
   } else {
     b.draw = shuffle(s, s.deck.map((c) => ({ ...c })));
     startTurn(s);
@@ -101,7 +101,8 @@ function drawCards(s, n) {
 export function startTurn(s) {
   const b = s.battle;
   b.turn += 1; b.energy = ENERGY; b.block = 0; b.cutThisTurn = false;
-  drawCards(s, DRAW);
+  if (b.script) { b.hand = (b.script.shift() || []).map((id, i) => ({ uid: `T${b.turn}${i}`, id, temp: true })); }
+  else drawCards(s, DRAW);
   if (b.allyCardPending) {
     b.allyCardPending = false;
     const id = ALLIES[b.ally].card;
@@ -181,7 +182,7 @@ export function playCard(s, uid, targetKey) {
         break;
       }
       case 'block': b.block += fx.n; ev(s, 'block', { n: fx.n }); break;
-      case 'draw': drawCards(s, fx.n); break;
+      case 'draw': ev(s, 'draw', { n: drawCards(s, fx.n) }); break;
       case 'weak': for (const f of living(s)) f.weak = 1; ev(s, 'weak'); break;
       case 'cleanse': b.weak = 0; break;
       case 'heal': { const before = s.hp; s.hp = Math.min(MAX_HP, s.hp + fx.n); ev(s, 'heal', { n: s.hp - before }); break; }
@@ -235,7 +236,7 @@ export function cutChain(s) {
 
 // ---------- ターン終了と敵の行動 ----------
 export function endTurn(s) {
-  const b = s.battle; if (!b || b.over || s.phase !== 'battle') return false;
+  const b = s.battle; if (!b || b.over || (s.phase !== 'battle' && s.phase !== 'tutorial')) return false;
   b.discard.push(...b.hand.splice(0));
   for (const f of b.foes) {
     if (f.dead) continue;
@@ -252,6 +253,7 @@ export function endTurn(s) {
     } else if (act.t === 'd') { f.block += act.n; ev(s, 'foeBlock', { key: f.key, n: act.n }); } else if (act.t === 'w') { b.weak = 1; ev(s, 'weakened', { key: f.key }); }
     f.ci += 1;
     if (s.hp <= 0) {
+      if (b.tutorial) { s.hp = 1; continue; } // 練習では倒れない
       s.phase = 'dead'; s.death = { by: f.name, dmg: act.total ?? 0, node: s.node };
       ev(s, 'dead', s.death); return true;
     }
@@ -265,6 +267,7 @@ function finishBattle(s) {
   const b = s.battle;
   s.lastBattle = { foes: b.foes, block: b.block, energy: b.energy, name: b.name };
   if (b.tutorial) {
+    s.hp = MAX_HP; // 練習で受けた傷は戻る
     s.phase = 'reward'; s.reward = { options: shuffleRewards(s, 0), from: 'tutorial' };
     ev(s, 'win', { tutorial: true }); return;
   }
@@ -393,7 +396,7 @@ export function botRun(s, policy = {}) {
   let guard = 0;
   while (guard++ < 5000) {
     s.events.length = 0;
-    if (s.phase === 'tutorial') { const c = s.battle.hand[0]; playCard(s, c.uid, s.battle.foes[0].key); continue; }
+    if (s.phase === 'tutorial') { const c = s.battle.hand.find((x) => CARDS[x.id].cost <= s.battle.energy); if (c) playCard(s, c.uid, s.battle.foes[0].key); else endTurn(s); continue; }
     if (s.phase === 'battle') { botTurn(s, policy); continue; }
     if (s.phase === 'reward') { const pick = policy.skipRewards ? null : pickReward(s); chooseReward(s, pick); continue; }
     if (s.phase === 'rest') { if (s.hp <= MAX_HP - 6 || !canRemove(s)) rest(s, 'heal'); else { const w = s.deck.find((c) => c.id === 'kindle') || s.deck.find((c) => c.id === 'spark'); rest(s, 'remove', w.uid); } continue; }
