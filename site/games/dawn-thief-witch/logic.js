@@ -356,39 +356,59 @@ export function recordClear(rec, s) {
 }
 
 // ---------- 自動操縦（テストと攻略確認用） ----------
-// policy.rescue: 救出を狙うか。単純な欲張り：予告の攻撃を防ぎつつ、残りで攻撃。救出狙いなら鎖を優先
-export function botTurn(s, policy = {}) {
-  const b = s.battle;
-  const incoming = () => living(s).reduce((a, f) => { const it = intentOf(s, f); return a + (it.t === 'a' ? it.total : 0); }, 0);
-  let guard = 0;
-  const rescueAlive = () => b.cage === 'locked';
-  while (!b.over && guard++ < 30) {
-    // 救出：敵を倒し切る前に鎖を切る
-    if (policy.rescue && rescueAlive() && canCut(s).ok) { cutChain(s); continue; }
-    const hand = b.hand.slice();
-    const playable = hand.filter((c) => CARDS[c.id].cost <= b.energy);
-    if (!playable.length) break;
-    const need = Math.max(0, incoming() - b.block);
-    // 0コストの補助を先に
-    const free = playable.find((c) => CARDS[c.id].cost === 0 && !isAttack(c.id) && !(c.id === 'mist' && need <= 0));
-    if (free) { playCard(s, free.uid); continue; }
-    const target = living(s).slice().sort((x, y) => x.hp - y.hp)[0];
-    const atks = playable.filter((c) => isAttack(c.id));
-    const defs = playable.filter((c) => !isAttack(c.id) && CARDS[c.id].fx.some((f) => f.op === 'block'));
-    const others = playable.filter((c) => !isAttack(c.id) && !CARDS[c.id].fx.some((f) => f.op === 'block'));
-    // 救出前に倒し切りそうなら攻撃を控える
-    const wouldKill = (c) => { const p = preview(s, c.uid, target?.key); return p.ok && p.cageLost; };
-    if (need >= 5 && defs.length) { playCard(s, defs.sort((x, y) => CARDS[y.id].fx[0].n - CARDS[x.id].fx[0].n)[0].uid); continue; }
-    const okAtk = atks.filter((c) => !(policy.rescue && rescueAlive() && wouldKill(c)));
-    if (okAtk.length && target) {
-      const best = okAtk.sort((x, y) => (CARDS[y.id].fx[0].n / Math.max(1, CARDS[y.id].cost)) - (CARDS[x.id].fx[0].n / Math.max(1, CARDS[x.id].cost)))[0];
-      playCard(s, best.uid, CARDS[best.id].target === 'enemy' ? target.key : undefined); continue;
-    }
-    if (others.length) { playCard(s, others[0].uid); continue; }
-    if (defs.length && need > 0) { playCard(s, defs[0].uid); continue; }
-    break;
+// そのターンの札の使い方を探索し、敵の行動まで進めた後の状態が一番良いものを選ぶ（人の考え方に近い）。
+// policy.rescue: 救出を狙うか
+function evalAfter(t, policy) {
+  const b = t.battle;
+  if (t.phase === 'dead') return -1e6;
+  if (!b || t.phase === 'reward' || t.phase === 'ending' || (b && b.over)) {
+    // 救出を狙うなら、檻を失う勝ち方はふつうの局面と同じくらいの価値にする
+    if (policy.rescue && t.events.some((e) => e.type === 'cageLost')) return t.hp * 4 - 20;
+    return 1e5 + t.hp * 30;
   }
-  if (!b.over && s.phase === 'battle') endTurn(s);
+  const foeHp = b.foes.reduce((a, f) => a + (f.dead ? 0 : f.hp + f.block * 0.5), 0);
+  const alive = b.foes.filter((f) => !f.dead).length;
+  let v = t.hp * 4 - foeHp * 1.2 - alive * 6;
+  if (policy.rescue && b.ally) v += (2 - b.chains) * 30 + (b.cage === 'freed' ? 40 : 0);
+  return v;
+}
+function endClone(t) { const c = clone({ ...t, snapBattle: null, snapChapter: null }); c.events = []; endTurn(c); return c; }
+export function bestPlan(s, policy = {}, budget = 600) {
+  let best = { v: -Infinity, plan: [] }; let nodes = 0;
+  const rec = (t, plan) => {
+    if (nodes++ > budget) return;
+    const b = t.battle;
+    // ここでターンを終えた場合
+    const done = !b || b.over || t.phase !== 'battle' && t.phase !== 'tutorial';
+    const v = done ? evalAfter(t, policy) : evalAfter(endClone(t), policy);
+    if (v > best.v) best = { v, plan: plan.slice() };
+    if (done) return;
+    const seen = new Set();
+    if (policy.rescue && canCut(t).ok) { const c = clone({ ...t, snapBattle: null, snapChapter: null }); c.events = []; cutChain(c); rec(c, [...plan, { cut: true }]); }
+    for (const card of b.hand) {
+      const def = CARDS[card.id]; if (def.cost > b.energy) continue;
+      const targets = def.target === 'enemy' ? b.foes.filter((f) => !f.dead).map((f) => f.key) : [undefined];
+      for (const tk of targets) {
+        const sig = `${card.id}:${tk}`; if (seen.has(sig)) continue; seen.add(sig);
+        const c = clone({ ...t, snapBattle: null, snapChapter: null }); c.events = [];
+        if (!playCard(c, card.uid, tk).ok) continue;
+        rec(c, [...plan, { id: card.id, target: tk }]);
+      }
+    }
+  };
+  rec(s, []);
+  return best.plan;
+}
+export function botTurn(s, policy = {}) {
+  const plan = bestPlan(s, policy);
+  for (const step of plan) {
+    const b = s.battle; if (!b || b.over) break;
+    if (step.cut) { cutChain(s); continue; }
+    const card = b.hand.find((c) => c.id === step.id && CARDS[c.id].cost <= b.energy);
+    if (!card) break;
+    playCard(s, card.uid, step.target);
+  }
+  if (s.battle && !s.battle.over && (s.phase === 'battle' || s.phase === 'tutorial')) endTurn(s);
 }
 
 // 旅を最後まで自動で進める（テスト用）。返り値：最終状態
@@ -396,7 +416,7 @@ export function botRun(s, policy = {}) {
   let guard = 0;
   while (guard++ < 5000) {
     s.events.length = 0;
-    if (s.phase === 'tutorial') { const c = s.battle.hand.find((x) => CARDS[x.id].cost <= s.battle.energy); if (c) playCard(s, c.uid, s.battle.foes[0].key); else endTurn(s); continue; }
+    if (s.phase === 'tutorial') { botTurn(s, policy); continue; }
     if (s.phase === 'battle') { botTurn(s, policy); continue; }
     if (s.phase === 'reward') { const pick = policy.skipRewards ? null : pickReward(s); chooseReward(s, pick); continue; }
     if (s.phase === 'rest') { if (s.hp <= MAX_HP - 6 || !canRemove(s)) rest(s, 'heal'); else { const w = s.deck.find((c) => c.id === 'kindle') || s.deck.find((c) => c.id === 'spark'); rest(s, 'remove', w.uid); } continue; }

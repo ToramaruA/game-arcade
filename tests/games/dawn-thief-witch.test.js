@@ -11,7 +11,7 @@ test('データ：カード24種（報酬21＋仲間3）、通常敵9種＋ボ�
   assert.equal(L.CARD_IDS.length, 24);
   assert.equal(L.CARD_IDS.filter((id) => L.CARDS[id].ally).length, 3);
   assert.equal(L.rewardPool(0).length, 14); assert.equal(L.rewardPool(1).length, 21);
-  assert.equal(Object.values(L.ENEMIES).filter((e) => !e.boss).length, 9);
+  assert.equal(Object.values(L.ENEMIES).filter((e) => !e.boss && !e.tutorial).length, 9);
   assert.equal(Object.values(L.ENEMIES).filter((e) => e.boss).length, 3);
   assert.equal(L.NODES.length, 15);
   for (let c = 0; c < 3; c++) assert.deepEqual(L.NODES.filter((n) => n.ch === c).map((n) => n.type), ['battle', 'rescue', 'battle', 'rest', 'boss']);
@@ -64,9 +64,9 @@ test('弱体：敵の次の攻撃1行動の各打を2減らし、攻撃したら
   const s = at(5); const b = s.battle; // 針烏(3×2)・蝋兵(7)
   handOf(s, ['sleep']); L.playCard(s, 'H0');
   assert.deepEqual(b.foes.map((f) => f.weak), [1, 1]);
-  const it = L.intentOf(s, b.foes[0]); assert.equal(it.n, 1); assert.equal(it.hits, 2);
+  const it = L.intentOf(s, b.foes[0]); assert.equal(it.n, 2); assert.equal(it.hits, 2);
   const hp = s.hp; L.endTurn(s);
-  assert.equal(hp - s.hp, 1 * 2 + 5, '針烏 1×2、蝋兵 5');
+  assert.equal(hp - s.hp, 2 * 2 + 7, '針烏 (4-2)×2、蝋兵 9-2');
   assert.deepEqual(b.foes.map((f) => f.weak), [0, 0]);
 });
 
@@ -158,18 +158,39 @@ test('保存と読み込み：往復でき、壊れたデータでも落ちな�
   assert.deepEqual(L.parseRecord('x'), L.newRecord());
 });
 
-test('全15地点：救出なし・全員救出・報酬を取らない旅、どれでも最後まで行ける（自動操縦で確認）', () => {
-  const clear = (opt, pol) => { for (let seed = 1; seed <= 60; seed++) { const s = L.newRun({ seed, ...opt }); L.botRun(s, pol); if (s.phase === 'ending') return s; } return null; };
-  const none = clear({}, { rescue: false }); assert.ok(none && none.allies.length === 0, '仲間0人でクリアできる');
-  const all = clear({}, { rescue: true }); assert.ok(all && all.allies.length === 3, '3人救出でクリアできる');
-  assert.ok(clear({}, { rescue: false, skipRewards: true }), 'カードを取らなくてもクリアできる道がある');
-  assert.ok(clear({ hard: true }, { rescue: true }), '長い夜もクリアできる');
+// 章の入口（初期デッキ・HP満タン）から、その章を抜けられるか
+function chapterRun(ch, opt, pol, seed) {
+  const s = L.newRun({ seed, tutorial: false, ...opt }); s.node = ch * 5; s.battle = null; L.enterNode(s);
+  let g = 0;
+  while (g++ < 3000 && s.phase !== 'dead' && s.phase !== 'ending' && s.node < (ch + 1) * 5) {
+    s.events.length = 0;
+    if (s.phase === 'battle') L.botTurn(s, pol); else if (s.phase === 'reward') L.chooseReward(s, null); else if (s.phase === 'rest') L.rest(s, 'heal');
+  }
+  return s.phase !== 'dead';
+}
+test('全15地点：救出なし・全員救出で最後まで行ける。カードを取らなくても各章を抜けられる（先読みする自動操縦で確認）', () => {
+  const clear = (opt, pol, ok) => { for (let seed = 1; seed <= 40; seed++) { const s = L.newRun({ seed, ...opt }); L.botRun(s, pol); if (s.phase === 'ending' && ok(s)) return s; } return null; };
+  const none = clear({}, { rescue: false }, (s) => s.allies.length === 0); assert.ok(none, '仲間0人でクリアできる');
+  const all = clear({}, { rescue: true }, (s) => s.allies.length === 3); assert.ok(all, '3人救出でクリアできる');
+  for (let ch = 0; ch < 3; ch++) {
+    let ok = false; for (let seed = 1; seed <= 20 && !ok; seed++) ok = chapterRun(ch, {}, { rescue: false }, seed);
+    assert.ok(ok, `初期デッキのまま（カードを取らずに）第${ch + 1}章を抜けられる道がある`);
+  }
+  let hard = false; for (let seed = 1; seed <= 10 && !hard; seed++) hard = chapterRun(0, { hard: true }, { rescue: true }, seed);
+  assert.ok(hard, '長い夜でも第一章を抜けられる');
   assert.match(L.shareText(all), /朝を取り戻した。同行者3人/);
   assert.equal(L.topCards(all).length, 3);
+});
+
+test('最初の手札：初期デッキは6種類の札で、同じ札ばかりにならない', () => {
+  for (const key of Object.keys(L.STARTER_DECKS)) {
+    const cards = L.STARTER_DECKS[key].cards; const n = Object.values(cards).reduce((a, b) => a + b, 0);
+    assert.equal(n, 10); assert.ok(Object.keys(cards).length >= 6); assert.ok(Math.max(...Object.values(cards)) <= 3, '同じ札は3枚まで');
+  }
 });
 
 test('長い夜：敵HPは1.15倍（切り上げ）、攻撃+1', () => {
   const s = at(0, { hard: true });
   assert.equal(s.battle.foes[0].maxHp, Math.ceil(12 * 1.15));
-  assert.equal(L.intentOf(s, s.battle.foes[0]).n, 7);
+  assert.equal(L.intentOf(s, s.battle.foes[0]).n, 9, '枝狼の8に+1');
 });

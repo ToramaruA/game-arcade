@@ -42,8 +42,8 @@ export const isAttack = (id) => CARDS[id].fx.some((f) => f.op === 'damage');
 export const rewardPool = (chapter) => CARD_IDS.filter((id) => CARDS[id].no <= (chapter === 0 ? 14 : 21));
 
 export const STARTER_DECKS = {
-  ember: { name: '火の旅', cards: { spark: 5, ward: 4, kindle: 1 } },
-  hearth: { name: '炉辺の旅', cards: { spark: 3, ward: 4, keeper: 2, kindle: 1 } }, // 初クリアで解放
+  ember: { name: '火の旅', cards: { spark: 3, twin: 1, ember: 1, ward: 3, keeper: 1, kindle: 1 } },
+  hearth: { name: '炉辺の旅', cards: { spark: 2, chase: 1, ember: 1, ward: 2, keeper: 2, mist: 1, kindle: 1 } }, // 初クリアで解放
 };
 
 export const ALLIES = {
@@ -57,18 +57,19 @@ const A = (n, hits = 1) => ({ t: 'a', n, hits });
 const D = (n) => ({ t: 'd', n });
 const Wk = () => ({ t: 'w', n: 1 });
 export const ENEMIES = {
-  wolf: { name: '枝狼', cycle: [A(6), A(4)] },
-  cagekeeper: { name: '檻番', cycle: [A(4), A(6)] },
-  moth: { name: '盾蛾', cycle: [D(6), A(6)] },
-  crow: { name: '針烏', cycle: [A(3, 2), A(5)] },
-  wax: { name: '蝋兵', cycle: [A(7), D(5)] },
-  bear: { name: '影熊', cycle: [A(8), D(5), A(6)] },
-  bat: { name: '鐘蝙蝠', cycle: [A(4), Wk()] },
-  spider: { name: '鎖蜘蛛', cycle: [A(6), Wk()] },
-  owl: { name: '鏡梟', cycle: [A(5), D(8), A(8)] },
-  stag: { name: '門番の鹿', boss: true, cycle: [A(8), D(8), A(12)] },
-  belleater: { name: '鐘喰い', boss: true, cycle: [A(4, 2), Wk(), A(12)] },
-  king: { name: '夜の王', boss: true, cycle: [A(10), D(10), A(14)] },
+  pup: { name: '枝狼', tutorial: true, cycle: [A(6), A(4)] }, // 練習用
+  wolf: { name: '枝狼', cycle: [A(8), A(5)] },
+  cagekeeper: { name: '檻番', cycle: [A(6), A(8)] },
+  moth: { name: '盾蛾', cycle: [D(6), A(9)] },
+  crow: { name: '針烏', cycle: [A(4, 2), A(7)] },
+  wax: { name: '蝋兵', cycle: [A(9), D(6)] },
+  bear: { name: '影熊', cycle: [A(11), D(6), A(8)] },
+  bat: { name: '鐘蝙蝠', cycle: [A(6), Wk()] },
+  spider: { name: '鎖蜘蛛', cycle: [A(7), Wk()] },
+  owl: { name: '鏡梟', cycle: [A(7), D(8), A(11)] },
+  stag: { name: '門番の鹿', boss: true, cycle: [A(10), D(8), A(15)] },
+  belleater: { name: '鐘喰い', boss: true, cycle: [A(5, 2), Wk(), A(17)] },
+  king: { name: '夜の王', boss: true, cycle: [A(11), D(10), A(17)] },
 };
 
 export const CHAPTERS = [
@@ -84,19 +85,19 @@ export const NODES = [
   { ch: 0, type: 'rescue', name: '風読みの檻', foes: [E('cagekeeper', 18)], ally: 'rine' },
   { ch: 0, type: 'battle', name: '蛾の灯る沢', foes: [E('moth', 12), E('wolf', 10)] },
   { ch: 0, type: 'rest', name: '焚火' },
-  { ch: 0, type: 'boss', name: '森の門', foes: [E('stag', 38)] },
+  { ch: 0, type: 'boss', name: '森の門', foes: [E('stag', 44)] },
   { ch: 1, type: 'battle', name: '錆びた広場', foes: [E('crow', 15), E('wax', 14)] },
   { ch: 1, type: 'rescue', name: '影熊の檻', foes: [E('bear', 28)], ally: 'toma' },
   { ch: 1, type: 'battle', name: '鐘楼の下', foes: [E('bat', 16), E('moth', 16)] },
   { ch: 1, type: 'rest', name: '鐘楼の休息' },
-  { ch: 1, type: 'boss', name: '最後の鐘', foes: [E('belleater', 48)] },
+  { ch: 1, type: 'boss', name: '最後の鐘', foes: [E('belleater', 54)] },
   { ch: 2, type: 'battle', name: '鎖の回廊', foes: [E('spider', 18), E('wax', 18)] },
-  { ch: 2, type: 'rescue', name: '灯し子の檻', foes: [E('bear', 32), E('crow', 14)], ally: 'nagi' },
+  { ch: 2, type: 'rescue', name: '灯し子の檻', foes: [E('bear', 30), E('crow', 12)], ally: 'nagi' },
   { ch: 2, type: 'battle', name: '鏡の間', foes: [E('owl', 24), E('bat', 18)] },
   { ch: 2, type: 'rest', name: '最後の火' },
   { ch: 2, type: 'boss', name: '玉座', foes: [E('king', 60)] },
 ];
 // 練習：2ターンで「攻撃する→防いで受ける→とどめ」を一度ずつ体験する（手札は決まっている）
-export const TUTORIAL_NODE = { ch: 0, type: 'tutorial', name: '森の入口', foes: [E('wolf', 12)], script: [['spark', 'ward'], ['spark']] };
+export const TUTORIAL_NODE = { ch: 0, type: 'tutorial', name: '森の入口', foes: [E('pup', 12)], script: [['spark', 'ward'], ['spark']] };
 // 第一章の最初の報酬は固定（攻撃寄り・防御寄り・引き寄りの差が分かる3枚）
 export const FIRST_REWARD = ['lance', 'ashshield', 'ember'];

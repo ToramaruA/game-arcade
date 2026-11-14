@@ -469,7 +469,7 @@ function handleEvents() {
       case 'weakened': flush(); log('<b>弱体</b>にされた：次の攻撃札が1打ごと2弱くなる'); floatAt(view.witch.x, view.witch.y - 160 * view.s, '弱体', 'small'); break;
       case 'weak': if (cur) cur.weak = true; for (const f of view.foes) floatAt(f.x, f.top, '弱体', 'small'); break;
       case 'turn': if (e.turn > 1) { const d = delay; setTimeout(() => banner(`ターン ${e.turn}`, '', 0.8), d); } break;
-      case 'battle': if (e.type !== 'tutorial') { const nd = NODES[s.node]; if (nd && s.phase === 'battle') banner(nd.name, s.node === 0 ? '敵の上は次の行動：⚔攻撃・🛡防御・☾弱体。⚔は防壁で防げる' : nd.type === 'rescue' ? `檻の中に${ALLIES[nd.ally].name}。鎖2本を切れば救える（1本2エネルギー）` : nd.type === 'boss' ? CHAPTERS[nd.ch].boss : '', 2.6); } break;
+      case 'battle': logLines.length = 0; $('actlog').hidden = true; if (e.type !== 'tutorial') { const nd = NODES[s.node]; if (nd && s.phase === 'battle') banner(nd.name, s.node === 0 ? '敵の上は次の行動：⚔攻撃・🛡防御・☾弱体。⚔は防壁で防げる' : nd.type === 'rescue' ? `檻の中に${ALLIES[nd.ally].name}。鎖2本を切れば救える（1本2エネルギー）` : nd.type === 'boss' ? CHAPTERS[nd.ch].boss : '', 2.6); } break;
       case 'win': audio.win(); banner('勝利', '', 1.2); break;
       case 'dead': audio.lose(); break;
       case 'retrieve': if (cur) cur.retrieve = e.id; banner(`${CARDS[e.id].name}が手札に戻った`, '', 1.2); break;

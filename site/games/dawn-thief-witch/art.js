@@ -209,6 +209,7 @@ export function drawCage(ctx, x, y, s, chains, t, ally, state) {
 // ---------- 敵（影絵＋差し色） ----------
 // 足元を原点に描く。高さ約 120 を基準
 export function drawFoe(ctx, id, x, y, s, t, o = {}) {
+  if (id === 'pup') id = 'wolf';
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
   if (o.hit) ctx.translate(Math.sin(t * 80) * 4, 0);
   const breath = Math.sin(t * 2 + (o.k || 0)) * 2;
@@ -318,7 +319,7 @@ export function drawFoe(ctx, id, x, y, s, t, o = {}) {
   }
   ctx.restore();
 }
-export const FOE_HEIGHT = { wolf: 90, cagekeeper: 120, moth: 100, crow: 85, wax: 120, bear: 125, bat: 100, spider: 70, owl: 115, stag: 190, belleater: 135, king: 215 };
+export const FOE_HEIGHT = { pup: 90, wolf: 90, cagekeeper: 120, moth: 100, crow: 85, wax: 120, bear: 125, bat: 100, spider: 70, owl: 115, stag: 190, belleater: 135, king: 215 };
 
 // ---------- カードの絵（版画の図案） ----------
 export function drawCardArt(ctx, id, w, h, t = 0) {
@@ -344,7 +345,7 @@ export function drawCardArt(ctx, id, w, h, t = 0) {
     case 'ashshield': shield(1.2, '#9a8f84'); break;
     case 'mist': ctx.strokeStyle = C.paperD; ctx.lineWidth = 3; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(-10 + i * 10, -4 + i * 6, 10, Math.PI, 0); ctx.stroke(); } break;
     case 'sleep': for (let i = 0; i < 12; i++) { ctx.fillStyle = i % 2 ? C.purpleL : C.paperD; ctx.beginPath(); ctx.arc(Math.cos(i) * 18, Math.sin(i * 1.7) * 14, 2, 0, TAU); ctx.fill(); } ctx.fillStyle = C.moon; ctx.beginPath(); ctx.arc(0, 0, 8, 0.6, 5.6); ctx.fill(); break;
-    case 'keeper': shield(0.8); card(18, 6); break;
+    case 'keeper': ctx.fillStyle = C.indigo; ctx.fillRect(-12, -6, 24, 24); ctx.strokeStyle = C.gold; ctx.lineWidth = 2; ctx.strokeRect(-12, -6, 24, 24); flame(0, -8, 0.9, C.goldL); card(20, 8); break; // 火守り：灯籠と1枚の札
     case 'sweep': ctx.strokeStyle = C.paperD; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-18, 16); ctx.lineTo(10, -14); ctx.stroke(); for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.moveTo(-18, 16); ctx.lineTo(-26 + i * 4, 24); ctx.stroke(); } break;
     case 'afterglow': ctx.fillStyle = C.redD; ctx.beginPath(); ctx.ellipse(0, 10, 22, 6, 0, 0, TAU); ctx.fill(); flame(0, 2, 0.8); ctx.strokeStyle = C.gold; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 18, -2.6, -0.5); ctx.stroke(); break;
     case 'nightwalk': ctx.fillStyle = C.moon; ctx.beginPath(); ctx.arc(10, -10, 8, 0, TAU); ctx.fill(); card(-8, 6); card(4, 10); break;
