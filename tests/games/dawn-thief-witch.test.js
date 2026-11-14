@@ -70,17 +70,18 @@ test('弱体：敵の次の攻撃1行動の各打を2減らし、攻撃したら
   assert.deepEqual(b.foes.map((f) => f.weak), [0, 0]);
 });
 
-test('救出：常設の鎖切り（2エネルギー・1ターン1回）を2回で救出、次のターンに仲間の札が手札へ。勝つと恒久デッキに1枚だけ', () => {
-  const s = at(1); const b = s.battle; // 檻番 HP18 + 風読みリネ
-  assert.equal(b.chains, 2);
-  assert.ok(L.cutChain(s).ok); assert.equal(b.chains, 1); assert.equal(b.energy, 1);
-  assert.equal(L.cutChain(s).ok, false, '1ターン1回');
-  L.endTurn(s);
-  L.cutChain(s); assert.equal(b.cage, 'freed');
+test('救出：鎖も攻撃の的。攻撃の札で2本壊すと救出し、次のターンに仲間の札が手札へ。勝つと恒久デッキに1枚だけ', () => {
+  const s = at(1); const b = s.battle; // 檻番 + 風読みリネ
+  assert.equal(b.chains, 2); assert.deepEqual(L.chainTargets(s), ['c0', 'c1']);
+  handOf(s, ['spark', 'twin', 'spark']);
+  const p = L.preview(s, 'H0', 'c0'); assert.ok(p.ok); assert.equal(p.chainHp[0], 0, '火花1枚で鎖1本');
+  L.playCard(s, 'H0', 'c0'); assert.equal(b.chains, 1); assert.equal(b.foes[0].hp, b.foes[0].maxHp, '敵は傷つかない');
+  assert.equal(L.playCard(s, 'H2', 'c0').ok, false, '壊れた鎖は狙えない');
+  L.playCard(s, 'H1', 'c1'); assert.equal(b.cage, 'freed', '二連火 3×2 で2本目');
+  assert.deepEqual(L.chainTargets(s), []);
   assert.ok(!b.hand.some((c) => c.id === 'tailwind'), '救ったターンにはまだ来ない');
   L.endTurn(s);
   assert.ok(b.hand.some((c) => c.id === 'tailwind' && c.temp), '次のターン開始時に追い風が手札へ');
-  // 勝つ
   const deck0 = s.deck.length;
   b.foes[0].hp = 1; handOf(s, ['spark']); L.playCard(s, 'H0', 0);
   assert.equal(s.phase, 'reward'); assert.deepEqual(s.allies, ['rine']);
@@ -151,7 +152,7 @@ test('負けたら：この戦闘をやり直す（戦闘入口に完全に戻�
 });
 
 test('保存と読み込み：往復でき、壊れたデータでも落ちない', () => {
-  const s = at(6); L.cutChain(s);
+  const s = at(6); handOf(s, ['spark']); L.playCard(s, 'H0', 'c0');
   const t = L.deserialize(L.serialize(s));
   assert.equal(t.battle.chains, 1); assert.equal(t.node, 6);
   assert.equal(L.deserialize('{oops'), null); assert.equal(L.deserialize('{"v":2}'), null);

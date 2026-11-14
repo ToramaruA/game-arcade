@@ -2,7 +2,7 @@
 // 状態はすべて JSON にできる素のオブジェクト。乱数はシード付きで、状態の中に持つ（保存・再挑戦で同じ結果になる）。
 import {
   CARDS, ENEMIES, NODES, CHAPTERS, ALLIES, STARTER_DECKS, TUTORIAL_NODE, FIRST_REWARD, MAX_HP, ENERGY, DRAW, HAND_MAX,
-  CHAIN_COST, REST_HEAL, CHAPTER_HEAL, MIN_DECK_FOR_REMOVE, rewardPool, isAttack, CARD_IDS,
+  CHAIN_HP, REST_HEAL, CHAPTER_HEAL, MIN_DECK_FOR_REMOVE, rewardPool, isAttack, CARD_IDS,
 } from './data.js';
 
 export * from './data.js';
@@ -70,7 +70,7 @@ function startBattle(s, nd, tutorial) {
   const b = {
     tutorial, type: nd.type, name: nd.name, foes: nd.foes.map((f, i) => makeFoe(s, f, i, tutorial)),
     draw: [], hand: [], discard: [], exhaust: [], energy: ENERGY, block: 0, weak: 0, turn: 0,
-    ally: nd.ally || null, chains: nd.ally ? 2 : 0, cage: nd.ally ? 'locked' : 'none', cutThisTurn: false, allyCardPending: false,
+    ally: nd.ally || null, chains: nd.ally ? 2 : 0, chainHp: nd.ally ? [CHAIN_HP, CHAIN_HP] : [], cage: nd.ally ? 'locked' : 'none', allyCardPending: false,
     nextTemp: 1, over: false,
   };
   s.battle = b;
@@ -100,7 +100,7 @@ function drawCards(s, n) {
 
 export function startTurn(s) {
   const b = s.battle;
-  b.turn += 1; b.energy = ENERGY; b.block = 0; b.cutThisTurn = false;
+  b.turn += 1; b.energy = ENERGY; b.block = 0;
   if (b.script) { b.hand = (b.script.shift() || []).map((id, i) => ({ uid: `T${b.turn}${i}`, id, temp: true })); }
   else drawCards(s, DRAW);
   if (b.allyCardPending) {
@@ -152,14 +152,32 @@ function damageFoe(s, foe, n) {
 export function needsTarget(id) { return CARDS[id].target === 'enemy'; }
 
 // 使えるかどうか（理由つき）。使えない場合、状態は一切変えない
+// 檻の鎖も、攻撃の札で狙える的（キーは 'c0' と 'c1'）
+export const isChainKey = (k) => typeof k === 'string' && k[0] === 'c';
+export function chainTargets(s) { const b = s.battle; return b && b.cage === 'locked' ? b.chainHp.map((h, i) => (h > 0 ? `c${i}` : null)).filter(Boolean) : []; }
+function damageChain(s, i, n) {
+  const b = s.battle; if (b.cage !== 'locked' || !(b.chainHp[i] > 0)) return;
+  const dmg = Math.min(n, b.chainHp[i]); b.chainHp[i] -= dmg;
+  ev(s, 'chainHit', { idx: i, dmg });
+  if (b.chainHp[i] <= 0) {
+    b.chains -= 1; ev(s, 'cut', { idx: i, left: b.chains });
+    if (b.chains <= 0) { b.cage = 'freed'; b.allyCardPending = true; ev(s, 'rescue', { ally: b.ally }); }
+  }
+}
+
 export function canPlay(s, uid, targetKey) {
   const b = s.battle; if (!b || b.over || (s.phase !== 'battle' && s.phase !== 'tutorial')) return { ok: false, reason: '戦闘中ではない' };
   const c = b.hand.find((x) => x.uid === uid); if (!c) return { ok: false, reason: '手札にない' };
   const def = CARDS[c.id];
   if (def.cost > b.energy) return { ok: false, reason: 'エネルギーが足りない' };
   if (def.target === 'enemy') {
-    const f = b.foes.find((x) => x.key === targetKey);
-    if (!f || f.dead) return { ok: false, reason: '対象の敵を選ぶ' };
+    if (isChainKey(targetKey)) {
+      const i = Number(targetKey.slice(1));
+      if (b.cage !== 'locked' || !(b.chainHp[i] > 0)) return { ok: false, reason: 'その鎖はもう壊れている' };
+    } else {
+      const f = b.foes.find((x) => x.key === targetKey);
+      if (!f || f.dead) return { ok: false, reason: '対象の敵を選ぶ' };
+    }
   }
   return { ok: true };
 }
@@ -177,6 +195,7 @@ export function playCard(s, uid, targetKey) {
     if (b.over) break;
     switch (fx.op) {
       case 'damage': {
+        if (!fx.all && isChainKey(targetKey)) { const i = Number(targetKey.slice(1)); for (let h = 0; h < (fx.hits || 1); h++) damageChain(s, i, hitDamage(s, fx, null)); break; }
         const targets = fx.all ? living(s) : [b.foes.find((x) => x.key === targetKey)];
         for (let h = 0; h < (fx.hits || 1); h++) for (const f of targets) if (!f.dead && !b.over) damageFoe(s, f, hitDamage(s, fx, f));
         break;
@@ -212,26 +231,10 @@ export function preview(s, uid, targetKey) {
   return {
     ok: true, hp: t.hp, block: b.block ?? 0, energy: b.energy ?? 0,
     foes: (b.foes || []).map((f) => ({ key: f.key, hp: f.hp, block: f.block, dead: f.dead, weak: f.weak })),
+    chainHp: t.battle ? t.battle.chainHp.slice() : [], rescue: t.events.some((e) => e.type === 'rescue'),
     cageLost: t.events.some((e) => e.type === 'cageLost'),
     win: t.events.some((e) => e.type === 'win'),
   };
-}
-
-// ---------- 鎖を切る（常設・2エネルギー・1ターン1回） ----------
-export function canCut(s) {
-  const b = s.battle;
-  if (!b || b.over || s.phase !== 'battle') return { ok: false, reason: '' };
-  if (b.cage !== 'locked') return { ok: false, reason: '檻はない' };
-  if (b.cutThisTurn) return { ok: false, reason: 'このターンはもう切った' };
-  if (b.energy < CHAIN_COST) return { ok: false, reason: 'エネルギーが足りない' };
-  return { ok: true };
-}
-export function cutChain(s) {
-  const chk = canCut(s); if (!chk.ok) return chk;
-  const b = s.battle; b.energy -= CHAIN_COST; b.chains -= 1; b.cutThisTurn = true;
-  ev(s, 'cut', { left: b.chains });
-  if (b.chains <= 0) { b.cage = 'freed'; b.allyCardPending = true; ev(s, 'rescue', { ally: b.ally }); }
-  return { ok: true };
 }
 
 // ---------- ターン終了と敵の行動 ----------
@@ -369,7 +372,7 @@ function evalAfter(t, policy) {
   const foeHp = b.foes.reduce((a, f) => a + (f.dead ? 0 : f.hp + f.block * 0.5), 0);
   const alive = b.foes.filter((f) => !f.dead).length;
   let v = t.hp * 4 - foeHp * 1.2 - alive * 6;
-  if (policy.rescue && b.ally) v += (2 - b.chains) * 30 + (b.cage === 'freed' ? 40 : 0);
+  if (policy.rescue && b.ally) v += (2 * CHAIN_HP - b.chainHp.reduce((x, y) => x + Math.max(0, y), 0)) * 2.5 + (2 - b.chains) * 15 + (b.cage === 'freed' ? 40 : 0);
   return v;
 }
 function endClone(t) { const c = clone({ ...t, snapBattle: null, snapChapter: null }); c.events = []; endTurn(c); return c; }
@@ -384,10 +387,9 @@ export function bestPlan(s, policy = {}, budget = 600) {
     if (v > best.v) best = { v, plan: plan.slice() };
     if (done) return;
     const seen = new Set();
-    if (policy.rescue && canCut(t).ok) { const c = clone({ ...t, snapBattle: null, snapChapter: null }); c.events = []; cutChain(c); rec(c, [...plan, { cut: true }]); }
     for (const card of b.hand) {
       const def = CARDS[card.id]; if (def.cost > b.energy) continue;
-      const targets = def.target === 'enemy' ? b.foes.filter((f) => !f.dead).map((f) => f.key) : [undefined];
+      const targets = def.target === 'enemy' ? [...b.foes.filter((f) => !f.dead).map((f) => f.key), ...(policy.rescue ? chainTargets(t) : [])] : [undefined];
       for (const tk of targets) {
         const sig = `${card.id}:${tk}`; if (seen.has(sig)) continue; seen.add(sig);
         const c = clone({ ...t, snapBattle: null, snapChapter: null }); c.events = [];
@@ -403,7 +405,6 @@ export function botTurn(s, policy = {}) {
   const plan = bestPlan(s, policy);
   for (const step of plan) {
     const b = s.battle; if (!b || b.over) break;
-    if (step.cut) { cutChain(s); continue; }
     const card = b.hand.find((c) => c.id === step.id && CARDS[c.id].cost <= b.energy);
     if (!card) break;
     playCard(s, card.uid, step.target);

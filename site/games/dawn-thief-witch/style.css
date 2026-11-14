@@ -199,3 +199,12 @@ body.low * { animation: none !important; transition: none !important; }
 
 .hand { min-height: 196px; }
 @media (max-width: 560px) { .dock { min-height: 232px; } .hand { min-height: 162px; } .confirm { justify-content: center; } }
+
+.foe.chain { min-width: 0; padding: 2px; }
+.foe.chain .fhp { width: 64px; }
+.foe.chain .fhp i { background: #cfc6b0; }
+.foe.chain .fhp { width: 76px; height: 18px; border-color: var(--moon); }
+.foe.chain .fhp span { font-size: 11.5px; line-height: 16px; inset: 0; }
+.foe.chain { background: rgba(21,16,12,.55); border-color: rgba(246,236,208,.6); border-radius: 4px; }
+.badge.cagewarn { background: var(--redD); color: var(--moon); border-color: var(--moon); font-size: 10px; }
+.coach small { display: block; font-size: 12px; color: #4a3a2a; margin-top: 2px; }

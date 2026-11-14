@@ -233,7 +233,7 @@ function renderBattle() {
       const hpAfter = pf ? pf.hp : f.hp;
       el.innerHTML = `<span class="intent ${it.t}" title="次の行動">${ic}</span>
         <span class="fhp"><i style="width:${(f.hp / f.maxHp) * 100}%"></i>${pf && pf.hp !== f.hp ? `<i class="pv" style="left:${(hpAfter / f.maxHp) * 100}%;width:${((f.hp - hpAfter) / f.maxHp) * 100}%"></i>` : ''}<span>${pf && pf.hp !== f.hp ? `${f.hp}→${hpAfter}` : `${f.hp}/${f.maxHp}`}</span></span>
-        <span class="fbadges">${f.block ? `<span class="badge block">🛡${f.block}</span>` : ''}${f.weak ? '<span class="badge weak">弱体</span>' : ''}</span>
+        <span class="fbadges">${f.block ? `<span class="badge block">🛡${f.block}</span>` : ''}${f.weak ? '<span class="badge weak">弱体</span>' : ''}${b && b.cage === 'locked' && L.living(s).length === 1 && !f.dead ? '<span class="badge cagewarn" title="この敵を倒すと、救う前に檻が運び去られる">倒すと檻が運ばれる</span>' : ''}</span>
         <span class="nm">${f.name}</span>`;
       el.setAttribute('aria-label', `${f.name} HP${f.hp}/${f.maxHp}。次の行動：${it.t === 'a' ? `攻撃${it.total}` : it.t === 'd' ? `防御${it.n}` : '弱体'}`);
       el.style.left = `${pos.x}px`;
@@ -247,17 +247,30 @@ function renderBattle() {
   // 檻の名札：中にいる仲間と、救うと得られる札
   if (b && b.ally && view.cage && b.cage !== 'lost') {
     const tag = document.createElement('div'); tag.className = 'cagetag';
-    tag.innerHTML = b.cage === 'freed' ? `<b>${ALLIES[b.ally].name}</b>を救った` : `檻の中：<b>${ALLIES[b.ally].name}</b><br>鎖${b.chains}本を切れば救える<br><small>救うと「${CARDS[ALLIES[b.ally].card].name}」</small>`;
-    tag.style.left = `${view.cage.x}px`; tag.style.top = `${Math.max(36, view.cage.y - 150 * view.cage.s)}px`;
+    tag.innerHTML = b.cage === 'freed' ? `<b>${ALLIES[b.ally].name}</b>を救った` : `檻の中：<b>${ALLIES[b.ally].name}</b><br><small>鎖を攻撃して2本壊せば救える<br>救うと〈${CARDS[ALLIES[b.ally].card].name}〉</small>`;
+    tag.style.left = `${view.cage.x}px`; tag.style.top = `${Math.max(36, view.cage.y - 200 * view.cage.s)}px`;
     box.appendChild(tag);
+    // 鎖：敵と同じように、攻撃の札で狙える的
+    if (b.cage === 'locked') {
+      const sel = ui.sel && b.hand.find((c) => c.uid === ui.sel);
+      b.chainHp.forEach((hp, i) => {
+        if (hp <= 0) return;
+        const pos = chainPos(i); const after = pv && pv.ok && pv.chainHp ? pv.chainHp[i] : hp;
+        const el = document.createElement('button'); el.type = 'button'; el.className = 'foe chain'; el.dataset.key = `c${i}`;
+        el.innerHTML = `<span class="fhp"><i style="width:${(hp / L.CHAIN_HP) * 100}%"></i><span>${after !== hp ? `鎖 ${hp}→${Math.max(0, after)}` : `鎖 ${hp}/${L.CHAIN_HP}`}</span></span>`;
+        el.setAttribute('aria-label', `檻の鎖${i + 1}、強さ${hp}`);
+        el.style.left = `${pos.x}px`; el.style.top = `${pos.y - 12}px`;
+        if (sel && CARDS[sel.id].target === 'enemy') el.classList.add(ui.target === `c${i}` ? 'targeted' : 'targetable');
+        el.addEventListener('click', () => onFoe(`c${i}`));
+        box.appendChild(el);
+      });
+    }
   }
   // エネルギー
   const en = b ? b.energy : 0;
   $('enN').textContent = en; $('enOrbs').innerHTML = Array.from({ length: Math.max(3, en) }, (_, i) => `<i class="orb${i < en ? '' : ' off'}"></i>`).join('');
   // 鎖
-  const cut = b && b.cage === 'locked';
-  $('cutBtn').hidden = !cut;
-  if (cut) { const ok = L.canCut(s).ok; $('cutBtn').disabled = !ok; $('cutBtn').innerHTML = `鎖を切る <small>2</small><span class="wide"> 残り${b.chains}本</span>`; }
+  $('cutBtn').hidden = true;
   $('endBtn').hidden = false;
   $('endBtn').classList.toggle('warn', ui.endWarned);
   $('endBtn').textContent = ui.endWarned ? 'まだ使える。終える？' : 'ターン終了';
@@ -271,6 +284,12 @@ function renderBattle() {
 function renderCoach() {
   const box = $('coach');
   document.querySelectorAll('.glow').forEach((el) => el.classList.remove('glow'));
+  if (s && s.phase === 'battle' && s.battle && s.battle.cage === 'locked' && !rec.rescueTaught) {
+    const b = s.battle; const nm = ALLIES[b.ally].name;
+    const ac = CARDS[ALLIES[b.ally].card];
+    box.innerHTML = `<span class="coach-k">救出</span>攻撃の札を選んで<b>鎖をタップ</b>すると壊せる。<b>2本壊すと${nm}を救える</b>。<br><small>救うと次のターン〈${ac.name}：${ac.text.replace(/（.*）/, '')}〉が手札に。先に敵を全部倒すと檻は運び去られる。</small>`;
+    box.hidden = false; document.querySelectorAll('.cagetag').forEach((el) => { el.hidden = true; }); document.querySelectorAll('.foe.chain').forEach((el) => el.classList.add('glow')); return;
+  }
   if (!s || s.phase !== 'tutorial' || !s.battle) { box.hidden = true; return; }
   const b = s.battle; const wolf = b.foes[0];
   const has = (id) => b.hand.find((c) => c.id === id);
@@ -344,11 +363,13 @@ function renderConfirm() {
   $('cCard').innerHTML = ''; $('cCard').appendChild(cardEl(c.id, { button: false }));
   const pv = previewNow();
   const chk = L.canPlay(s, c.uid, ui.target);
-  if (d.target === 'enemy' && ui.target == null) { $('cPrompt').textContent = `${d.name}：敵を選ぶ`; $('cPreview').textContent = d.text; $('useBtn').disabled = true; $('cWarn').hidden = true; return; }
-  $('cPrompt').textContent = d.target === 'all' ? `${d.name}：敵すべてに` : d.target === 'self' ? `${d.name}：自分に` : `${d.name}：${b.foes.find((f) => f.key === ui.target).name}へ`;
+  if (d.target === 'enemy' && ui.target == null) { $('cPrompt').textContent = b.cage === 'locked' ? `${d.name}：敵か鎖を選ぶ` : `${d.name}：敵を選ぶ`; $('cPreview').textContent = d.text; $('useBtn').disabled = true; $('cWarn').hidden = true; return; }
+  $('cPrompt').textContent = d.target === 'all' ? `${d.name}：敵すべてに` : d.target === 'self' ? `${d.name}：自分に` : L.isChainKey(ui.target) ? `${d.name}：檻の鎖へ` : `${d.name}：${b.foes.find((f) => f.key === ui.target).name}へ`;
   if (!chk.ok) { $('cPreview').textContent = chk.reason; $('useBtn').disabled = true; $('cWarn').hidden = true; return; }
   const parts = [];
   for (const f of b.foes) { const p = pv.foes.find((x) => x.key === f.key); if (p && (p.hp !== f.hp || p.block !== f.block)) parts.push(`${f.name} HP ${f.hp}→<b>${p.hp}</b>${p.dead ? '（倒れる）' : ''}`); }
+  b.chainHp.forEach((h, i) => { const a = pv.chainHp?.[i]; if (a != null && a !== h) parts.push(`鎖 ${h}→<b>${Math.max(0, a)}</b>${a <= 0 ? '（壊れる）' : ''}`); });
+  if (pv.rescue) parts.push(`<b>${ALLIES[b.ally].name}を救える！</b>`);
   if (pv.block !== b.block) parts.push(`防御 ${b.block}→<b>${pv.block}</b>`);
   if (pv.hp !== s.hp) parts.push(`HP ${s.hp}→<b>${pv.hp}</b>`);
   parts.push(`エネルギー ${b.energy}→<b>${pv.energy}</b>`);
@@ -390,7 +411,7 @@ function bindCard(el, c) {
       const inScene = hit.includes($('sceneWrap'));
       if (inScene) {
         ui.sel = c.uid; ui.target = null;
-        if (CARDS[c.id].target === 'enemy') { if (foe) ui.target = Number(foe.dataset.key); else { const alive = L.living(s); if (alive.length === 1) ui.target = alive[0].key; } }
+        if (CARDS[c.id].target === 'enemy') { if (foe) { const k = foe.dataset.key; ui.target = k[0] === 'c' ? k : Number(k); } else { const alive = L.living(s); if (alive.length === 1) ui.target = alive[0].key; } }
         audio.pluck(2); renderBattle();
       } else cancelSel();
     } else if (e.type === 'pointerup') selectCard(c.uid);
@@ -410,7 +431,7 @@ $('endBtn').addEventListener('click', () => endTurn());
 function endTurn() {
   if (ui.lock > 0 || !s.battle || (s.phase !== 'battle' && s.phase !== 'tutorial')) return;
   const b = s.battle;
-  const usable = b.hand.some((c) => CARDS[c.id].cost <= b.energy) || L.canCut(s).ok;
+  const usable = b.hand.some((c) => CARDS[c.id].cost <= b.energy);
   if (s.phase === 'tutorial' && usable) { toast('先に手札のカードを使おう'); return; }
   if (b.energy > 0 && usable && !ui.endWarned) { ui.endWarned = true; renderBattle(); return; }
   ui.endWarned = false; ui.sel = null; ui.target = null;
@@ -426,7 +447,8 @@ function floatAt(x, y, text, cls = '') {
 }
 let bannerT = 0;
 function banner(main, sub = '', dur = 2.2) { $('banner').innerHTML = `${main}${sub ? `<small>${sub}</small>` : ''}`; $('banner').classList.add('on'); bannerT = dur; }
-function foePos(key) { const p = view.foes.find((x) => x.key === key); return p ? { x: p.x, y: (p.y + p.top) / 2 } : { x: view.w * 0.7, y: view.h * 0.5 }; }
+function chainPos(i) { const c = view.cage || { x: view.w / 2, y: view.h, s: 1 }; return { x: c.x + (i ? 41 : -41) * c.s, y: c.y - 75 * c.s }; }
+function foePos(key) { if (L.isChainKey(key)) return chainPos(Number(key.slice(1))); const p = view.foes.find((x) => x.key === key); return p ? { x: p.x, y: (p.y + p.top) / 2 } : { x: view.w * 0.7, y: view.h * 0.5 }; }
 const sparks = [];
 function burst(x, y, col, n = 14) { if (settings.low) return; for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2; const v = 60 + Math.random() * 160; sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, life: 0.5 + Math.random() * 0.4, t: 0, col }); } }
 // 何が起きたかを一行で（画面下の帯）
@@ -438,7 +460,7 @@ function handleEvents() {
   let delay = 0; const step = settings.fast ? 110 : 220;
   // カード1枚ごとの結果をまとめて、一行にする
   let cur = null; const flush = () => { if (!cur) return; const d = CARDS[cur.id]; const parts = [];
-    for (const [k, v] of Object.entries(cur.dmg)) { const f = (s.battle || s.lastBattle)?.foes.find((x) => x.key === Number(k)); parts.push(`${f ? f.name : '敵'}に<b>${v.dmg}</b>ダメージ${v.blocked ? `（🛡で${v.blocked}防がれた）` : ''}${v.kill ? '・倒した' : ''}`); }
+    for (const [k, v] of Object.entries(cur.dmg)) { if (v.chain) { parts.push(`檻の鎖に<b>${v.dmg}</b>${s.battle && s.battle.chainHp[Number(k.slice(1))] <= 0 ? '・壊した' : ''}`); continue; } const f = (s.battle || s.lastBattle)?.foes.find((x) => x.key === Number(k)); parts.push(`${f ? f.name : '敵'}に<b>${v.dmg}</b>ダメージ${v.blocked ? `（🛡で${v.blocked}防がれた）` : ''}${v.kill ? '・倒した' : ''}`); }
     if (cur.block) parts.push(`自分に<b>🛡${cur.block}</b>`); if (cur.heal) parts.push(`HP<b>+${cur.heal}</b>`); if (cur.draw) parts.push(`${cur.draw}枚引いた`); if (cur.weak) parts.push('敵を弱体にした'); if (cur.retrieve) parts.push(`${CARDS[cur.retrieve].name}を手札へ`);
     log(`〈${d.name}〉 ${parts.join('、') || d.text}`); cur = null; };
   const handBefore = s.battle ? s.battle.hand.length : 0; void handBefore;
@@ -454,10 +476,11 @@ function handleEvents() {
       case 'kill': { if (cur && cur.dmg[e.key]) cur.dmg[e.key].kill = true; const p = foePos(e.key); setTimeout(() => burst(p.x, p.y, '#ffd77a', 30), 220); break; }
       case 'block': if (cur) cur.block += e.n; audio.block(); floatAt(view.witch.x + 20, view.witch.y - 120 * view.s, `🛡+${e.n}`, 'blk'); break;
       case 'heal': if (cur) cur.heal += e.n; if (e.n) floatAt(view.witch.x, view.witch.y - 140 * view.s, `+${e.n}`, 'small'); break;
-      case 'cut': audio.chain(); burst(view.cage?.x || view.w / 2, (view.cage?.y || view.h) - 70 * view.s, '#f6ecd0', 16); banner(e.left ? '鎖を1本切った' : '', e.left ? 'あと1本。次のターンにもう一度' : ''); break;
-      case 'rescue': audio.bell(); banner(`${ALLIES[e.ally].name}を救った`, `次のターン、${CARDS[ALLIES[e.ally].card].name}が手札に来る`, 2.6); break;
+      case 'chainHit': { if (cur) { const k = `c${e.idx}`; const r = cur.dmg[k] || (cur.dmg[k] = { dmg: 0, blocked: 0, chain: true }); r.dmg += e.dmg; } const p = chainPos(e.idx); setTimeout(() => { floatAt(p.x, p.y, `-${e.dmg}`, 'dmg'); burst(p.x, p.y, '#f6ecd0', 10); }, settings.low ? 0 : 200); break; }
+      case 'cut': audio.chain(); { const p = chainPos(e.idx); setTimeout(() => burst(p.x, p.y, '#f6ecd0', 24), 220); } if (e.left) banner('鎖が1本壊れた', 'あと1本で救える'); break;
+      case 'rescue': rec.rescueTaught = true; saveRec(); audio.bell(); banner(`${ALLIES[e.ally].name}を救った`, `次のターン、${ALLIES[e.ally].name}の札〈${CARDS[ALLIES[e.ally].card].name}〉が手札に来る`, 2.6); break;
       case 'allyCard': banner(`${CARDS[e.id].name}が手札に`, '', 1.4); break;
-      case 'cageLost': banner('檻が運び去られた', `${ALLIES[e.ally].name}は救えなかった`, 2.4); break;
+      case 'cageLost': rec.rescueTaught = true; saveRec(); banner('檻が運び去られた', `${ALLIES[e.ally].name}は救えなかった`, 2.4); break;
       case 'hurt': {
         flush();
         { const f = (s.battle || s.lastBattle)?.foes.find((x) => x.key === e.key); log(`${f ? f.name : '敵'}の攻撃 ${e.dmg + e.blocked} → ${e.blocked ? `🛡で${e.blocked}防ぎ、` : ''}<b>${e.dmg}</b>受けた`); }
@@ -469,7 +492,7 @@ function handleEvents() {
       case 'weakened': flush(); log('<b>弱体</b>にされた：次の攻撃札が1打ごと2弱くなる'); floatAt(view.witch.x, view.witch.y - 160 * view.s, '弱体', 'small'); break;
       case 'weak': if (cur) cur.weak = true; for (const f of view.foes) floatAt(f.x, f.top, '弱体', 'small'); break;
       case 'turn': if (e.turn > 1) { const d = delay; setTimeout(() => banner(`ターン ${e.turn}`, '', 0.8), d); } break;
-      case 'battle': logLines.length = 0; $('actlog').hidden = true; if (e.type !== 'tutorial') { const nd = NODES[s.node]; if (nd && s.phase === 'battle') banner(nd.name, s.node === 0 ? '敵の上は次の行動：⚔攻撃・🛡防御・☾弱体。⚔は防壁で防げる' : nd.type === 'rescue' ? `檻の中に${ALLIES[nd.ally].name}。鎖2本を切れば救える（1本2エネルギー）` : nd.type === 'boss' ? CHAPTERS[nd.ch].boss : '', 2.6); } break;
+      case 'battle': logLines.length = 0; $('actlog').hidden = true; if (e.type !== 'tutorial') { const nd = NODES[s.node]; if (nd && s.phase === 'battle') banner(nd.name, s.node === 0 ? '敵の上は次の行動：⚔攻撃・🛡防御・☾弱体。⚔は防壁で防げる' : nd.type === 'rescue' ? `檻の中に${ALLIES[nd.ally].name}。鎖2本を攻撃で壊せば救える` : nd.type === 'boss' ? CHAPTERS[nd.ch].boss : '', 2.6); } break;
       case 'win': audio.win(); banner('勝利', '', 1.2); break;
       case 'dead': audio.lose(); break;
       case 'retrieve': if (cur) cur.retrieve = e.id; banner(`${CARDS[e.id].name}が手札に戻った`, '', 1.2); break;
@@ -623,7 +646,7 @@ $('menuBtn').addEventListener('click', () => {
   $('mBack').addEventListener('click', () => { closeModal(); route(); });
   if ($('mSkip')) $('mSkip').addEventListener('click', () => { L.skipTutorial(s); afterAdvance(); });
   $('mDeck').addEventListener('click', () => showDeck(() => $('menuBtn').click()));
-  $('mHelp').addEventListener('click', () => modal(`<h2>遊び方</h2><p style="text-align:left">毎ターン、エネルギー3で手札5枚を使う。<br>敵の頭の上に<b>次の行動</b>が出ている（⚔攻撃・🛡防御・☾弱体）。攻撃は🛡防御で減らせる。<br>カードは<b>選ぶ→敵を選ぶ→使う</b>。カードを上へドラッグして敵に落としてもよい。<br><b>檻</b>のある戦いでは「鎖を切る」（2エネルギー・1ターン1回）を2回で仲間を救える。救う前に敵を全滅させると檻は運び去られる。<br>勝ったらカードを1枚選んでデッキを組み替える。3章のボスを倒せば夜明け。</p><p class="sub">キー：1〜8 カード／Tab 敵の切替／Enter 使う／Esc 取消／E ターン終了／C 鎖を切る</p><div class="row"><button id="bk" class="btn" type="button">戻る</button></div>`) || $('bk').addEventListener('click', () => $('menuBtn').click()));
+  $('mHelp').addEventListener('click', () => modal(`<h2>遊び方</h2><p style="text-align:left">毎ターン、エネルギー3で手札5枚を使う。<br>敵の頭の上に<b>次の行動</b>が出ている（⚔攻撃・🛡防御・☾弱体）。攻撃は🛡防御で減らせる。<br>カードは<b>選ぶ→敵を選ぶ→使う</b>。カードを上へドラッグして敵に落としてもよい。<br><b>檻</b>のある戦いでは、<b>鎖も攻撃の的</b>。攻撃の札で鎖を2本壊すと仲間を救え、次のターンに仲間の札が手札に来る。救う前に敵を全滅させると檻は運び去られる。<br>勝ったらカードを1枚選んでデッキを組み替える。3章のボスを倒せば夜明け。</p><p class="sub">キー：1〜8 カード／Tab 敵・鎖の切替／Enter 使う／Esc 取消／E ターン終了</p><div class="row"><button id="bk" class="btn" type="button">戻る</button></div>`) || $('bk').addEventListener('click', () => $('menuBtn').click()));
   $('mSet').addEventListener('click', () => openSettings(() => $('menuBtn').click()));
   $('mTitle').addEventListener('click', () => { save(); closeModal(); s = null; show('title'); refreshTitle(); });
 });
@@ -635,9 +658,8 @@ window.addEventListener('keydown', (e) => {
   if (/^[1-8]$/.test(e.key)) { const c = b.hand[Number(e.key) - 1]; if (c) selectCard(c.uid); e.preventDefault(); }
   else if (e.key === 'Escape') cancelSel();
   else if (e.key === 'Enter') { if (ui.sel && !$('useBtn').disabled) { useSelected(); e.preventDefault(); } }
-  else if (e.key === 'Tab' && ui.sel) { const alive = L.living(s); if (alive.length) { const i = alive.findIndex((f) => f.key === ui.target); ui.target = alive[(i + 1) % alive.length].key; renderBattle(); } e.preventDefault(); }
+  else if (e.key === 'Tab' && ui.sel) { const keys = [...L.living(s).map((f) => f.key), ...L.chainTargets(s)]; if (keys.length) { const i = keys.indexOf(ui.target); ui.target = keys[(i + 1) % keys.length]; renderBattle(); } e.preventDefault(); }
   else if (e.key === 'e' || e.key === 'E') endTurn();
-  else if (e.key === 'c' || e.key === 'C') $('cutBtn').click();
 });
 $('sceneWrap').addEventListener('click', (e) => { if (e.target === cv && ui.sel) { const c = s.battle?.hand.find((x) => x.uid === ui.sel); if (c && CARDS[c.id].target === 'enemy' && ui.target == null) return; } });
 
