@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>夜明けを盗んだ魔女の旅</title>
+  <meta name="description" content="その一手で敵を倒すか、仲間を救うか。夜明けを盗んだ魔女が、カードを組み替えて夜の王へ挑む、物語つきデッキ構築ゲーム。">
+  <link rel="canonical" href="https://game-arcade-bdt.pages.dev/games/dawn-thief-witch/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="夜明けを盗んだ魔女の旅">
+  <meta property="og:description" content="その一手で敵を倒すか、仲間を救うか。夜明けを盗んだ魔女が、カードを組み替えて夜の王へ挑む、物語つきデッキ構築ゲーム。">
+  <meta property="og:url" content="https://game-arcade-bdt.pages.dev/games/dawn-thief-witch/">
+  <meta property="og:image" content="https://game-arcade-bdt.pages.dev/games/dawn-thief-witch/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#15100c">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="game" class="game">
+    <h1 class="sr">夜明けを盗んだ魔女の旅</h1>
+
+    <!-- タイトル -->
+    <section id="title" class="screen title">
+      <canvas id="titleCv" aria-hidden="true"></canvas>
+      <div class="title-ui">
+        <p class="t-kicker">デッキ構築の旅</p>
+        <h2 class="logo"><span>夜明けを盗んだ</span><b>魔女の旅</b></h2>
+        <div class="t-btns">
+          <button id="startBtn" class="btn big" type="button">旅立つ</button>
+          <button id="contBtn" class="btn" type="button" hidden>続きから</button>
+        </div>
+        <div id="unlockRow" class="t-row" hidden>
+          <label>初期デッキ <select id="starterSel"><option value="ember">火の旅（火花5・防壁4・焚き付け1）</option><option value="hearth">炉辺の旅（火花3・防壁4・火守り2・焚き付け1）</option></select></label>
+          <label class="chk"><input id="hardChk" type="checkbox"> 長い夜（敵HP+15%・攻撃+1）</label>
+        </div>
+        <nav class="t-nav"><button id="codexBtn" class="link" type="button">図鑑</button><button id="setBtn" class="link" type="button">設定</button></nav>
+      </div>
+    </section>
+
+    <!-- 戦闘 -->
+    <section id="battle" class="screen battle" hidden>
+      <div id="sceneWrap" class="scene-wrap">
+        <canvas id="scene" aria-label="戦闘の場面"></canvas>
+        <div class="topbar">
+          <span id="where" class="chip"></span>
+          <span class="piles"><span class="chip" title="山札">山 <b id="drawN">0</b></span><span class="chip" title="捨て札">捨 <b id="discN">0</b></span></span>
+          <button id="menuBtn" class="chip btn-icon" type="button" aria-label="メニュー">☰</button>
+        </div>
+        <div id="foes" class="foes"></div>
+        <div id="me" class="me">
+          <div class="hpbar"><i id="hpFill"></i><span id="hpTxt">36/36</span></div>
+          <span id="blockBadge" class="badge block" hidden>🛡<b id="blockN">0</b></span>
+          <span id="weakBadge" class="badge weak" hidden>弱体</span>
+        </div>
+        <div id="floats" class="floats"></div>
+        <div id="banner" class="banner"></div>
+      </div>
+      <div id="dock" class="dock">
+        <div id="confirm" class="confirm" hidden>
+          <div class="c-card" id="cCard"></div>
+          <div class="c-body">
+            <p id="cPrompt" class="c-prompt"></p>
+            <p id="cPreview" class="c-preview"></p>
+            <p id="cWarn" class="c-warn" hidden></p>
+            <div class="c-btns"><button id="useBtn" class="btn big" type="button">使う</button><button id="cancelBtn" class="btn ghost" type="button">取消</button></div>
+          </div>
+        </div>
+        <div class="dock-row">
+          <div class="energy" aria-label="エネルギー"><span id="enOrbs"></span><b id="enN">3</b></div>
+          <button id="cutBtn" class="btn chain" type="button" hidden>鎖を切る <small>2</small></button>
+          <button id="endBtn" class="btn end" type="button">ターン終了</button>
+        </div>
+        <div id="hand" class="hand" role="list"></div>
+      </div>
+    </section>
+
+    <!-- いろいろな画面（報酬・休息・旅路・敗北・結末・図鑑・設定） -->
+    <section id="modal" class="modal" hidden><div id="panel" class="panel"></div></section>
+  </main>
+  <footer class="arcade-link"><a href="/">Game Arcade</a></footer>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
