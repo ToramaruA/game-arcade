@@ -9,6 +9,13 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+// tests/autoplay/<slug>.mjs を読む。標準の形（export const game）なら共通の自動プレイヤーで戦法を組み立てる
+export async function loadPlayer(file) {
+  const mod = await import(pathToFileURL(file).href);
+  if (mod.game) { const { fromGame } = await import(pathToFileURL(path.join(ROOT, 'tests', 'autoplay', 'lib', 'players.mjs')).href); return fromGame(mod.game); }
+  return mod;
+}
+
 export function checkPlayer(mod) {
   const errs = [];
   if (!Array.isArray(mod.stages) || !mod.stages.length) errs.push('stages（面の一覧）がない');
@@ -23,13 +30,15 @@ export function checkPlayer(mod) {
 
 export function runTable(mod, { runs = 8, stageFilter = null } = {}) {
   const stages = stageFilter ? mod.stages.filter((_, i) => stageFilter.includes(i + 1)) : mod.stages;
-  const rows = stages.map((st) => ({ stage: st, wins: mod.strategies.map((sg) => {
+  const moves = mod.strategies.map(() => []);
+  const rows = stages.map((st) => ({ stage: st, wins: mod.strategies.map((sg, j) => {
     let w = 0;
-    for (let seed = 1; seed <= runs; seed++) if (mod.play(st, sg, seed).win) w += 1;
+    for (let seed = 1; seed <= runs; seed++) { const r = mod.play(st, sg, seed); if (r.win) w += 1; if (typeof r.moves === 'number') moves[j].push(r.moves); }
     return w;
   }) }));
   const totals = mod.strategies.map((_, j) => rows.reduce((a, r) => a + r.wins[j], 0));
-  return { stages, rows, totals, runs };
+  const avgMoves = moves.map((m) => (m.length ? m.reduce((a, b) => a + b, 0) / m.length : null));
+  return { stages, rows, totals, runs, avgMoves };
 }
 
 export function judge(mod, t) {
@@ -45,8 +54,20 @@ export function judge(mod, t) {
   const bestCore = Math.max(...idx('core').map((j) => t.totals[j]));
   const bestNaive = Math.max(...idx('naive').map((j) => t.totals[j]));
   out.push(bestCore > bestNaive ? `OK 遊びの核を使うほど勝てる（core ${bestCore} > naive ${bestNaive}）` : `NG 遊びの核を使っても勝ちやすくならない（core ${bestCore} ≦ naive ${bestNaive}）`);
-  const coreFirst = Math.max(...idx('core').map((j) => t.rows[0].wins[j]));
-  out.push(coreFirst >= Math.ceil(t.runs * 0.5) ? `OK 最初の面は core で ${coreFirst}/${t.runs} 勝てる` : `NG 最初の面が core でも ${coreFirst}/${t.runs} しか勝てない（入り口が難しすぎる）`);
+  const lv = (l) => mod.strategies.findIndex((s) => s.level === l);
+  const b = lv('beginner'); const e = lv('expert');
+  // 最初の面：初心者がいれば初心者で、いなければ core の一番強いもので見る
+  const firstIdx = b >= 0 ? b : idx('core').reduce((a, j) => (t.totals[j] > t.totals[a] ? j : a), idx('core')[0]);
+  const first = t.rows[0].wins[firstIdx];
+  out.push(first >= Math.ceil(t.runs * 0.5) ? `OK 最初の面は「${mod.strategies[firstIdx].name}」で ${first}/${t.runs} 勝てる` : `NG 最初の面が「${mod.strategies[firstIdx].name}」で ${first}/${t.runs} しか勝てない（入り口が難しすぎる）`);
+  if (b >= 0 && e >= 0) {
+    out.push(t.totals[e] > t.totals[b] ? `OK 上達の余地がある（上級者 ${t.totals[e]} > 初心者 ${t.totals[b]}。よく考えるほど勝てる）` : `NG 上達の余地が小さい（上級者 ${t.totals[e]} ≦ 初心者 ${t.totals[b]}。考えても勝ちやすさが変わらない＝運任せか単純すぎる）`);
+    const hard = t.rows.slice(-Math.max(1, Math.floor(t.rows.length / 3)));
+    const hardRate = hard.reduce((a, r) => a + r.wins[e], 0) / (hard.length * t.runs);
+    out.push(hardRate < 1 ? `OK 後半の面は上級者でも ${Math.round(hardRate * 100)}%（手応えが残る）` : 'NG 後半の面も上級者が全勝（すぐ解けてしまう）');
+    const m = t.avgMoves[e];
+    if (m != null) out.push(m >= 5 ? `OK 1回あたりの操作は上級者で平均 ${m.toFixed(1)} 回` : `注意 1回あたりの操作が上級者でも平均 ${m.toFixed(1)} 回（眺めている時間が長いかもしれない）`);
+  }
   return out;
 }
 
@@ -67,7 +88,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
   if (!slug) { console.error('使い方: npm run autoplay -- <slug> [--runs 8] [--stages 1,2,3] [--md]'); process.exit(1); }
   const file = path.join(ROOT, 'tests', 'autoplay', `${slug}.mjs`);
   if (!fs.existsSync(file)) { console.error(`${path.relative(ROOT, file)} がない。tests/autoplay/README.md の形で作る`); process.exit(1); }
-  const mod = await import(pathToFileURL(file).href);
+  const mod = await loadPlayer(file);
   const errs = checkPlayer(mod);
   if (errs.length) { console.error(errs.join('\n')); process.exit(1); }
   const runs = Number(opt('runs') || 8);

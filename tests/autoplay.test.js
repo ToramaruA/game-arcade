@@ -3,9 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { ROOT, gameDirs } from './helpers.js';
-import { checkPlayer } from '../scripts/autoplay.mjs';
+import { checkPlayer, loadPlayer } from '../scripts/autoplay.mjs';
 
 // この仕組みより前に作られたゲーム（自動プレイヤーなしでよい）
 const BEFORE_AUTOPLAY = ['abyssal-signal', 'wind-garden', 'moonlight-heist', 'gaze-atelier', 'mist-whale-thread-hero', 'thunderbird-sky-fleet'];
@@ -15,7 +14,7 @@ for (const slug of gameDirs()) {
   if (BEFORE_AUTOPLAY.includes(slug) && !fs.existsSync(file)) continue;
   test(`${slug}: 自動プレイヤーがあり、何もしないでは勝てない`, async () => {
     assert.ok(fs.existsSync(file), `tests/autoplay/${slug}.mjs がない（tests/autoplay/README.md の形で作る）`);
-    const mod = await import(pathToFileURL(file).href);
+    const mod = await loadPlayer(file);
     assert.deepEqual(checkPlayer(mod), [], '自動プレイヤーの形');
     for (const sg of mod.strategies.filter((s) => s.kind === 'noop')) {
       for (const st of mod.stages) {
