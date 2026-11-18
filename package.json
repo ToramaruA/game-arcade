@@ -9,7 +9,8 @@
     "new-game": "node scripts/new-game.js",
     "og": "node scripts/make-og.js",
     "screenshot": "node scripts/screenshot.js",
-    "site-index": "node scripts/site-index.js"
+    "site-index": "node scripts/site-index.js",
+    "autoplay": "node scripts/autoplay.mjs"
   },
   "devDependencies": {
     "playwright": "1.63.0"
