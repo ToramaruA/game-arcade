@@ -6,6 +6,7 @@ export const toyGame = {
   start(stage, seed) { return { n: 1, turn: 0, target: [20, 27, 45][stage.id], seed }; },
   actions() { return ['+1', '+3', 'x2', 'wait']; },
   idle() { return 'wait'; },
+  key: (s) => `${s.n}|${s.turn}`,
   apply(s, a) { if (a === '+1') s.n += 1; else if (a === '+3') s.n += 3; else if (a === 'x2') s.n *= 2; s.turn += 1; },
   result(s) { if (s.n === s.target && s.turn <= 8) return 'win'; if (s.turn >= 8 || s.n > s.target) return 'lose'; return null; },
   score(s) { return Math.max(0, 1 - Math.abs(s.target - s.n) / s.target) * 0.8; },

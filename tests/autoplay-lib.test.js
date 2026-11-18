@@ -1,7 +1,7 @@
 // 共通の自動プレイヤー（MCTS など）が動くことを、小さなゲームで確かめる
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { playGame, fromGame } from './autoplay/lib/players.mjs';
+import { playGame, fromGame, exactSolve } from './autoplay/lib/players.mjs';
 import { toyGame } from './autoplay/lib/toy-game.mjs';
 import { runTable, judge, checkPlayer } from '../scripts/autoplay.mjs';
 
@@ -24,4 +24,11 @@ test('考える回数が多いほど強い。何もしないでは勝てず、�
   assert.ok(row(2, 'expert') > 0, '上級者は目標45に届く');
   const lines = judge(mod, t).join('\n');
   assert.match(lines, /上達の余地/);
+});
+
+test('乱数のないパズル向け：全部の手を調べて最短手数を出し、核を使わないと解けない面が分かる', () => {
+  const big = toyGame.stages[2];
+  const full = exactSolve(toyGame, big);
+  assert.ok(full.steps != null && full.steps <= 8, `目標45は解ける（${full.steps}手）`);
+  assert.equal(exactSolve(toyGame, big, { allow: toyGame.naive.add.allow }).steps, null, '足し算だけでは解けない');
 });
