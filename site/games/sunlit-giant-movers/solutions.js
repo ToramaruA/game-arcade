@@ -23,7 +23,7 @@ export const SOLUTIONS = [
   {
     id: 4,
     clear: 'RRRULLRDLDRRRLURURUD',
-    allSeeds: 'RRRULLRDLDRRRLURURUD',
+    allSeeds: 'RRRULLRDLDRLRRRLURURUD',
     orders: []
   },
   {
@@ -86,7 +86,7 @@ export const SOLUTIONS = [
   {
     id: 14,
     clear: 'DDURRRRRLLLLUUULURDRRRURLDDDLLULLURRDRRRURR',
-    allSeeds: 'DDURRRRRLLLLUUULURDRRRURLDDDLLULLURRDRRRURR',
+    allSeeds: 'DDURRRRRLLLLUUULURDRRRURLDDDLLULLURRDRRRUURU',
     orders: []
   },
   {
