@@ -563,13 +563,18 @@ export function drawPadPreview(ctx, level, s, c, t, reduce, focus) {
       ctx.strokeStyle = active ? '#ff6f5a' : '#ffffff'; ctx.lineWidth = active ? 3.5 : 2.5;
       ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.quadraticCurveTo(mx, my, to.x, to.y); ctx.stroke(); ctx.setLineDash([]);
     }
+    if (!active) {
+      const lbl = (which === 'heavy' ? '重' : '軽') + (tgt.h > c.h ? '高' : tgt.h < c.h ? '低' : '先');
+      ctx.globalAlpha = 0.75; ctx.fillStyle = 'rgba(255,255,255,.85)'; roundRect(ctx, to.x - 15, to.y - 26, 30, 16, 8); ctx.fill();
+      ctx.fillStyle = '#8a7a6a'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(lbl, to.x, to.y - 14);
+    }
     // 着地点の足あと
     if (active) {
       const blocked = s.rocks.includes(tgt.i);
       ctx.fillStyle = blocked ? '#d04040' : '#ff6f5a';
       for (let k = 0; k < 2; k++) ell(ctx, to.x - 6 + k * 12, to.y + TH / 2 - 2 + (k ? -3 : 3), 4, 2.6, blocked ? '#d04040' : 'rgba(255,111,90,.85)');
-      const lbl = tgt.h > c.h ? '高' : tgt.h < c.h ? '低' : '先';
-      ctx.fillStyle = '#fff'; roundRect(ctx, to.x - 14, to.y - 30, 28, 20, 10); ctx.fill();
+      const lbl = (heavy ? '重' : '軽') + (tgt.h > c.h ? '高' : tgt.h < c.h ? '低' : '先');
+      ctx.fillStyle = '#fff'; roundRect(ctx, to.x - 20, to.y - 30, 40, 20, 10); ctx.fill();
       ctx.strokeStyle = '#ff6f5a'; ctx.lineWidth = 2; ctx.stroke();
       ctx.fillStyle = '#c0442e'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(blocked ? '×' : lbl, to.x, to.y - 15);
     }

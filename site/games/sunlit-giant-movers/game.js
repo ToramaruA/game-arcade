@@ -224,7 +224,7 @@ function burst(x, y, n, colors, kind = 'petal', spread = 1) {
     fx.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.6 - 60 * spread, life: 1 + Math.random() * 0.6, t0: now(), c: colors[i % colors.length], kind, r: 3 + Math.random() * 3 });
   }
 }
-function floatText(x, y, text, color = '#c4513a') { labels.push({ x, y, text, color, t0: now() }); }
+function floatText(x, y, text, color = '#c4513a') { labels = [{ x, y, text, color, t0: now() }]; }
 function drawFx(t) {
   const dt = 1 / 60;
   fx = fx.filter((p) => t - p.t0 < p.life);
@@ -245,8 +245,8 @@ function drawFx(t) {
   labels = labels.filter((l) => t - l.t0 < 1.4);
   for (const l of labels) {
     const u = (t - l.t0) / 1.4;
-    ctx.globalAlpha = 1 - u * u; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center';
-    ctx.lineWidth = 5; ctx.strokeStyle = '#fff'; ctx.strokeText(l.text, l.x, l.y - u * 30);
+    ctx.globalAlpha = Math.min(1, (1 - u) * 3); ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center';
+    ctx.lineWidth = 6; ctx.strokeStyle = '#fff'; ctx.lineJoin = 'round'; ctx.strokeText(l.text, l.x, l.y - u * 30);
     ctx.fillStyle = l.color; ctx.fillText(l.text, l.x, l.y - u * 30);
   }
   ctx.globalAlpha = 1;
@@ -356,7 +356,7 @@ let prevWheelHint = false;
 function gotSeed(cell) {
   const p = cellWorld(cell); audio.sfx.seed();
   burst(p.x, p.y - 14, 12, ['#fff6b0', '#ffd34d', '#ffffff'], 'dot', 0.7);
-  floatText(p.x, p.y - 44, `種 ${seedCount(state)}/${level.seeds.length}`, '#8a5a00');
+  toast(`種をひろった（${seedCount(state)}/${level.seeds.length}）`);
 }
 function sparkleLock(l) {
   for (const c of level.cells) if (c.lock === l) { const p = cellWorld(c.i, 0.5); burst(p.x, p.y - 10, 16, ['#ffd34d', '#ffffff', '#ff9a6b'], 'dot'); }
@@ -479,6 +479,8 @@ const endPtr = (e) => {
 cv.addEventListener('pointerup', endPtr); cv.addEventListener('pointercancel', endPtr);
 cv.addEventListener('wheel', (e) => { e.preventDefault(); userZoom = Math.max(0.6, Math.min(2.2, userZoom * (e.deltaY < 0 ? 1.1 : 0.9))); }, { passive: false });
 cv.addEventListener('dblclick', () => { userZoom = 1; pan = { x: 0, y: 0 }; });
+$('fitBtn').addEventListener('click', () => { userZoom = 1; pan = { x: 0, y: 0 }; });
+setInterval(() => { $('fitBtn').hidden = Math.abs(userZoom - 1) < 0.02 && !pan.x && !pan.y; }, 300);
 
 // 方向パッド（押し続けると0.18秒ごと。橋・葉を越えたら止まる）
 let holdTimer = 0; let holdBlocked = false;
@@ -674,7 +676,7 @@ function playStory(n, done) {
       const last = i === beasts.length - 1 && n !== 2;
       let bx = last ? w * 0.78 - (t - appear) * speed * 0.4 : w * (narrow ? 0.3 + i * 0.12 : 0.18 + i * 0.22) + walk * speed;
       if (n === 2) bx = w * (narrow ? 0.25 + i * 0.25 : 0.2 + i * 0.28) + walk * speed * 0.6;
-      const by = h * (narrow ? 0.3 + i * 0.16 : 0.5) + Math.sin(walk * 3 + i) * 4 - (n === 0 && i === 0 ? Math.min(1, t / 1.5) * 18 : 0);
+      const by = h * (narrow ? 0.5 + i * 0.09 : 0.56) + Math.sin(walk * 3 + i) * 4 - (n === 0 && i === 0 ? Math.min(1, t / 1.5) * 18 : 0);
       g.save(); g.translate(bx, by); g.scale(sc * 0.55, sc * 0.55);
       drawBeast(g, b, { x0: -150, x1: 150, y0: -90, y1: 60 }, t, settings.calm, {});
       for (let k = 0; k < 4; k++) drawHouse(g, -90 + k * 60, -30 + (k % 2) * 16, KIND_IDS[(k * 3 + i * 4) % 12], true, t, 1.1);
@@ -786,16 +788,12 @@ function setupTitle() {
 function setupOg() {
   document.body.classList.add('og');
   $('title').hidden = true; titleOn = false;
-  loadLevel(17);
-  // 『みんなの引越し日』：小鳥と子ブタはもう新居に。カピバラを背負って、鼻の橋の前へ
+  loadLevel(0);
+  // 『くしゃみ橋』：カピバラと小鳥を背負って満員。橋の行き先が「低」に切り替わった瞬間
   const s = createState(level);
-  const home = (kind) => level.animals.find((a) => a.kind === kind);
-  for (const kind of ['bird', 'piglet']) s.aloc[home(kind).k] = home(kind).home;
-  const capy = home('capybara').k; s.aloc[capy] = -1; s.riders = [capy];
-  s.pos = level.cells.findIndex((c) => c.x === 1 && c.y === 4); s.face = 1;
-  s.open = 1 << level.lockNames.indexOf('bird');
+  s.aloc = [-1, -1]; s.riders = [0, 1]; s.face = 1;
   state = s;
-  userZoom = 0.95; pan = { x: 200, y: -10 };
+  userZoom = 1.05; pan = { x: 230, y: 0 };
   const tag = document.createElement('div'); tag.className = 'og-tag';
   tag.innerHTML = '<p>乗せる重さで、道が変わる。</p><h2>ひなたの巨獣と<br>小さな引越し屋</h2><ul><li>18面</li><li>動物12種</li><li>種54個</li></ul>';
   document.body.appendChild(tag);

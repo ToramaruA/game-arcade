@@ -4,8 +4,8 @@
 export const SOLUTIONS = [
   {
     id: 1,
-    clear: 'ULDLDRRDLLLURRUR',
-    allSeeds: 'ULDDRRDLLLULURRRUR',
+    clear: 'UULDLDRRDLLLURRUR',
+    allSeeds: 'UULDDRRDLLLULURRRUR',
     orders: []
   },
   {

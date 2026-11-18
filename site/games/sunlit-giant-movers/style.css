@@ -151,7 +151,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid #3b82f6; outline-
 }
 
 /* 共有画像（?og=1） */
-body.og .hud, body.og .controls, body.og .arcade-link, body.og .coach { display: none; }
+body.og .hud, body.og .controls, body.og .arcade-link, body.og .coach, body.og .fit { display: none !important; }
 body.og .stage { margin: 0; }
 body.og .game { max-width: none; }
 .og-tag { position: fixed; left: 34px; top: 34px; z-index: 20; background: rgba(255,253,246,.9); border-radius: 26px; padding: 18px 24px; box-shadow: 0 8px 30px rgba(120,80,40,.25); }
@@ -159,3 +159,10 @@ body.og .game { max-width: none; }
 .og-tag h2 { margin: 6px 0 8px; font-size: 44px; line-height: 1.2; color: #5a3424; text-shadow: 0 3px 0 #ffe0c8; }
 .og-tag ul { display: flex; gap: 8px; list-style: none; margin: 0; padding: 0; }
 .og-tag li { background: #ff7f62; color: #fff; border-radius: 999px; padding: 4px 12px; font-weight: 800; font-size: 16px; }
+
+.fit { position: absolute; right: 8px; bottom: 8px; z-index: 4; font-size: 13px; font-weight: 700; }
+.fit[hidden] { display: none; }
+input[type=range], input[type=checkbox] { accent-color: #ff7f62; }
+.coach { max-width: 96%; line-break: strict; }
+.dex p b { word-break: keep-all; }
+@media (max-width: 420px) { .coach { font-size: 13px; padding: 6px 10px; } .dex p b { font-size: 13px; } }
