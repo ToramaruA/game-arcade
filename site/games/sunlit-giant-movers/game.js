@@ -65,6 +65,7 @@ function loadLevel(i, { keep = false } = {}) {
   }
   anim = null; pending = null; walkQueue = []; fx = []; labels = []; busy = false; lastStuck = null;
   userZoom = 1; pan = { x: 0, y: 0 }; cam = null; coachStart = now();
+  clearTimeout(toastTimer); $('toast').classList.remove('show'); hintCell = -1;
   computeBounds();
   saveCurrent(); updateHud(); hidePick();
 }
@@ -161,7 +162,10 @@ function frame() {
   }
   if (!koroDrawn) drawKoroNow(kv, t);
   // 予告（橋・葉の行き先）
-  for (const c of level.cells) if (c.t === 'pad') drawPadPreview(ctx, level, state, c, t, settings.calm, nearPad(c));
+  for (const c of level.cells) if (c.t === 'pad') drawPadPreview(ctx, level, state, c, t, settings.calm, nearPad(c), koroWorld());
+  drawWeightPips();
+  drawMoveGuide(t, targets);
+  if (hintCell >= 0 && t - hintT < 3.2) { const p = cellWorld(hintCell); ctx.save(); ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(p.x, p.y, 30 + Math.sin(t * 8) * 3, 15, 0, 0, 7); ctx.stroke(); ctx.restore(); }
   drawFx(t);
   if (anim && now() - anim.t0 >= anim.dur) finishAnim();
   requestAnimationFrame(frame);
@@ -212,6 +216,49 @@ function rockWorld(r) {
     return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u };
   }
   return cellWorld(pos);
+}
+
+// ---------- 盤面の案内 ----------
+const DIR_GLYPH = ['↗', '↘', '↙', '↖'];
+const ACT_LABEL = { board: '乗せる', drop: '降ろす', deliver: '届ける' };
+function badge(x, y, text, fill, color = '#fff', size = 12) {
+  ctx.save(); ctx.font = `bold ${size}px sans-serif`; ctx.textAlign = 'center';
+  const w = ctx.measureText(text).width + 12;
+  ctx.fillStyle = fill; ctx.beginPath(); ctx.roundRect(x - w / 2, y - size - 4, w, size + 8, (size + 8) / 2); ctx.fill();
+  ctx.fillStyle = color; ctx.fillText(text, x, y); ctx.restore();
+}
+// 動物の頭の上に重さの●（覚えなくても見て分かるように）
+function drawWeightPips() {
+  for (const a of level.animals) {
+    const at = state.aloc[a.k]; if (at < 0 || delivered(level, state, a.k) || flying(a.k)) continue;
+    const p = cellWorld(at);
+    const y = p.y - 52; const n = a.weight;
+    ctx.fillStyle = 'rgba(255,253,246,.92)'; ctx.beginPath(); ctx.roundRect(p.x - n * 6 - 4, y - 7, n * 12 + 8, 14, 7); ctx.fill();
+    for (let i = 0; i < n; i++) { ctx.fillStyle = '#7a5a3a'; ctx.beginPath(); ctx.arc(p.x - (n - 1) * 6 + i * 12, y, 4, 0, 7); ctx.fill(); }
+  }
+}
+// コロのとなり4マス：進める所に矢印（方向ボタンと同じ記号）、乗せる・降ろす・届ける所に札
+function drawMoveGuide(t, targets) {
+  if (anim || busy || state.cleared || titleOn) return;
+  const load = loadOf(level, state);
+  for (let d = 0; d < 4; d++) {
+    const n = neighbor(level, state.pos, d); if (n < 0) continue;
+    const p = cellWorld(n);
+    const kind = targets.get(n);
+    if (kind) {
+      let text = ACT_LABEL[kind];
+      if (kind === 'board') { const k = animalAt(state, n); const nl = load + level.animals[k].weight; text = `乗せる→重さ${nl}${nl >= 2 ? '（重い）' : '（軽い）'}`; }
+      badge(p.x, p.y - 64, `${DIR_GLYPH[d]} ${text}`, kind === 'deliver' ? '#e2553f' : kind === 'board' ? '#e0902a' : '#4f9bd0', '#fff', 12);
+      continue;
+    }
+    const r = act(level, state, d);
+    if (!r.ok) continue;
+    const bob = settings.calm ? 0 : Math.sin(t * 4 + d) * 2;
+    ctx.save(); ctx.globalAlpha = 0.9; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,253,246,.85)'; ctx.beginPath(); ctx.arc(p.x, p.y - 6 + bob, 11, 0, 7); ctx.fill();
+    ctx.fillStyle = '#c4513a'; ctx.fillText(DIR_GLYPH[d], p.x, p.y + bob);
+    ctx.restore();
+  }
 }
 
 // ---------- 演出 ----------
@@ -265,7 +312,14 @@ function doAct(dir, pick, { fromWalk = false } = {}) {
     anim = { kind: 'bump', t0: now(), dur: 0.16, dir };
     audio.sfx.bump();
     if (r.why === 'full') pulseLoad();
-    toast(r.reason);
+    let msg = r.reason;
+    if (r.why === 'locked') {
+      const who = level.animals.find((a) => a.opens.includes(r.lock));
+      const wheel = level.cells.find((c) => c.t === 'wheel' && c.opens === r.lock);
+      if (who) msg = `まだ閉じている：${who.name}を新居へ届けると開く`;
+      else if (wheel) msg = 'まだ閉じている：水車の踏板を荷重3ちょうどで踏むと開く';
+    }
+    toast(msg);
     walkQueue = [];
     return false;
   }
@@ -503,7 +557,17 @@ for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) $('undoBtn').ad
 $('undoBtn').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); undo(); } });
 $('resetBtn').addEventListener('click', resetLevel);
 $('hintBtn').addEventListener('click', showHint);
+let hintCell = -1; let hintT = -9;
 function showHint() {
+  // 次の1手を盤面に示す（探索が重い面では、条件の説明だけにする）
+  try {
+    const r = solve(level, { from: state, limit: 300000 });
+    if (r.path && r.path.length) {
+      const d = r.path[0].d; hintCell = neighbor(level, state.pos, d); hintT = now();
+      toast(`次は ${DIR_GLYPH[d]} へ（光っているマス）`, false, 3200);
+      return;
+    }
+  } catch { /* 説明だけにする */ }
   const hs = hints(level, state);
   const extra = [];
   const load = loadOf(level, state);
@@ -581,9 +645,9 @@ function updateCoach() {
   if (allDelivered(L, s)) text = '全員の引越し完了！ 光る<em>花のアーチ</em>が出口';
   else if (L.id === 1) {
     const capy = 0; const bird = 1;
-    if (!delivered(L, s, capy) && !s.riders.includes(capy)) text = s.riders.length ? '' : `${name(capy)}（重さ2）に<em>ぶつかって乗せよう</em>`;
+    if (!delivered(L, s, capy) && !s.riders.includes(capy)) text = s.riders.length ? '乗せた子は、空いた台にぶつかると降ろせる' : `${name(capy)}（●●＝重さ2）に<em>ぶつかって乗せよう</em>。行きたいマスをタップしても進める`;
     else if (s.riders.includes(capy) && cellOf(s.pos).h >= 1) text = '重さ2で<em>橋が沈む</em>。橋へ進むと低い岸へ';
-    else if (s.riders.includes(capy)) text = '赤い家に<em>ぶつかって届けよう</em>';
+    else if (s.riders.includes(capy)) text = `${name(capy)}の家（絵の付いた家）に<em>ぶつかって届けよう</em>`;
     else if (!s.riders.includes(bird)) text = `帰り階段で戻って、${name(bird)}（重さ1）を乗せよう`;
     else text = '軽いと橋は<em>高い岸</em>へ。小鳥の家へ';
   } else if (L.id === 2 && s.moves < 6) text = L.guide;
