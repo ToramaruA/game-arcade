@@ -12,7 +12,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // tests/autoplay/<slug>.mjs を読む。標準の形（export const game）なら共通の自動プレイヤーで戦法を組み立てる
 export async function loadPlayer(file) {
   const mod = await import(pathToFileURL(file).href);
-  if (mod.game) { const { fromGame } = await import(pathToFileURL(path.join(ROOT, 'tests', 'autoplay', 'lib', 'players.mjs')).href); return fromGame(mod.game); }
+  if (mod.game) { const { fromGame } = await import(pathToFileURL(path.join(ROOT, 'tests', 'autoplay', 'lib', 'players.mjs')).href); return { ...fromGame(mod.game), game: mod.game }; }
   return mod;
 }
 
@@ -71,6 +71,29 @@ export function judge(mod, t) {
   return out;
 }
 
+// 乱数のないパズル（game.key がある）：全部の手を調べて、核を使わない遊び方でも解けるか・何手かかるかを出す
+export async function exactTable(game, stageFilter = null) {
+  const { exactSolve } = await import(pathToFileURL(path.join(ROOT, 'tests', 'autoplay', 'lib', 'players.mjs')).href);
+  const stages = stageFilter ? game.stages.filter((_, i) => stageFilter.includes(i + 1)) : game.stages;
+  const naive = Object.entries(game.naive || {});
+  const rows = stages.map((st) => ({ stage: st, full: exactSolve(game, st).steps, naive: naive.map(([, n]) => exactSolve(game, st, { allow: n.allow }).steps) }));
+  return { naive, rows };
+}
+export function formatExact(x, md) {
+  const head = ['面', '最短（全部使う）', ...x.naive.map(([, n]) => `最短（${n.name}）`)];
+  const cell = (v) => (v == null ? '解けない' : `${v}手`);
+  const body = x.rows.map((r) => [r.stage.name, cell(r.full), ...r.naive.map(cell)]);
+  const lines = [];
+  const needs = x.naive.map((_, j) => x.rows.filter((r) => r.full != null && (r.naive[j] == null || r.naive[j] > r.full)).length);
+  x.naive.forEach(([, n], j) => lines.push(`${needs[j] ? 'OK' : 'NG'} 「${n.name}」では解けない・遠回りになる面：${needs[j]}/${x.rows.length}${needs[j] ? '' : '（核を使わなくても全部同じ手数で解ける）'}`));
+  const unsolved = x.rows.filter((r) => r.full == null).map((r) => r.stage.name);
+  lines.unshift(unsolved.length ? `NG 解けない面がある：${unsolved.join('、')}` : 'OK 全部の面が解ける');
+  if (md) return `${[head, head.map(() => '---'), ...body].map((r) => `| ${r.join(' | ')} |`).join('\n')}\n\n${lines.map((l) => `- ${l}`).join('\n')}`;
+  const all = [head, ...body];
+  const wid = head.map((_, j) => Math.max(...all.map((r) => String(r[j]).length)));
+  return `${all.map((r) => r.map((c, j) => String(c).padEnd(wid[j])).join('  ')).join('\n')}\n\n${lines.join('\n')}`;
+}
+
 function format(mod, t, md) {
   const head = ['面', ...mod.strategies.map((s) => `${s.name}（${s.kind}）`)];
   const body = t.rows.map((r) => [r.stage.name, ...r.wins.map((w) => `${w}/${t.runs}`)]);
@@ -97,6 +120,11 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
   const t = runTable(mod, { runs, stageFilter });
   console.log(format(mod, t, args.includes('--md')));
   console.log('');
+  if (mod.game?.key) console.log('（乱数のないパズルでは、MCTS は先の長い面が苦手で人より弱く出る。下の「全部の手を調べた結果」を優先して判断する）');
   for (const line of judge(mod, t)) console.log(args.includes('--md') ? `- ${line}` : line);
   console.log(`\n（${t.stages.length}面 × ${mod.strategies.length}戦法 × ${runs}回、${((Date.now() - t0) / 1000).toFixed(1)}秒）`);
+  if (mod.game?.key) {
+    console.log('\n■ 全部の手を調べた結果（乱数のないパズル向け。こちらの方が正確）\n');
+    console.log(formatExact(await exactTable(mod.game, stageFilter), args.includes('--md')));
+  }
 }
