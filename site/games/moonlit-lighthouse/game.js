@@ -298,7 +298,7 @@ function updateBar() {
   // 手引きの光
   for (const el of btns.querySelectorAll('.pulse')) el.classList.remove('pulse');
   if (guide) {
-    const want = guide.step === 1 ? 'relocate' : guide.step === 3 && guide.hit ? 'signal' : null;
+    const want = guide.step === 1 ? 'relocate' : guide.step === 3 && guide.hit ? 'signal' : guide.step === 'kp' && ui.mode !== 'keeper' ? 'keeper' : guide.step === 'mid' ? 'wave' : null;
     if (want) btns.querySelector(`[data-act="${want}"]`)?.classList.add('pulse');
     if (guide.step === 4 && ui.sig) btns.querySelector('[data-act="fire"]')?.classList.add('pulse');
   }
@@ -317,15 +317,15 @@ function onBarClick(e) {
       if (ui.choice === el.dataset.type) doBuild(); else { ui.choice = el.dataset.type; }
       break;
     case 'build': doBuild(); break;
-    case 'cancel': resetUi(); break;
+    case 'cancel': resetUi(); if (guide) renderCoach(); break;
     case 'upgrade': if (t) { const r = L.upgrade(S, t.id); if (!r.ok) fail(r.reason); } break;
     case 'relocate': if (t) { if (S.energy < L.RELOCATE_COST) fail('energy'); else { ui.mode = 'relocate'; ui.target = null; if (guide?.step === 1) { guide.step = 2; renderCoach(); } } } break;
     case 'confirmMove': doMove(); break;
     case 'sell': if (t) { L.sell(S, t.id); resetUi(); } break;
     case 'signal': if (S.signalCd <= 0 && S.energy >= L.SIGNAL_COST) { resetUi(); ui.mode = 'signal'; if (guide?.step === 3) { guide.step = 4; renderCoach(); } } else fail(S.signalCd > 0 ? 'cd' : 'energy'); break;
     case 'fire': doSignal(); break;
-    case 'keeper': resetUi(); ui.mode = 'keeper'; break;
-    case 'wave': if (L.startWave(S)) { resetUi(); if (guide && (guide.step === 'intro' || guide.step === 'light')) { guide.step = 'watch'; $('coach').hidden = true; } } break;
+    case 'keeper': resetUi(); ui.mode = 'keeper'; if (guide) renderCoach(); break;
+    case 'wave': if (L.startWave(S)) { resetUi(); if (guide && guide.step === 'mid') { guide.step = 'kwait'; guide.since = performance.now(); L.setPaused(S, false); renderCoach(); } if (guide && (guide.step === 'intro' || guide.step === 'light')) { guide.step = 'watch'; $('coach').hidden = true; } } break;
     case 'pickKeeper': {
       const k = el.dataset.k;
       if (S.waveIdx === 0 && !S.inWave) {
@@ -395,8 +395,14 @@ function onBoardTap(x, y) {
   if (ui.mode === 'keeper') {
     let best = -1; let bd = 0.75;
     S.map.keeperPts.forEach((p, i) => { const d = L.dist(p.x, p.y, x, y); if (d < bd) { bd = d; best = i; } });
-    if (best >= 0) { const r = L.moveKeeper(S, best); if (r.reserved) toast('灯守の移動を予約（再開で出発）'); resetUi(); }
+    if (best >= 0) {
+      const r = L.moveKeeper(S, best);
+      if (guide && guide.step === 'kp') { guide.step = 'krun'; guide.since = performance.now(); L.setPaused(S, false); renderCoach(); }
+      else if (r.reserved) toast('灯守の移動を予約（再開で出発）');
+      resetUi();
+    }
     else resetUi();
+    if (guide) renderCoach();
     return;
   }
   if (ui.mode === 'signal') {
@@ -706,7 +712,10 @@ function handleFx() {
         if (f.bonus) floatText(f.x + 0.6, f.y + 0.1, `+${f.bonus}⚡`, '#ffe08a', 1.2);
         if (guide && typeof guide.step === 'number' && guide.step >= 3) { guide.step = 'boom'; guide.kills = f.killed; guide.doneAt = performance.now() + 1500; $('coach').hidden = true; }
         break;
-      case 'stop': particles.push({ k: 'ring2', x: f.x, y: f.y, r: 0.6, life: 0.5, t: 0 }); audio.stop(); break;
+      case 'stop':
+        particles.push({ k: 'ring2', x: f.x, y: f.y, r: 0.6, life: 0.5, t: 0 }); audio.stop();
+        if (guide && guide.step === 'krun') { floatText(f.x, f.y - 0.7, '足止め！', '#ffe08a', 1.2); guide.step = 'kstop'; guide.doneAt = performance.now() + 2600; renderCoach(); }
+        break;
       case 'wave': {
         audio.wave();
         const boss = S.waves[S.waveIdx - 1].find((g) => L.ENEMIES[g.type].boss);
@@ -880,7 +889,7 @@ function drawBoard(t) {
   drawMesh(t, S.towers, ui.mode === 'signal' ? 0.95 : 0.6);
   // 灯守の待機点
   S.map.keeperPts.forEach((p, i) => {
-    const on = ui.mode === 'keeper';
+    const on = ui.mode === 'keeper' && !(guide && guide.step === 'kp' && i !== guide.kTarget);
     ctx.strokeStyle = on ? '#ffd36b' : 'rgba(21,18,14,.5)'; ctx.lineWidth = on ? 2.5 : 1.5;
     ctx.beginPath(); ctx.arc(sx(p.x, p.y), sy(p.x, p.y), cs * (on ? 0.3 + Math.sin(t * 5 + i) * 0.03 : 0.2), 0, Math.PI * 2); ctx.stroke();
     if (S.reserved.keeper === i || S.keeper.target === i) { ctx.fillStyle = 'rgba(255,211,107,.4)'; ctx.fill(); }
@@ -1139,18 +1148,26 @@ const COACH = {
   3: { k: '金の網目', html: '赤と青が重なって<b>金の網目</b>ができた。<br>影が網目に入るまで待とう……' },
   hit: { k: '合図', html: '<b>今！</b> 網目の中に影がいる。<b>《合図》</b>を押して、<b>網目をタップ</b>しよう。網目の中の影をまとめて吹き飛ばす。<span class="coach-p">（いまは一時停止中）</span>' },
   4: { k: '合図', html: '<b>金の網目をタップ</b>して、もう一度タップ（か《放つ》）で発動。' },
+  kp: { k: '灯守', html: '影が灯台に近づいてきた！ 着かれると<b>♥が減る</b>。<b>灯守ミナ</b>は道の○へ走って、<b>近くを通る影を2秒止める</b>。<b>《灯守》</b>を押して、影の手前の光る○をタップしよう。<span class="coach-p">（いまは一時停止中）</span>' },
+  kp2: { k: '灯守', html: '<b>光っている○</b>をタップ。ミナがそこへ走る。<span class="coach-p">（いまは一時停止中）</span>' },
+  krun: { k: '灯守', html: 'ミナが走る……。影が○の前を通ると、<b>足止め</b>する。' },
+  kstop: { k: '灯守', html: '<b>止めた！</b> 灯台に着くまでの時間をかせげた。止める所が<b>塔の光の中</b>なら、その間に削れる。ミナはその場に残り、<b>8秒ごと</b>に通る影を止める。' },
+  mid: { k: '決め技', html: '' },
   done: { k: 'できた', html: '', btn: '遊びはじめる' },
 };
 function renderCoach() {
   const el = $('coach');
   if (!guide || screen !== 'play') { el.hidden = true; return; }
-  const key = guide.step === 3 && guide.hit ? 'hit' : guide.step;
+  const key = guide.step === 3 && guide.hit ? 'hit' : guide.step === 'kp' && ui.mode === 'keeper' ? 'kp2' : guide.step;
   const c = COACH[key]; if (!c) { el.hidden = true; return; }
   let html = c.html;
-  if (key === 'done') html = `${guide.kills >= 2 ? `<b>${guide.kills}体</b>まとめて` : '網目の影が'}星屑に！ これがこのゲームの決め技。<ul class="coach-l"><li><b>台座の＋</b>で塔を建てる（⚡を使う。⚡は影を倒すと増える）</li><li>重なる色が多いほど合図は強い（3色・4色）</li><li>塔をタップで<b>強化・移設</b></li><li>波が終わったら<b>《次の波》</b></li></ul>`;
+  if (key === 'mid') html = `${guide.kills >= 2 ? `<b>${guide.kills}体</b>まとめて` : '網目の影が'}星屑に！ これがこのゲームの決め技。<br>次の波は<b>下の入口</b>から来る。<b>《次の波》</b>を押そう。`;
+  if (key === 'done') html = '基本はこれでぜんぶ。<ul class="coach-l"><li><b>台座の＋</b>で塔を建てる（⚡を使う。⚡は影を倒すと増える）</li><li>重なる色が多いほど合図は強い（3色・4色）</li><li>塔をタップで<b>強化・移設</b></li><li>抜けそうな影の前へ<b>《灯守》</b>を走らせる</li><li>波が終わったら<b>《次の波》</b></li></ul>';
   el.innerHTML = `<span class="coach-k">${c.k}</span><span class="coach-t">${html}</span>${c.btn ? `<button id="coachBtn" class="coach-btn" type="button">${c.btn}</button>` : ''}`;
   el.hidden = false;
   el.classList.toggle('mid', key === 'intro' && view.portrait);
+  // 灯守の手引き：灯台と灯守は盤面の上側にいるので、スマホではカードを下へ
+  el.classList.toggle('low', view.portrait && ['kp', 'kp2', 'krun', 'kstop'].includes(key));
   const b = $('coachBtn'); if (b) b.addEventListener('click', coachNext);
 }
 function coachNext() {
@@ -1160,13 +1177,37 @@ function coachNext() {
   if (guide.step === 'light') { guide.step = 'watch'; $('coach').hidden = true; L.startWave(S); showRibbon('光の輪に入った影が削られていく', 0); renderBar(true); return; }
   if (guide.step === 'done') { guide = null; $('coach').hidden = true; hideRibbon(); L.setPaused(S, false); showRibbon('《次の波》で次へ。電池⚡で塔を増やそう', 3600); renderBar(true); updateHud(); }
 }
+function guideDone() { guide.step = 'done'; L.setPaused(S, true); renderCoach(); renderBar(true); }
+// 灯守の手引き：灯台に近づいた影の、少し先にある○（灯守がすぐ止められない位置のときだけ）
+function keeperLesson() {
+  const k = S.keeper;
+  if (k.cd > 0 || k.target != null) return null;
+  let lead = null;
+  for (const e of S.enemies) if (e.stun <= 0 && (!lead || L.remaining(S, e) < L.remaining(S, lead))) lead = e;
+  if (!lead || L.remaining(S, lead) > 7) return null;
+  const path = S.map.paths[lead.path];
+  for (let d = lead.s + 1.4; d < path.len - 0.3; d += 0.1) {
+    const q = L.pointAt(path, d);
+    const i = S.map.keeperPts.findIndex((p) => L.dist(p.x, p.y, q.x, q.y) < 0.3);
+    if (i >= 0) return L.dist(S.map.keeperPts[i].x, S.map.keeperPts[i].y, k.x, k.y) > 1 ? i : null;
+  }
+  return null;
+}
 // 毎フレーム：見せたい瞬間で止める
 function guideTick() {
   if (!guide || !S) return;
   if (guide.step === 'watch' && guide.pauseAt && performance.now() >= guide.pauseAt) {
     guide.step = 0; guide.pauseAt = 0; hideRibbon(); L.setPaused(S, true); renderCoach(); renderBar(true);
   }
-  if (guide.step === 'boom' && performance.now() >= guide.doneAt) { guide.step = 'done'; L.setPaused(S, true); renderCoach(); renderBar(true); }
+  const now = performance.now();
+  if (guide.step === 'boom' && now >= guide.doneAt) { guide.step = 'mid'; L.setPaused(S, true); renderCoach(); renderBar(true); }
+  if (guide.step === 'kwait' && !S.paused) {
+    const tgt = keeperLesson();
+    if (tgt != null) { guide.step = 'kp'; guide.kTarget = tgt; L.setPaused(S, true); renderCoach(); renderBar(true); }
+    else if (!S.inWave && !S.enemies.length) guideDone();
+  }
+  if (guide.step === 'krun' && (now - guide.since > 9000 || (!S.inWave && !S.enemies.length))) guideDone();
+  if (guide.step === 'kstop' && now >= guide.doneAt) guideDone();
   if (guide.step === 3 && guide.wait && !S.paused) {
     // 網目に何体か入ったところで止める（1体だけで撃たせない）。残りが少なければその数で
     const inMesh = S.enemies.filter((e) => { const q = L.enemyPos(S, e); return L.isOverlap(S, q.x, q.y); }).length;
@@ -1178,12 +1219,18 @@ function drawGuide(t) {
   if (!guide) return;
   const cs = view.cs;
   const arrow = (x, y, label) => {
-    const X0 = sx(x, y); const Y = sy(x, y) - cs * 0.9 + Math.sin(t * 6) * 5;
+    const X0 = sx(x, y); const bob = Math.sin(t * 6) * 5;
+    // 盤面の上端に近い所は、下から上向きの矢印にする（はみ出さないように）
+    const up = sy(x, y) < view.oy + cs * 1.3;
+    const Y = up ? sy(x, y) + cs * 0.9 + bob : sy(x, y) - cs * 0.9 + bob;
     const X = X0;
     const lx = Math.max(view.ox + cs * 1.4, Math.min(view.ox + boardW() - cs * 1.4, X0));
     ctx.fillStyle = '#ffcf5a'; ctx.strokeStyle = A.INK; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(X, Y + cs * 0.35); ctx.lineTo(X - cs * 0.2, Y); ctx.lineTo(X + cs * 0.2, Y); ctx.closePath(); ctx.fill(); ctx.stroke();
-    if (label) { ctx.font = `bold ${Math.round(Math.max(14, cs * 0.34))}px sans-serif`; ctx.textAlign = 'center'; ctx.strokeText(label, lx, Y - cs * 0.12); ctx.fillText(label, lx, Y - cs * 0.12); }
+    ctx.beginPath();
+    if (up) { ctx.moveTo(X, Y - cs * 0.35); ctx.lineTo(X - cs * 0.2, Y); ctx.lineTo(X + cs * 0.2, Y); } else { ctx.moveTo(X, Y + cs * 0.35); ctx.lineTo(X - cs * 0.2, Y); ctx.lineTo(X + cs * 0.2, Y); }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    const ly = up ? Y + cs * 0.42 : Y - cs * 0.12;
+    if (label) { ctx.font = `bold ${Math.round(Math.max(14, cs * 0.34))}px sans-serif`; ctx.textAlign = 'center'; ctx.strokeText(label, lx, ly); ctx.fillText(label, lx, ly); }
   };
   if (guide.step === 'intro') {
     for (const p of S.map.paths) { const q = L.pointAt(p, 0.6); arrow(q.x, q.y, '影はここから'); }
@@ -1193,6 +1240,14 @@ function drawGuide(t) {
   const blue = S.towers.find((q) => q.type === 'blue');
   if (guide.step === 0 && blue && ui.mode !== 'tower') { const p = S.map.peds[blue.ped]; arrow(p.x, p.y, '青塔をタップ'); }
   if (guide.step === 2 && ui.mode === 'relocate') { const p = S.map.peds[2]; if (!L.towerAt(S, 2)) arrow(p.x, p.y, 'ここへ'); }
+  if (guide.step === 'kp') {
+    const p = S.map.keeperPts[guide.kTarget];
+    if (p) {
+      ctx.strokeStyle = '#ffcf5a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(sx(p.x, p.y), sy(p.x, p.y), cs * (0.34 + Math.sin(t * 6) * 0.05), 0, Math.PI * 2); ctx.stroke();
+      arrow(p.x, p.y, ui.mode === 'keeper' ? 'ここへ' : '');
+      const k = S.keeper; if (ui.mode !== 'keeper') arrow(k.x, k.y, '灯守ミナ');
+    }
+  }
   if (guide.step >= 3 && guide.step <= 4) {
     const c = overlapCenter();
     if (c && (guide.step === 4 && ui.mode === 'signal' && !ui.sig)) arrow(c.x, c.y, '網目をタップ');

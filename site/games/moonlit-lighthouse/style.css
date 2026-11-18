@@ -187,3 +187,4 @@ body.og .hud, body.og .bar, body.og .title-ov, body.og .arcade-link { display: n
 .sheet-head h2, .res-head h2, .og-banner strong, .og-banner b, .region h3, .coach-k { font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', 'Noto Serif JP', serif; font-weight: 900; }
 @media (max-width: 600px) { .title-box { background: rgba(21,18,14,.88); outline: 2px solid #ece5d3; outline-offset: -8px; padding: 16px 16px 14px; } }
 .nbtn:disabled * { color: #4a4438 !important; }
+.coach.low { top: auto; bottom: 8px; }
