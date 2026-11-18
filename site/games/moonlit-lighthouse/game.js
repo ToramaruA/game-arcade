@@ -574,7 +574,7 @@ function openCodex() {
   for (const c of $('codexBody').querySelectorAll('canvas')) {
     const g = c.getContext('2d');
     A.drawEnemyIcon(g, c.dataset.type, 72, 78, 92, 0, c.dataset.seen === '1');
-    if (c.dataset.seen !== '1') { g.fillStyle = 'rgba(13,27,61,.55)'; g.fillRect(0, 0, 144, 144); g.fillStyle = '#efe3c8'; g.font = 'bold 40px sans-serif'; g.textAlign = 'center'; g.fillText('?', 72, 90); }
+    if (c.dataset.seen !== '1') { g.fillStyle = 'rgba(236,229,211,.6)'; g.fillRect(0, 0, 144, 144); g.fillStyle = '#15120e'; g.font = 'bold 40px sans-serif'; g.textAlign = 'center'; g.fillText('?', 72, 90); }
   }
 }
 const TYPE_FROM_CODE = (c) => ({ r: 'rat', b: 'rabbit', t: 'turtle', d: 'deer', m: 'moth', w: 'twin', f: 'fish', o: 'owl', K: 'kingdeer', T: 'kingturtle', L: 'lord' }[c]);
@@ -645,16 +645,16 @@ $('result').addEventListener('click', async (e) => {
 
 function drawResMap(c) {
   const g = c.getContext('2d'); const W = c.width; const H = c.height; const u = Math.min(W / L.COLS, H / L.ROWS);
-  g.fillStyle = '#0d1b3d'; g.fillRect(0, 0, W, H);
-  g.strokeStyle = '#efe3c8'; g.lineWidth = u * 0.5; g.lineCap = 'round'; g.lineJoin = 'round';
-  S.map.paths.forEach((p, i) => { g.strokeStyle = i === leakPathGlowFor() ? '#ff6a5a' : '#cdbf9f'; g.beginPath(); p.pts.forEach((q, k) => (k ? g.lineTo(q.x * u, q.y * u) : g.moveTo(q.x * u, q.y * u))); g.stroke(); });
+  g.fillStyle = A.INK; g.fillRect(0, 0, W, H);
+  g.strokeStyle = A.PAPER; g.lineWidth = u * 0.5; g.lineCap = 'round'; g.lineJoin = 'round';
+  S.map.paths.forEach((p, i) => { g.strokeStyle = i === leakPathGlowFor() ? '#ff6a5a' : A.PAPER; g.beginPath(); p.pts.forEach((q, k) => (k ? g.lineTo(q.x * u, q.y * u) : g.moveTo(q.x * u, q.y * u))); g.stroke(); });
   for (const t of S.towers) {
     const p = S.map.peds[t.ped];
     g.fillStyle = `rgba(${A.LIGHT[t.type]},.25)`; g.beginPath(); g.arc(p.x * u, p.y * u, L.towerRadius(t) * u, 0, Math.PI * 2); g.fill();
   }
   for (const t of S.towers) {
     const p = S.map.peds[t.ped];
-    g.fillStyle = A.COLORS[t.type]; g.strokeStyle = '#0a0c22'; g.lineWidth = 1.5;
+    g.fillStyle = A.COLORS[t.type]; g.strokeStyle = A.INK; g.lineWidth = 1.5;
     g.beginPath(); A.shapePath(g, L.TOWERS[t.type].shape, p.x * u, p.y * u, u * 0.4); g.fill(); g.stroke();
   }
   g.fillStyle = '#fff'; g.beginPath(); g.arc(S.map.lh.x * u, S.map.lh.y * u, u * 0.35, 0, Math.PI * 2); g.fill();
@@ -663,16 +663,21 @@ const leakPathGlowFor = () => (S && S.result === 'lose' ? S.lastLeak?.path : -1)
 
 function drawStory(c, night) {
   const g = c.getContext('2d'); const W = c.width; const H = c.height; const t = performance.now() / 1000;
-  A.drawSky(g, W, H, t, ['#2a2466', '#ff9f6b']);
-  const sun = g.createRadialGradient(W * 0.5, H * 0.72, 0, W * 0.5, H * 0.72, W * 0.5);
-  sun.addColorStop(0, 'rgba(255,200,120,.8)'); sun.addColorStop(1, 'rgba(255,200,120,0)');
+  // 夜明け：白い紙の空に、墨で彫った朝日の光条
+  g.fillStyle = A.PAPER; g.fillRect(0, 0, W, H);
+  const cx = W * 0.5; const cy = H * 0.66;
+  g.strokeStyle = A.INK; g.lineWidth = 1.4;
+  for (let i = 0; i < 28; i++) { const a = Math.PI + (i / 27) * Math.PI; g.beginPath(); g.moveTo(cx + Math.cos(a) * H * 0.2, cy + Math.sin(a) * H * 0.2); g.lineTo(cx + Math.cos(a) * W, cy + Math.sin(a) * W); g.stroke(); }
+  const sun = g.createRadialGradient(cx, cy, 0, cx, cy, H * 0.3);
+  sun.addColorStop(0, 'rgba(255,200,110,.85)'); sun.addColorStop(1, 'rgba(255,200,110,0)');
   g.fillStyle = sun; g.fillRect(0, 0, W, H);
-  A.drawWaves(g, 0, H * 0.62, W, H * 0.38, t, 3, [40, 52, 110]);
-  A.drawLighthouse(g, W * 0.82, H * 0.66, H * 0.55, t, { beam: true, beamLen: 2.5 });
+  g.fillStyle = A.PAPER; g.beginPath(); g.arc(cx, cy, H * 0.14, 0, Math.PI * 2); g.fill(); g.strokeStyle = A.INK; g.lineWidth = 2; g.stroke();
+  A.drawWaves(g, 0, H * 0.64, W, H * 0.36, t, 3);
+  A.drawLighthouse(g, W * 0.82, H * 0.68, H * 0.55, t, { beam: false });
   const boats = night === 5 ? 3 : night === 11 ? 5 : 8;
   for (let i = 0; i < boats; i++) A.drawBoat(g, W * (0.1 + i * 0.09), H * (0.74 + (i % 2) * 0.08), H * 0.06, t, 3, 3);
   if (night === 5) { A.drawShadowBeast(g, 'deer', W * 0.55, H * 0.6, H * 0.18, { t, alpha: 0.9 }); }
-  if (night === 17) { g.strokeStyle = 'rgba(255,214,90,.8)'; g.lineWidth = 3; g.beginPath(); g.ellipse(W * 0.5, H * 0.66, W * 0.45, H * 0.08, 0, 0, Math.PI * 2); g.stroke(); }
+  if (night === 17) { g.strokeStyle = 'rgba(255,190,80,.9)'; g.lineWidth = 3; g.beginPath(); g.ellipse(W * 0.5, H * 0.66, W * 0.45, H * 0.08, 0, 0, Math.PI * 2); g.stroke(); }
 }
 
 // ───────── 進行と効果 ─────────
@@ -768,7 +773,7 @@ function render(t) {
   ctx.save();
   if (shake > 0.3) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
   A.drawSky(ctx, w, h, t, dawn > 0 ? mixSea(reg.sea, dawn) : reg.sea);
-  if (dawn > 0) { const g = ctx.createLinearGradient(0, h, 0, 0); g.addColorStop(0, `rgba(255,170,100,${0.5 * dawn})`); g.addColorStop(0.6, 'rgba(255,170,100,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); }
+  if (dawn > 0) { const g = ctx.createLinearGradient(0, h, 0, 0); g.addColorStop(0, `rgba(236,229,211,${0.55 * dawn})`); g.addColorStop(0.7, `rgba(255,214,150,${0.25 * dawn})`); g.addColorStop(1, 'rgba(236,229,211,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); }
   drawMargins(t);
   drawBoard(t);
   ctx.restore();
@@ -823,26 +828,21 @@ function pathScreen(p) { return p.pts.map((q) => [sx(q.x, q.y), sy(q.x, q.y)]); 
 function drawBoard(t) {
   const cs = view.cs;
   const bx = view.ox; const by = view.oy; const bw = boardW(); const bh = boardH();
-  // 盤面の海（厚紙の台紙）
-  A.paper(ctx, (c) => roundRect(c, bx - 4, by - 4, bw + 8, bh + 8, 10), '#13265a', { off: 5, shadow: 'rgba(0,0,0,.5)' });
-  ctx.save(); ctx.beginPath(); roundRect(ctx, bx, by, bw, bh, 8); ctx.clip();
-  const g = ctx.createLinearGradient(bx, by, bx, by + bh); g.addColorStop(0, '#16306a'); g.addColorStop(1, '#0f2350');
-  ctx.fillStyle = g; ctx.fillRect(bx, by, bw, bh);
-  // 波の模様
-  ctx.strokeStyle = 'rgba(160,200,255,.08)'; ctx.lineWidth = 2;
-  for (let i = 0; i < 14; i++) {
-    const yy = by + (i + 0.5) * (bh / 14);
-    ctx.beginPath();
-    for (let x = bx; x <= bx + bw; x += 10) ctx.lineTo(x, yy + Math.sin(x / 26 + t * 0.8 + i) * 3);
-    ctx.stroke();
-  }
-  // 岩（道でも台座でもないマスに少し）
-  ctx.fillStyle = 'rgba(40,52,100,.75)';
+  // 盤面：版木の枠（白い余白と墨の二重線）
+  ctx.fillStyle = A.PAPER; ctx.fillRect(bx - 7, by - 7, bw + 14, bh + 14);
+  ctx.strokeStyle = A.INK; ctx.lineWidth = 2; ctx.strokeRect(bx - 4.5, by - 4.5, bw + 9, bh + 9);
+  ctx.save(); ctx.beginPath(); ctx.rect(bx, by, bw, bh); ctx.clip();
+  ctx.fillStyle = A.INK; ctx.fillRect(bx, by, bw, bh);
+  // 海：彫り跡の波線
+  A.carvedLines(ctx, bx, by, bw, bh, t, { gap: Math.max(9, cs * 0.3), amp: Math.max(2, cs * 0.06), alpha: 0.2, lw: 1.5, len: cs * 0.9, seed: S.night });
+  // 岩（道でも台座でもないマスに少し）：墨の岩に白い彫り
   for (let y = 0; y < L.ROWS; y++) for (let x = 0; x < L.COLS; x++) {
     if (S.map.cells.has(`${x},${y}`) || ((x * 5 + y * 3 + S.night) % 9) !== 0) continue;
     if (S.map.peds.some((p) => p.cx === x && p.cy === y)) continue;
     const X = sx(x + 0.5, y + 0.5); const Y = sy(x + 0.5, y + 0.5);
-    A.paper(ctx, (c) => c.ellipse(X, Y, cs * 0.3, cs * 0.18, 0, 0, Math.PI * 2), '#2b3a74', { off: 3 });
+    const rk = (c) => { c.moveTo(X - cs * 0.32, Y + cs * 0.14); c.lineTo(X - cs * 0.18, Y - cs * 0.14); c.lineTo(X + cs * 0.05, Y - cs * 0.2); c.lineTo(X + cs * 0.3, Y + cs * 0.14); c.closePath(); };
+    ctx.beginPath(); rk(ctx); ctx.fillStyle = A.INK; ctx.fill(); ctx.strokeStyle = A.PAPER; ctx.lineWidth = 1.4; ctx.stroke();
+    A.hatch(ctx, rk, { angle: -0.9, gap: Math.max(3, cs * 0.08), color: A.PAPER, lw: 1, alpha: 0.6 });
   }
   ctx.restore();
   // 予告の点線
@@ -850,12 +850,13 @@ function drawBoard(t) {
   // 道（厚紙の桟橋）：盤面の枠の中だけ
   ctx.save(); ctx.beginPath(); ctx.rect(bx - 3, by - 3, bw + 6, bh + 6); ctx.clip();
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  S.map.paths.forEach((p) => { const pts = pathScreen(p); strokePoly(pts, cs * 0.78, 'rgba(0,0,0,.4)', 0, cs * 0.08); });
+  // 道：白く彫り残した板の道。縁に墨の線、板目の短い線
+  S.map.paths.forEach((p, i) => { const pts = pathScreen(p); strokePoly(pts, cs * 0.74, i === leakPathGlow ? '#ff8a76' : A.PAPER); });
   S.map.paths.forEach((p, i) => {
     const pts = pathScreen(p);
-    strokePoly(pts, cs * 0.74, i === leakPathGlow ? '#ff8a76' : '#e9dcc0');
-    strokePoly(pts, cs * 0.6, i === leakPathGlow ? '#ffb0a0' : '#f3e8cf');
-    ctx.lineCap = 'butt'; ctx.setLineDash([2, cs * 0.28]); strokePoly(pts, cs * 0.5, 'rgba(150,120,80,.3)'); ctx.setLineDash([]); ctx.lineCap = 'round';
+    strokePoly(pts, cs * 0.6, A.INK);
+    strokePoly(pts, cs * 0.6 - 3, i === leakPathGlow ? '#ffb0a0' : A.PAPER);
+    ctx.lineCap = 'butt'; ctx.setLineDash([1.4, cs * 0.22]); strokePoly(pts, cs * 0.44, 'rgba(21,18,14,.42)'); ctx.setLineDash([]); ctx.lineCap = 'round';
   });
   ctx.restore();
   // 光（点灯中の塔）
@@ -864,14 +865,15 @@ function drawBoard(t) {
     if (!L.isLit(tw)) continue;
     const p = S.map.peds[tw.ped]; const X = sx(p.x, p.y); const Y = sy(p.x, p.y); const r = L.towerRadius(tw) * cs;
     const gr = ctx.createRadialGradient(X, Y, r * 0.1, X, Y, r);
-    gr.addColorStop(0, `rgba(${A.LIGHT[tw.type]},.28)`); gr.addColorStop(0.85, `rgba(${A.LIGHT[tw.type]},.13)`); gr.addColorStop(1, `rgba(${A.LIGHT[tw.type]},.02)`);
+    const la = tw.type === 'blue' || tw.type === 'red' ? 1.6 : 1;
+    gr.addColorStop(0, `rgba(${A.LIGHT[tw.type]},${0.28 * la})`); gr.addColorStop(0.85, `rgba(${A.LIGHT[tw.type]},${0.14 * la})`); gr.addColorStop(1, `rgba(${A.LIGHT[tw.type]},.02)`);
     ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(X, Y, r, 0, Math.PI * 2); ctx.fill();
   }
   ctx.globalCompositeOperation = 'source-over';
   for (const tw of S.towers) {
     if (!L.isLit(tw)) continue;
     const p = S.map.peds[tw.ped];
-    ctx.strokeStyle = `rgba(${A.LIGHT[tw.type]},.45)`; ctx.lineWidth = 1.5; ctx.setLineDash([4, 5]);
+    ctx.strokeStyle = `rgba(${A.LIGHT[tw.type]},.9)`; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
     ctx.beginPath(); ctx.arc(sx(p.x, p.y), sy(p.x, p.y), L.towerRadius(tw) * cs, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
   }
   // 金の網目（ちがう色の重なり）
@@ -879,7 +881,7 @@ function drawBoard(t) {
   // 灯守の待機点
   S.map.keeperPts.forEach((p, i) => {
     const on = ui.mode === 'keeper';
-    ctx.strokeStyle = on ? '#ffd36b' : 'rgba(255,211,107,.35)'; ctx.lineWidth = on ? 2.5 : 1.5;
+    ctx.strokeStyle = on ? '#ffd36b' : 'rgba(21,18,14,.5)'; ctx.lineWidth = on ? 2.5 : 1.5;
     ctx.beginPath(); ctx.arc(sx(p.x, p.y), sy(p.x, p.y), cs * (on ? 0.3 + Math.sin(t * 5 + i) * 0.03 : 0.2), 0, Math.PI * 2); ctx.stroke();
     if (S.reserved.keeper === i || S.keeper.target === i) { ctx.fillStyle = 'rgba(255,211,107,.4)'; ctx.fill(); }
   });
@@ -939,10 +941,13 @@ function drawMesh(t, towers, alpha) {
 function drawPed(p, i, t) {
   const cs = view.cs; const X = sx(p.x, p.y); const Y = sy(p.x, p.y);
   const tw = L.towerAt(S, i);
-  A.paper(ctx, (c) => c.ellipse(X, Y + cs * 0.12, cs * 0.38, cs * 0.24, 0, 0, Math.PI * 2), '#4a5891', { off: 4 });
-  A.paper(ctx, (c) => c.ellipse(X, Y + cs * 0.06, cs * 0.34, cs * 0.2, 0, 0, Math.PI * 2), '#6573aa', { off: 0 });
+  // 台座：白い石に墨の陰影
+  const base = (c) => c.ellipse(X, Y + cs * 0.12, cs * 0.38, cs * 0.24, 0, 0, Math.PI * 2);
+  A.paper(ctx, base, A.PAPER2, { off: 0, stroke: A.PAPER, lw: 1.4 });
+  A.hatch(ctx, base, { angle: 0.2, gap: Math.max(2.5, cs * 0.07), lw: 1, alpha: 0.7 });
+  A.paper(ctx, (c) => c.ellipse(X, Y + cs * 0.04, cs * 0.34, cs * 0.2, 0, 0, Math.PI * 2), A.PAPER, { off: 0, lw: 1.4 });
   if (!tw) {
-    ctx.strokeStyle = 'rgba(239,227,200,.55)'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = A.INK; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(X - cs * 0.1, Y + cs * 0.06); ctx.lineTo(X + cs * 0.1, Y + cs * 0.06); ctx.moveTo(X, Y - cs * 0.04); ctx.lineTo(X, Y + cs * 0.16); ctx.stroke();
     return;
   }
@@ -950,17 +955,17 @@ function drawPed(p, i, t) {
   const col = A.COLORS[tw.type];
   // 灯籠の塔
   const hgt = cs * (0.55 + tw.level * 0.08);
-  A.paper(ctx, (c) => { c.moveTo(X - cs * 0.17, Y + cs * 0.06); c.lineTo(X - cs * 0.12, Y - hgt); c.lineTo(X + cs * 0.12, Y - hgt); c.lineTo(X + cs * 0.17, Y + cs * 0.06); c.closePath(); }, '#efe3c8', { off: 3 });
-  ctx.fillStyle = lit ? col : '#555a78';
+  A.paper(ctx, (c) => { c.moveTo(X - cs * 0.17, Y + cs * 0.06); c.lineTo(X - cs * 0.12, Y - hgt); c.lineTo(X + cs * 0.12, Y - hgt); c.lineTo(X + cs * 0.17, Y + cs * 0.06); c.closePath(); }, A.PAPER, { off: 0, lw: 1.6 });
+  ctx.fillStyle = lit ? col : '#6b655a';
   if (lit) { ctx.shadowColor = col; ctx.shadowBlur = cs * 0.35; }
   ctx.fillRect(X - cs * 0.1, Y - hgt + cs * 0.04, cs * 0.2, cs * 0.2);
   ctx.shadowBlur = 0;
-  A.paper(ctx, (c) => { c.moveTo(X - cs * 0.2, Y - hgt); c.lineTo(X, Y - hgt - cs * 0.16); c.lineTo(X + cs * 0.2, Y - hgt); c.closePath(); }, '#2b2f4f', { off: 2 });
+  A.paper(ctx, (c) => { c.moveTo(X - cs * 0.2, Y - hgt); c.lineTo(X, Y - hgt - cs * 0.16); c.lineTo(X + cs * 0.2, Y - hgt); c.closePath(); }, A.INK, { off: 0, stroke: A.PAPER, lw: 1 });
   // 色覚補助の形
-  ctx.fillStyle = lit ? col : '#8088a8'; ctx.strokeStyle = '#0a0c22'; ctx.lineWidth = 1.5;
+  ctx.fillStyle = lit ? col : '#a59d8c'; ctx.strokeStyle = A.INK; ctx.lineWidth = 1.5;
   ctx.beginPath(); A.shapePath(ctx, L.TOWERS[tw.type].shape, X, Y - hgt * 0.38, cs * 0.14); ctx.fill(); ctx.stroke();
   // 段階
-  for (let k = 0; k < tw.level; k++) { ctx.fillStyle = '#ffd36b'; ctx.beginPath(); A.starPath(ctx, X - cs * 0.14 + k * cs * 0.14, Y + cs * 0.22, cs * 0.06, cs * 0.028); ctx.fill(); }
+  for (let k = 0; k < tw.level; k++) { ctx.fillStyle = A.INK; ctx.beginPath(); A.starPath(ctx, X - cs * 0.14 + k * cs * 0.14, Y + cs * 0.22, cs * 0.06, cs * 0.028); ctx.fill(); }
   if (!lit) {
     ctx.strokeStyle = '#ffd36b'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(X, Y - hgt * 0.4, cs * 0.3, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - tw.off / L.RELOCATE_DARK)); ctx.stroke();
@@ -994,7 +999,7 @@ function drawEnemy(e, q, t) {
     ctx.strokeStyle = `rgba(255,214,90,${0.85 * (1 - k)})`; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.ellipse(X, Y + u * 0.32, u * (0.25 + k * 0.3), u * (0.08 + k * 0.1), 0, 0, Math.PI * 2); ctx.stroke();
   }
-  if (d.armor && !e._yellow) { ctx.fillStyle = '#c8d0ff'; ctx.font = `bold ${Math.round(cs * 0.22)}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('鎧', X, Y + u * 0.55); }
+  if (d.armor && !e._yellow) { ctx.fillStyle = A.PAPER; ctx.font = `bold ${Math.round(cs * 0.22)}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('鎧', X, Y + u * 0.55); }
 }
 
 function drawParticles() {
@@ -1015,7 +1020,7 @@ function drawParticles() {
       ctx.strokeStyle = `rgba(${p.c},${1 - k})`; ctx.lineWidth = 3; ctx.setLineDash([5, 5]);
       ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(sx(p.x2, p.y2), sy(p.x2, p.y2)); ctx.stroke(); ctx.setLineDash([]);
     } else if (p.k === 'text') {
-      ctx.globalAlpha = 1 - k * k; ctx.fillStyle = p.color; ctx.strokeStyle = '#0a0c22'; ctx.lineWidth = 4;
+      ctx.globalAlpha = 1 - k * k; ctx.fillStyle = p.color; ctx.strokeStyle = A.INK; ctx.lineWidth = 4;
       ctx.font = `bold ${Math.round(cs * 0.42)}px sans-serif`; ctx.textAlign = 'center';
       ctx.strokeText(p.text, X, Y - k * cs * 0.6); ctx.fillText(p.text, X, Y - k * cs * 0.6); ctx.globalAlpha = 1;
     }
@@ -1079,8 +1084,8 @@ function drawPreview(t) {
     const path = S.map.paths[p.path];
     const pts = pathScreen(path);
     ctx.save();
-    ctx.setLineDash([cs * 0.18, cs * 0.18]); ctx.lineDashOffset = -t * cs * 0.8;
-    strokePoly(pts, cs * 0.9, S.inWave ? 'rgba(255,140,110,.18)' : 'rgba(255,140,110,.38)');
+    ctx.setLineDash([cs * 0.08, cs * 0.12]); ctx.lineDashOffset = -t * cs * 0.8;
+    ctx.lineCap = 'butt'; strokePoly(pts, cs * 0.96, S.inWave ? 'rgba(236,229,211,.18)' : 'rgba(236,229,211,.55)');
     ctx.restore();
   }
 }
@@ -1103,18 +1108,18 @@ function drawEntranceChips(t) {
     X = Math.max(view.ox + W / 2 + 2, Math.min(view.ox + boardW() - W / 2 - 2, X));
     Y = Math.max(view.oy + chipH / 2 + 2, Math.min(view.oy + boardH() - chipH / 2 - 2, Y));
     ctx.globalAlpha = S.inWave ? 0.55 : 1;
-    A.paper(ctx, (c) => roundRect(c, X - W / 2, Y - chipH / 2, W, chipH, 6), S.inWave ? '#d9ccb0' : '#efe3c8', { off: 3 });
+    A.paper(ctx, (c) => roundRect(c, X - W / 2, Y - chipH / 2, W, chipH, 3), S.inWave ? A.PAPER2 : A.PAPER, { off: 3 });
     items.forEach((g, i) => {
       const cx = X - W / 2 + 4 + i * iw;
       A.drawEnemyIcon(ctx, g.type, cx + chipH * 0.45, Y + chipH * 0.05, chipH * 0.75, t);
-      ctx.fillStyle = '#0a0c22'; ctx.font = `bold ${Math.round(chipH * 0.48)}px sans-serif`; ctx.textAlign = 'left';
+      ctx.fillStyle = A.INK; ctx.font = `bold ${Math.round(chipH * 0.48)}px sans-serif`; ctx.textAlign = 'left';
       ctx.fillText(`${g.count}`, cx + chipH * 0.86, Y + chipH * 0.18);
     });
-    if (S.inWave) { ctx.fillStyle = '#0a0c22'; ctx.font = `bold ${Math.round(chipH * 0.36)}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('次', X - W / 2 - chipH * 0.3, Y + chipH * 0.12); }
+    if (S.inWave) { ctx.fillStyle = A.INK; ctx.font = `bold ${Math.round(chipH * 0.36)}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('次', X - W / 2 - chipH * 0.3, Y + chipH * 0.12); }
     ctx.globalAlpha = 1;
     if (!S.inWave && idx > 0 && !prevPaths.has(p.path)) {
       const bob = Math.sin(t * 5) * 4;
-      ctx.fillStyle = '#ffcf5a'; ctx.strokeStyle = '#0a0c22'; ctx.lineWidth = 3;
+      ctx.fillStyle = '#ffcf5a'; ctx.strokeStyle = A.INK; ctx.lineWidth = 3;
       ctx.font = `bold ${Math.round(cs * 0.36)}px sans-serif`; ctx.textAlign = 'center';
       const tw = ctx.measureText('次はこちら').width / 2 + 4;
       const TX = Math.max(view.ox + tw, Math.min(view.ox + boardW() - tw, X));
@@ -1176,7 +1181,7 @@ function drawGuide(t) {
     const X0 = sx(x, y); const Y = sy(x, y) - cs * 0.9 + Math.sin(t * 6) * 5;
     const X = X0;
     const lx = Math.max(view.ox + cs * 1.4, Math.min(view.ox + boardW() - cs * 1.4, X0));
-    ctx.fillStyle = '#ffcf5a'; ctx.strokeStyle = '#0a0c22'; ctx.lineWidth = 3;
+    ctx.fillStyle = '#ffcf5a'; ctx.strokeStyle = A.INK; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(X, Y + cs * 0.35); ctx.lineTo(X - cs * 0.2, Y); ctx.lineTo(X + cs * 0.2, Y); ctx.closePath(); ctx.fill(); ctx.stroke();
     if (label) { ctx.font = `bold ${Math.round(Math.max(14, cs * 0.34))}px sans-serif`; ctx.textAlign = 'center'; ctx.strokeText(label, lx, Y - cs * 0.12); ctx.fillText(label, lx, Y - cs * 0.12); }
   };
@@ -1202,38 +1207,40 @@ function overlapCenter() {
 // ───────── タイトル画面 ─────────
 function renderTitle(t) {
   const { w, h } = view;
-  A.drawSky(ctx, w, h, t, ['#0d1b3d', '#1d3a7a']);
+  A.drawSky(ctx, w, h, t);
   const portrait = h > w;
   const m = Math.min(w, h);
-  A.drawMoon(ctx, w * (portrait ? 0.18 : 0.46), h * (portrait ? 0.1 : 0.14), m * 0.05);
-  // 崖（白い紙）と灯台：右上
+  // 対岸：大きな月を背に、影鹿の王が立つ（版画の見せ場）
+  const shoreY = h * (portrait ? 0.5 : 0.66);
+  const dx = w * (portrait ? 0.3 : 0.34);
+  A.drawMoon(ctx, dx, shoreY - m * (portrait ? 0.2 : 0.22), m * (portrait ? 0.22 : 0.2));
+  // 崖（白い紙に墨の陰影）と灯台：右
   const baseY = h * (portrait ? 0.36 : 0.46);
-  const cliffX = w * (portrait ? 0.58 : 0.7);
-  A.paper(ctx, (c) => { c.moveTo(cliffX - w * 0.1, h); c.lineTo(cliffX - w * 0.03, baseY + h * 0.03); c.lineTo(cliffX + w * 0.08, baseY - h * 0.01); c.lineTo(w * 1.02, baseY - h * 0.05); c.lineTo(w * 1.02, h); c.closePath(); }, '#e6dcc6', { off: 6, shadow: 'rgba(0,0,0,.4)' });
-  A.paper(ctx, (c) => { c.moveTo(cliffX + w * 0.0, h); c.lineTo(cliffX + w * 0.04, baseY + h * 0.1); c.lineTo(w * 1.02, baseY + h * 0.05); c.lineTo(w * 1.02, h); c.closePath(); }, '#cfc3aa', { off: 4 });
+  const cliffX = w * (portrait ? 0.6 : 0.7);
+  const cliff = (c) => { c.moveTo(cliffX - w * 0.1, h); c.lineTo(cliffX - w * 0.03, baseY + h * 0.03); c.lineTo(cliffX + w * 0.08, baseY - h * 0.01); c.lineTo(w * 1.02, baseY - h * 0.05); c.lineTo(w * 1.02, h); c.closePath(); };
+  A.paper(ctx, cliff, A.PAPER, { off: 0, lw: 2.5 });
+  A.hatch(ctx, (c) => { c.moveTo(cliffX - w * 0.1, h); c.lineTo(cliffX - w * 0.03, baseY + h * 0.03); c.lineTo(cliffX + w * 0.06, baseY + h * 0.2); c.lineTo(cliffX + w * 0.02, h); c.closePath(); }, { angle: 1.1, gap: 5, lw: 1.3 });
+  A.hatch(ctx, (c) => { c.moveTo(cliffX + w * 0.04, h); c.lineTo(cliffX + w * 0.12, baseY + h * 0.12); c.lineTo(w * 1.02, baseY + h * 0.08); c.lineTo(w * 1.02, h); c.closePath(); }, { angle: -0.5, gap: 7, lw: 1.1 });
   const lhH = Math.min(h * (portrait ? 0.27 : 0.36), w * (portrait ? 0.62 : 0.4));
   const lhX = cliffX + (w - cliffX) * 0.5;
-  A.drawLighthouse(ctx, lhX, baseY, lhH, t, { beam: true, beamLen: 5 });
-  // 橙の光の筋が手前の小舟を照らす
-  const bx = w * (portrait ? 0.4 : 0.56); const by = h * (portrait ? 0.62 : 0.8);
+  A.drawLighthouse(ctx, lhX, baseY, lhH, t, { beam: true, beamLen: 2.6 });
+  // 灯の筋が手前の小舟を照らす
+  const bx = w * (portrait ? 0.46 : 0.56); const by = h * (portrait ? 0.64 : 0.82);
   const g = ctx.createLinearGradient(lhX, baseY - lhH * 0.86, bx, by);
-  g.addColorStop(0, 'rgba(255,190,100,.5)'); g.addColorStop(1, 'rgba(255,190,100,.06)');
+  g.addColorStop(0, 'rgba(255,214,130,.5)'); g.addColorStop(1, 'rgba(255,214,130,.06)');
   ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(lhX, baseY - lhH * 0.86); ctx.lineTo(bx - m * 0.2, by + m * 0.08); ctx.lineTo(bx + m * 0.2, by + m * 0.08); ctx.closePath(); ctx.fill();
-  // 対岸の影鹿と群れ
-  const shoreY = h * (portrait ? 0.5 : 0.66);
-  const dx = w * (portrait ? 0.2 : 0.36);
-  A.paper(ctx, (c) => { c.moveTo(dx - w * 0.32, shoreY + 30); c.quadraticCurveTo(dx, shoreY - 18, dx + w * (portrait ? 0.3 : 0.16), shoreY + 24); c.lineTo(dx + w * 0.3, h); c.lineTo(dx - w * 0.4, h); c.closePath(); }, '#1b2550', { off: 4 });
-  for (let i = 0; i < 6; i++) A.drawShadowBeast(ctx, i % 2 ? 'rabbit' : 'rat', dx - m * 0.1 - i * m * 0.06, shoreY + 6 + (i % 2) * 6, m * 0.07, { t: t + i, face: 1 });
-  const back = ctx.createRadialGradient(dx, shoreY - m * 0.18, 0, dx, shoreY - m * 0.18, m * 0.36);
-  back.addColorStop(0, 'rgba(255,170,90,.55)'); back.addColorStop(1, 'rgba(255,170,90,0)');
-  ctx.fillStyle = back; ctx.beginPath(); ctx.arc(dx, shoreY - m * 0.18, m * 0.36, 0, Math.PI * 2); ctx.fill();
+  // 対岸の地面（墨に白い縁）と群れ
+  const shore = (c) => { c.moveTo(dx - w * 0.4, shoreY + 30); c.quadraticCurveTo(dx, shoreY - 18, dx + w * (portrait ? 0.34 : 0.2), shoreY + 24); c.lineTo(dx + w * 0.3, h); c.lineTo(dx - w * 0.5, h); c.closePath(); };
+  A.paper(ctx, shore, A.INK, { off: 0, stroke: A.PAPER, lw: 2 });
+  A.hatch(ctx, shore, { angle: 0.15, gap: 9, color: A.PAPER, lw: 1, alpha: 0.35 });
+  for (let i = 0; i < 6; i++) A.drawShadowBeast(ctx, i % 2 ? 'rabbit' : 'rat', dx - m * 0.12 - i * m * 0.06, shoreY + 4 + (i % 2) * 6, m * 0.07, { t: t + i, face: 1 });
   A.drawBigDeer(ctx, dx, shoreY - m * 0.02, m * (portrait ? 0.14 : 0.13), t);
   // 海
-  A.drawWaves(ctx, 0, h * (portrait ? 0.56 : 0.72), w, h * (portrait ? 0.46 : 0.3), t, 4);
+  A.drawWaves(ctx, 0, h * (portrait ? 0.58 : 0.74), w, h * (portrait ? 0.44 : 0.28), t, 4);
   // 小舟とミナ
   A.drawBoat(ctx, bx, by + m * 0.04, m * 0.075, t, 3, 3);
   A.drawKeeper(ctx, bx + m * 0.035, by - m * 0.025, m * 0.12, '#ffd23f', t, { ready: true });
-  for (let i = 0; i < 3; i++) A.drawBoat(ctx, w * (0.7 + i * 0.1), h * ((portrait ? 0.68 : 0.86) + (i % 2) * 0.05), m * 0.04, t, i + 1, 3);
+  for (let i = 0; i < 3; i++) A.drawBoat(ctx, w * (0.7 + i * 0.1), h * ((portrait ? 0.7 : 0.88) + (i % 2) * 0.05), m * 0.04, t, i + 1, 3);
 }
 
 // ───────── 起動 ─────────
