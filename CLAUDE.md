@@ -25,6 +25,7 @@ AIが企画したゲームを Claude Code が作り、人が遊んで承認（Me
      （`site/games/games.json`・`site/sitemap.xml`・トップの一覧も自動で更新される。これらの変更は PR に含めてよい）
    - `site/games/<slug>/` の中だけでゲームを実装する。ルールは `logic.js`（DOM を触らない ES module）、描画と操作は `game.js`。
    - ルールのテストを `tests/games/<slug>.test.js` に書く（`import { ... } from '../../site/games/<slug>/logic.js'`）。
+   - **見た目は Issue の「見た目・雰囲気」（直近の作品と偏らないように選んだ時間帯・色・画風）に従う**。`docs/taste.md` の「これまでの作品の見た目」の表に、この作品の行を足す（この変更は PR に含めてよい）。
    - `npm run og -- <slug>` で共有画像 `og.png` を作る。ゲーム画面が映えるように `?og=1` のときの見せ方を用意してよい。
 4. 見た目の自己チェック：`npm run screenshot -- <slug>` で `test-results/<slug>/pc.png` と `phone.png` を撮り、画像を開いて自分の目で見る。
    - 「このスクショ1枚で、知らない人がやってみたくなるか」を `docs/taste.md` の基準で判定する。
