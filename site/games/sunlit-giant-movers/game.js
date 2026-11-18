@@ -162,9 +162,10 @@ function frame() {
   }
   if (!koroDrawn) drawKoroNow(kv, t);
   // 予告（橋・葉の行き先）
-  for (const c of level.cells) if (c.t === 'pad') { const kc = cellOf(state.pos); const close = Math.abs(kc.x - c.x) + Math.abs(kc.y - c.y) <= 2; drawPadPreview(ctx, level, state, c, t, settings.calm, nearPad(c), koroWorld(), close); }
-  drawWeightPips();
+  for (const c of level.cells) if (c.t === 'pad') { const kc = cellOf(state.pos); const close = Math.abs(kc.x - c.x) + Math.abs(kc.y - c.y) <= 1; drawPadPreview(ctx, level, state, c, t, settings.calm, nearPad(c), koroWorld(), close); }
+  drawWeightPips(targets);
   drawMoveGuide(t, targets);
+  if (!anim) drawKoroMarker(t);
   if (hintCell >= 0 && t - hintT < 3.2) { const p = cellWorld(hintCell); ctx.save(); ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(p.x, p.y, 30 + Math.sin(t * 8) * 3, 15, 0, 0, 7); ctx.stroke(); ctx.restore(); }
   drawFx(t);
   if (anim && now() - anim.t0 >= anim.dur) finishAnim();
@@ -219,7 +220,7 @@ function rockWorld(r) {
 }
 
 // ---------- 盤面の案内 ----------
-const DIR_GLYPH = ['↗', '↘', '↙', '↖'];
+const DIR_WORD = ['右上', '右下', '左下', '左上'];
 let lastBumpT = -99;
 const ACT_LABEL = { board: '乗せる', drop: '降ろす', deliver: '届ける' };
 function badge(x, y, text, fill, color = '#fff', size = 12) {
@@ -231,10 +232,43 @@ function badge(x, y, text, fill, color = '#fff', size = 12) {
   ctx.fillStyle = fill; ctx.beginPath(); ctx.roundRect(x - w / 2, y - size - 4, w, size + 8, (size + 8) / 2); ctx.fill();
   ctx.fillStyle = color; ctx.fillText(text, x, y); ctx.restore();
 }
+// 方向の矢印を図形で描く（文字の矢印は iPhone で絵文字の箱になるため使わない）
+function drawDirArrow(x, y, d) {
+  const v = [[1, -0.5], [1, 0.5], [-1, 0.5], [-1, -0.5]][d]; const len = Math.hypot(v[0], v[1]);
+  const ux = v[0] / len; const uy = v[1] / len; const px = -uy; const py = ux;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,253,246,.92)'; ctx.beginPath(); ctx.ellipse(x, y, 17, 11, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#e2553f'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x - ux * 10, y - uy * 10); ctx.lineTo(x + ux * 3, y + uy * 3); ctx.stroke();
+  ctx.fillStyle = '#e2553f'; ctx.beginPath();
+  ctx.moveTo(x + ux * 12, y + uy * 12);
+  ctx.lineTo(x + ux * 2 + px * 5.5, y + uy * 2 + py * 5.5);
+  ctx.lineTo(x + ux * 2 - px * 5.5, y + uy * 2 - py * 5.5);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+// 自分（コロ）の目印：足もとの光る輪と、頭の上で弾む三角
+function drawKoroMarker(t) {
+  const p = koroWorld(); const b = settings.calm ? 0 : Math.sin(t * 4) * 3;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(p.x, p.y + 2, 26, 13, 0, 0, 7); ctx.stroke();
+  ctx.strokeStyle = 'rgba(226,85,63,.9)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.ellipse(p.x, p.y + 2, 30, 15, 0, 0, 7); ctx.stroke();
+  const ty = p.y - 78 - state.riders.length * 6 + b;
+  ctx.fillStyle = '#e2553f'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(p.x, ty + 10); ctx.lineTo(p.x - 9, ty - 4); ctx.lineTo(p.x + 9, ty - 4); ctx.closePath(); ctx.stroke(); ctx.fill();
+  if (level.id <= 2) { // 最初の2面は「あなた」と書く
+    ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#fff'; ctx.lineJoin = 'round';
+    ctx.strokeText('あなた', p.x, ty - 8); ctx.fillStyle = '#c4513a'; ctx.fillText('あなた', p.x, ty - 8);
+  }
+  ctx.restore();
+}
 // 動物の頭の上に重さの●（覚えなくても見て分かるように）
-function drawWeightPips() {
+function drawWeightPips(targets) {
   for (const a of level.animals) {
     const at = state.aloc[a.k]; if (at < 0 || delivered(level, state, a.k) || flying(a.k)) continue;
+    if (targets && targets.get(at) === 'board') continue;
     const p = cellWorld(at);
     const y = p.y - 52; const n = a.weight;
     ctx.fillStyle = 'rgba(255,253,246,.9)'; ctx.beginPath(); ctx.roundRect(p.x - n * 5 - 3, y - 6, n * 10 + 6, 12, 6); ctx.fill();
@@ -252,7 +286,7 @@ function drawMoveGuide(t, targets) {
     if (kind) {
       let text = ACT_LABEL[kind];
       if (kind === 'board') { const k = animalAt(state, n); const nl = load + level.animals[k].weight; text = `乗せる→重さ${nl}`; }
-      badge(p.x, p.y - 64, `${DIR_GLYPH[d]} ${text}`, kind === 'deliver' ? '#e2553f' : kind === 'board' ? '#e0902a' : '#4f9bd0', '#fff', 12);
+      badge(p.x, p.y - 64, text, kind === 'deliver' ? '#e2553f' : kind === 'board' ? '#e0902a' : '#4f9bd0', '#fff', 12);
       continue;
     }
     // 方向の矢印は、最初の2面と、ぶつかって進めなかった直後だけ出す（画面をすっきりさせる）
@@ -260,10 +294,7 @@ function drawMoveGuide(t, targets) {
     const r = act(level, state, d);
     if (!r.ok) continue;
     const bob = settings.calm ? 0 : Math.sin(t * 4 + d) * 2;
-    ctx.save(); ctx.globalAlpha = 0.9; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,253,246,.85)'; ctx.beginPath(); ctx.arc(p.x, p.y - 6 + bob, 11, 0, 7); ctx.fill();
-    ctx.fillStyle = '#c4513a'; ctx.fillText(DIR_GLYPH[d], p.x, p.y + bob);
-    ctx.restore();
+    drawDirArrow(p.x, p.y - 4 + bob, d);
   }
 }
 
@@ -570,7 +601,7 @@ function showHint() {
     const r = solve(level, { from: state, limit: 300000 });
     if (r.path && r.path.length) {
       const d = r.path[0].d; hintCell = neighbor(level, state.pos, d); hintT = now();
-      toast(`次は ${DIR_GLYPH[d]} へ（光っているマス）`, false, 3200);
+      toast(`次は${DIR_WORD[d]}へ（光っているマス）`, false, 3200);
       return;
     }
   } catch { /* 説明だけにする */ }
