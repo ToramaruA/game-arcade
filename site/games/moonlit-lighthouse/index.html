@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>月下の灯台と影の大行進</title>
+  <meta name="description" content="光を重ね、影の大行進を星屑に。塔を移し灯守を走らせて、18夜の灯台を守る経路防衛ゲーム。">
+  <link rel="canonical" href="https://game-arcade-bdt.pages.dev/games/moonlit-lighthouse/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="月下の灯台と影の大行進">
+  <meta property="og:description" content="光を重ね、影の大行進を星屑に。塔を移し灯守を走らせて、18夜の灯台を守る経路防衛ゲーム。">
+  <meta property="og:url" content="https://game-arcade-bdt.pages.dev/games/moonlit-lighthouse/">
+  <meta property="og:image" content="https://game-arcade-bdt.pages.dev/games/moonlit-lighthouse/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#0d1b3d">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="app" class="app">
+    <h1 class="sr">月下の灯台と影の大行進</h1>
+    <header id="hud" class="hud" hidden>
+      <div class="nightname"><small id="hudNo">第1夜</small><b id="hudName">消えかけの港</b></div>
+      <div class="stats">
+        <span class="stat hp" title="灯台の耐久"><i>♥</i><b id="hudHp">10</b></span>
+        <span class="stat en" title="電池"><i>⚡</i><b id="hudEn">0</b></span>
+        <span class="stat wv" title="波"><i>波</i><b id="hudWave">0/6</b></span>
+      </div>
+      <div class="hbtns">
+        <button id="btnPause" class="hbtn" type="button" aria-label="一時停止（Space）">⏸</button>
+        <button id="btnSpeed" class="hbtn" type="button" aria-label="早送り">×1</button>
+        <button id="btnMenu" class="hbtn" type="button" aria-label="メニュー">≡</button>
+      </div>
+    </header>
+    <section id="stage" class="stage">
+      <canvas id="cv" aria-label="夜の海の盤面。台座をタップして塔を置き、金の網目に合図を放つ"></canvas>
+      <div id="ribbon" class="ribbon" aria-live="polite"></div>
+      <div id="coach" class="coach" role="status" aria-live="polite" hidden></div>
+      <div id="pausedTag" class="paused-tag" hidden>一時停止中 — 塔の設置・移設はすぐ反映、合図と灯守は再開時に実行</div>
+      <div id="toast" class="toast" role="status"></div>
+    </section>
+    <section id="bar" class="bar" hidden>
+      <div id="barMsg" class="bar-msg"></div>
+      <div id="barBtns" class="bar-btns"></div>
+    </section>
+
+    <section id="title" class="title-ov">
+      <div class="title-box">
+        <p class="title-pre">灯影芝居</p>
+        <h2 class="title-main">月下の灯台と<br>影の大行進</h2>
+        <p class="title-sub">光を重ねて、影の群れを星屑に。</p>
+        <div class="title-btns">
+          <button id="tStart" class="tbtn primary" type="button">はじめる</button>
+          <button id="tContinue" class="tbtn" type="button" hidden>つづきから</button>
+          <button id="tSelect" class="tbtn" type="button">夜を選ぶ</button>
+          <button id="tCodex" class="tbtn small" type="button">影の図鑑</button>
+          <button id="tSound" class="tbtn small" type="button">音：ON</button>
+        </div>
+        <p id="tStars" class="title-stars"></p>
+      </div>
+      <footer class="arcade-link"><a href="/">Game Arcade</a></footer>
+    </section>
+
+    <section id="select" class="ov" hidden role="dialog" aria-modal="true" aria-label="夜を選ぶ">
+      <div class="sheet">
+        <div class="sheet-head"><h2>夜を選ぶ <b id="selStars"></b></h2><button class="xbtn" data-close type="button">とじる</button></div>
+        <div class="tabs" id="selTabs"></div>
+        <div id="selBody" class="sel-body"></div>
+      </div>
+    </section>
+
+    <section id="codex" class="ov" hidden role="dialog" aria-modal="true" aria-label="影の図鑑">
+      <div class="sheet">
+        <div class="sheet-head"><h2>影の図鑑 <b id="codexCount"></b></h2><button class="xbtn" data-close type="button">とじる</button></div>
+        <div id="codexBody" class="codex-body"></div>
+      </div>
+    </section>
+
+    <section id="menu" class="ov" hidden role="dialog" aria-modal="true" aria-label="メニュー">
+      <div class="sheet small">
+        <div class="sheet-head"><h2>一時停止</h2></div>
+        <div class="menu-btns">
+          <button class="tbtn primary" data-m="resume" type="button">つづける</button>
+          <button class="tbtn" data-m="retry" type="button">この夜をやり直す</button>
+          <button class="tbtn" data-m="select" type="button">夜を選ぶ</button>
+          <button class="tbtn" data-m="codex" type="button">影の図鑑</button>
+          <button class="tbtn" data-m="help" type="button">遊び方</button>
+          <div class="toggles">
+            <button class="tbtn small" data-m="sound" type="button">音：ON</button>
+            <button class="tbtn small" data-m="shake" type="button">揺れ：ON</button>
+          </div>
+          <button class="tbtn small" data-m="title" type="button">タイトルへ</button>
+        </div>
+        <div id="help" class="help" hidden>
+          <p><b>台座</b>をタップ → 塔を選んで<b>設置</b>。塔をタップで<b>強化・移設・撤去</b>。</p>
+          <p>ちがう色の光が重なる所は<b>金の網目</b>。網目の中の影には<b>赤・白の光が1.5倍</b>効く。</p>
+          <p>網目に<b>合図</b>（12秒ごと）：半径内の影に2色24／3色36／4色48ダメージ（鎧無視）＋2秒停止。2体目からは1体ごとに<b>⚡+2</b>。群れを集めてから撃とう。</p>
+          <p><b>灯守</b>を道の○へ走らせると、近くを通る先頭の影を2秒止める（8秒待ち）。</p>
+          <p>赤＝先頭を撃つ（射程短め）／青＝遅くする／黄＝鎧を消す／白＝範囲を削る。灯台の耐久が0になる前に、全ての波をしのげば夜明け。</p>
+          <p class="keys">キー：Space 停止／Esc 取消／S 合図／K 灯守／N 次の波／1〜4 塔</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="result" class="ov result-ov" hidden role="dialog" aria-modal="true" aria-label="結果">
+      <div class="sheet">
+        <div id="resBody"></div>
+      </div>
+    </section>
+
+    <div id="ogBanner" class="og-banner" hidden>
+      <small>灯影芝居</small>
+      <b>月下の灯台と<br>影の大行進</b>
+      <span>光を重ねて、影の群れを星屑に。全18夜の経路防衛</span>
+    </div>
+  </main>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
