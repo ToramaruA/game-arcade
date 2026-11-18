@@ -12,6 +12,7 @@
 //   score(state) -> 0..1             // 途中の有利さ（勝ちに近いほど 1）。先読みを打ち切ったときに使う
 //   naive: { <id>: { name, allow(state, action) -> bool } }  // 遊びの核を使わない遊び方（操作を絞る）
 //   levels: { beginner: 30, expert: 300 }  // MCTS の考える回数（省略可）
+//   key(state) -> string             // 乱数のないパズル向け（省略可）。書くと全部の手を調べて、最短手数を正確に出す
 //   rolloutDepth: 20, maxSteps: 5000       // 省略可
 // }
 
@@ -85,4 +86,30 @@ export function fromGame(game) {
   strategies.push({ id: 'beginner', name: '初心者（核を使う）', kind: 'core', level: 'beginner', player: { type: 'mcts', iterations: L.beginner } });
   strategies.push({ id: 'expert', name: '上級者（核を使う）', kind: 'core', level: 'expert', player: { type: 'mcts', iterations: L.expert } });
   return { stages: game.stages, strategies, play: (stage, sg, seed) => playGame(game, stage, sg.player, seed) };
+}
+
+// 乱数のないパズル向け：全部の手を幅優先で調べ、勝つまでの最短手数を返す（解けなければ null）。
+// allow で操作を絞ると「核を使わないと解けるか」が正確に分かる。
+export function exactSolve(game, stage, { allow = null, limit = 2_000_000 } = {}) {
+  const s0 = game.start(stage, 1);
+  const idle = JSON.stringify(game.idle(s0));
+  const seen = new Set([game.key(s0)]);
+  let frontier = [s0]; let depth = 0; let count = 0;
+  while (frontier.length) {
+    const next = [];
+    for (const s of frontier) {
+      if (game.result(s) === 'win') return { steps: depth, explored: count };
+      if (game.result(s)) continue;
+      for (const a of legal(game, s, allow)) {
+        if (JSON.stringify(a) === idle) continue;
+        const t = clone(game, s); game.apply(t, a);
+        const k = game.key(t);
+        if (seen.has(k)) continue;
+        seen.add(k); next.push(t);
+        if (++count > limit) return { steps: null, explored: count, truncated: true };
+      }
+    }
+    frontier = next; depth += 1;
+  }
+  return { steps: null, explored: count };
 }
