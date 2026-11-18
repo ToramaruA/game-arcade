@@ -12,7 +12,7 @@ export const WAVE_BONUS = 25;
 export const RELOCATE_COST = 10;
 export const RELOCATE_DARK = 2;
 export const SELL_RATE = 0.6;
-export const SIGNAL_COST = 20;
+export const SIGNAL_COST = 0;
 export const SIGNAL_CD = 12;
 export const SIGNAL_DMG = 24;
 export const SIGNAL_STUN = 2;
@@ -22,7 +22,13 @@ export const KEEPER_STOP_BOSS = 0.5;
 export const KEEPER_CD = 8;
 export const ASSIST_ENERGY = 40;
 // 調整用の倍率（鎧：黄の光の外で赤・白のダメージに掛かる）
-export const RULES = { armor: 0.5, signalDmg: SIGNAL_DMG };
+// mesh：網目（2色以上の光が重なる所）での赤・白のダメージ倍率
+// sigCost：合図の電池。sigStep：重なる色が1つ増えるごとの合図ダメージの上乗せ。combo：合図で2体目以降を倒すごとの電池
+export const RULES = { armor: 0.5, signalDmg: SIGNAL_DMG, mesh: 1.5, sigCost: SIGNAL_COST, sigStep: 0.5, combo: 2 };
+export const MESH_MUL = 1.5;
+export const COMBO_ENERGY = 2;
+// 合図のダメージ：重なる色の数で強くなる（2色24／3色36／4色48）
+export function signalDamage(colors) { return Math.round(RULES.signalDmg * (1 + RULES.sigStep * Math.max(0, colors - 2))); }
 
 export const TOWERS = {
   red: { name: '赤塔', cost: 40, up: [30, 45], dps: [6, 9, 12], r: [1.8, 1.8, 1.8], shape: 'tri', desc: '集めた光で先頭の影を撃つ（毎秒6→9→12・射程1.8）' },
@@ -34,15 +40,15 @@ export const TOWER_TYPES = ['red', 'blue', 'yellow', 'white'];
 
 // 敵の性能（HP・速度[マス/秒]・通過で減る耐久・撃破報酬）
 export const ENEMIES = {
-  rat: { name: '影鼠', hp: 18, speed: 0.6, leak: 1, reward: 3 },
-  rabbit: { name: '影兎', hp: 12, speed: 1.1, leak: 1, reward: 3 },
-  turtle: { name: '殻亀', hp: 60, speed: 0.3, leak: 2, reward: 5, armor: true, heavy: true },
-  deer: { name: '影鹿', hp: 90, speed: 0.45, leak: 2, reward: 5, armor: true, heavy: true },
-  moth: { name: '霧蛾', hp: 24, speed: 0.8, leak: 1, reward: 3, blueImmune: true },
-  twin: { name: '双子影', hp: 30, speed: 0.55, leak: 1, reward: 3, split: true },
-  mini: { name: '小鼠', hp: 8, speed: 0.8, leak: 1, reward: 0 },
-  fish: { name: '吸灯魚', hp: 40, speed: 0.6, leak: 1, reward: 3, drain: true },
-  owl: { name: '鐘梟', hp: 45, speed: 0.5, leak: 1, reward: 3, heal: true },
+  rat: { name: '影鼠', hp: 24, speed: 0.6, leak: 1, reward: 3 },
+  rabbit: { name: '影兎', hp: 16, speed: 1.1, leak: 1, reward: 3 },
+  turtle: { name: '殻亀', hp: 78, speed: 0.3, leak: 2, reward: 5, armor: true, heavy: true },
+  deer: { name: '影鹿', hp: 117, speed: 0.45, leak: 2, reward: 5, armor: true, heavy: true },
+  moth: { name: '霧蛾', hp: 31, speed: 0.8, leak: 1, reward: 3, blueImmune: true },
+  twin: { name: '双子影', hp: 39, speed: 0.55, leak: 1, reward: 3, split: true },
+  mini: { name: '小鼠', hp: 10, speed: 0.8, leak: 1, reward: 0 },
+  fish: { name: '吸灯魚', hp: 52, speed: 0.6, leak: 1, reward: 3, drain: true },
+  owl: { name: '鐘梟', hp: 58, speed: 0.5, leak: 1, reward: 3, heal: true },
   kingdeer: { name: '影鹿の王', hp: 360, speed: 0.3, leak: 10, reward: 20, armor: true, boss: true },
   kingturtle: { name: '潮の大亀', hp: 420, speed: 0.22, leak: 10, reward: 20, armor: true, boss: true, shell: true },
   lord: { name: '夜の主', hp: 520, speed: 0.25, leak: 10, reward: 20, boss: true, summon: true },
@@ -265,8 +271,8 @@ export function signal(s, x, y) {
   if (s.reserved.signal) return { ok: false, reason: 'reserved' };
   if (s.signalCd > 0) return { ok: false, reason: 'cd' };
   if (!isOverlap(s, x, y)) return { ok: false, reason: 'single' };
-  if (!canAfford(s, SIGNAL_COST)) return { ok: false, reason: 'energy' };
-  s.energy -= SIGNAL_COST;
+  if (!canAfford(s, RULES.sigCost)) return { ok: false, reason: 'energy' };
+  s.energy -= RULES.sigCost;
   if (s.paused) { s.reserved.signal = { x, y }; return { ok: true, reserved: true }; }
   fireSignal(s, x, y);
   return { ok: true };
@@ -277,22 +283,27 @@ function fireSignal(s, x, y) {
   s.signalCd = SIGNAL_CD;
   s.stats.signals += 1;
   let hits = 0;
+  const colors = colorsAt(s, x, y).size;
+  const dmg = signalDamage(colors);
   for (const e of s.enemies) {
     if (e.hp <= 0) continue;
     const q = enemyPos(s, e);
     if (dist(q.x, q.y, x, y) <= r) {
-      e.hp -= RULES.signalDmg * shellMul(e);
+      e.hp -= dmg * shellMul(e);
       e.stun = Math.max(e.stun, SIGNAL_STUN);
       hits += 1;
     }
   }
   const killed = processDeaths(s);
+  // まとめ撃ち：2体目からは1体ごとに電池が増える（待って群れを集めるほど得）
+  const bonus = Math.max(0, killed - 1) * RULES.combo;
+  if (bonus) gain(s, bonus);
   s.stats.signalBest = Math.max(s.stats.signalBest, killed);
-  s.fx.push({ kind: 'signal', x, y, r, hits, killed });
+  s.fx.push({ kind: 'signal', x, y, r, hits, killed, colors, dmg, bonus });
 }
 
 export function cancelReservation(s, kind) {
-  if (kind === 'signal' && s.reserved.signal) { s.reserved.signal = null; gain(s, SIGNAL_COST); return true; }
+  if (kind === 'signal' && s.reserved.signal) { s.reserved.signal = null; gain(s, RULES.sigCost); return true; }
   if (kind === 'keeper' && s.reserved.keeper != null) { s.reserved.keeper = null; return true; }
   return false;
 }
@@ -314,7 +325,7 @@ export function setPaused(s, paused) {
     if (s.reserved.signal) {
       const { x, y } = s.reserved.signal; s.reserved.signal = null;
       if (s.signalCd <= 0 && isOverlap(s, x, y) && !s.result) fireSignal(s, x, y);
-      else { gain(s, SIGNAL_COST); s.fx.push({ kind: 'refund', x, y }); }
+      else { gain(s, RULES.sigCost); s.fx.push({ kind: 'refund', x, y }); }
     }
   }
 }
@@ -354,8 +365,10 @@ export function wavePreview(s, index = s.waveIdx) {
 // ───────── 敵 ─────────
 function spawn(s, type, path, sOffset = 0, flags = {}) {
   const d = ENEMIES[type];
+  // 夜ごとの体力の倍率（第1夜は手引きの夜なので弱め）
+  const hp = d.boss ? d.hp : Math.round(d.hp * (NIGHTS[s.night]?.hpMul || 1));
   const e = {
-    id: s.nextEnemyId++, type, path, s: sOffset, hp: d.hp, maxHp: d.hp, stun: 0,
+    id: s.nextEnemyId++, type, path, s: sOffset, hp, maxHp: hp, stun: 0,
     timer: 0, shellT: 0, summons: 0, phase: 1, noReward: !!flags.noReward, lane: ((s.nextEnemyId * 37) % 7 - 3) / 3,
   };
   s.enemies.push(e);
@@ -434,13 +447,16 @@ export function step(s) {
   for (const e of s.enemies) {
     const q = pos.get(e);
     e._yellow = false; e._slow = 1;
+    const cols = new Set();
     for (const L of lit) {
       if (dist(L.p.x, L.p.y, q.x, q.y) > L.r) continue;
+      cols.add(L.t.type);
       if (L.t.type === 'yellow') e._yellow = true;
       if (L.t.type === 'blue' && !ENEMIES[e.type].blueImmune) e._slow = Math.min(e._slow, TOWERS.blue.slow[L.t.level - 1]);
     }
+    e._mesh = cols.size >= 2;
   }
-  const armorMul = (e) => (ENEMIES[e.type].armor && !e._yellow ? RULES.armor : 1) * shellMul(e);
+  const armorMul = (e) => (ENEMIES[e.type].armor && !e._yellow ? RULES.armor : 1) * shellMul(e) * (e._mesh ? RULES.mesh : 1);
   for (const L of lit) {
     if (L.t.type === 'red') {
       let best = null; let bestRem = Infinity;

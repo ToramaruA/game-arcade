@@ -11,7 +11,7 @@ import {
   createNight, step, build, upgrade, relocate, sell, sellValue, signal, cancelReservation, moveKeeper, setPaused,
   startWave, canStartWave, buildMap, isOverlap, colorsAt, towerAt, snapshot, resume, starsFor, emptyProfile, recordResult,
   shouldOfferAssist, unlockedNights, tideUnlocked, replay, enemyPos, shareText, keepersAvailable,
-  TOWERS, ENEMIES, COLS, ROWS, DT, ENERGY_CAP, SIGNAL_COST, SIGNAL_CD, SIGNAL_DMG, RELOCATE_COST, WAVE_BONUS, dist,
+  TOWERS, ENEMIES, COLS, ROWS, DT, ENERGY_CAP, SIGNAL_COST, SIGNAL_CD, SIGNAL_DMG, MESH_MUL, COMBO_ENERGY, signalDamage, RELOCATE_COST, WAVE_BONUS, dist,
 } from '../../site/games/moonlit-lighthouse/logic.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -52,6 +52,19 @@ function spot(s) {
     }
   }
   throw new Error('spot not found');
+}
+
+// 道0の上で、近い台座が n 個ある地点（n=2 のときは2つとも赤の射程内）
+function spotN(s, n) {
+  const p = s.map.paths[0];
+  for (let d = 1; d < p.len - 1; d += 0.25) {
+    const q = enemyPosAt(p, d);
+    // 1つ目（赤用）は1.7以内、残り（青・黄用）は2.1以内
+    const ds = s.map.peds.map((pp, i) => [dist(pp.x, pp.y, q.x, q.y), i]).sort((x, y) => x[0] - y[0]);
+    const near = ds.filter(([k]) => k <= 2.1).map(([, i]) => i);
+    if (ds[0][0] <= 1.7 && near.length >= n && (n < 2 || ds[1][0] <= (n === 2 ? 1.7 : 2.1))) return { d, q, peds: near };
+  }
+  return null;
 }
 
 // ───────── データ ─────────
@@ -229,7 +242,7 @@ test('合図は鎧を無視し、赤・白は黄の外で鎧に半減', () => {
   build(s, b, 'yellow');
   const h0 = t.hp;
   run(s, 60);
-  assert.ok(Math.abs((h0 - t.hp) - 6) < 0.05, `黄の中で通常 ${h0 - t.hp}`);
+  assert.ok(Math.abs((h0 - t.hp) - 6 * MESH_MUL) < 0.05, `黄の中で通常、赤と黄の網目なので1.5倍 ${h0 - t.hp}`);
   const s2 = sandbox(3);
   const t2 = addEnemy(s2, 'turtle', 0, d); t2.hp = 100; t2.stun = 1e9;
   build(s2, a, 'red'); build(s2, b, 'blue');
@@ -358,13 +371,13 @@ test('吸灯魚は4秒ごとに電池2、0未満にならない／鐘梟は6秒�
   assert.equal(s.energy, 0);
   const s2 = sandbox(8);
   const o = addEnemy(s2, 'owl', 0, 3); o.stun = 1e9;
-  const r = addEnemy(s2, 'rat', 0, 3.3); r.stun = 1e9; r.hp = 10;
+  const r = addEnemy(s2, 'rat', 0, 3.3); r.stun = 1e9; r.hp = r.maxHp - 10;
   const far = addEnemy(s2, 'rat', 0, 6); far.stun = 1e9; far.hp = 10;
   run(s2, 60 * 6 + 2);
-  assert.equal(r.hp, 16);
+  assert.equal(r.hp, r.maxHp - 4);
   assert.equal(far.hp, 10, '1マスより遠いと回復しない');
   run(s2, 60 * 6);
-  assert.equal(r.hp, 18, '最大HPを超えない');
+  assert.equal(r.hp, r.maxHp, '最大HPを超えない');
 });
 
 test('夜の主：12秒ごとに兎2体（最大4回・報酬0）、HP半分で速度0.4', () => {
@@ -392,10 +405,10 @@ test('潮の大亀：10秒ごとに4秒甲羅を閉じ、黄の中でも被ダ�
   T.hp = 1000; T.stun = 1e9; T.shellT = 6.5;
   build(s, a, 'red'); build(s, b, 'yellow');
   const h0 = T.hp; run(s, 30);
-  assert.ok(Math.abs((h0 - T.hp) - 6 * 0.5 * 0.5) < 0.05, `閉じた甲羅 ${h0 - T.hp}`);
+  assert.ok(Math.abs((h0 - T.hp) - 6 * 0.5 * 0.5 * MESH_MUL) < 0.05, `閉じた甲羅 ${h0 - T.hp}`);
   T.shellT = 0.5;
   const h1 = T.hp; run(s, 30);
-  assert.ok(Math.abs((h1 - T.hp) - 6 * 0.5) < 0.05, `開いた甲羅 ${h1 - T.hp}`);
+  assert.ok(Math.abs((h1 - T.hp) - 6 * 0.5 * MESH_MUL) < 0.05, `開いた甲羅 ${h1 - T.hp}`);
   T.shellT = 7;
   const h2 = T.hp; assert.ok(signal(s, q.x, q.y).ok);
   assert.equal(h2 - T.hp, SIGNAL_DMG * 0.5);
@@ -534,4 +547,66 @@ test('何もしない（波を流すだけ）では、どの夜も勝てない',
       assert.equal(s.result, 'lose', `${mode} 第${n + 1}夜が無操作で勝ててしまう`);
     }
   }
+});
+
+test('網目（ちがう色の重なり）の中だけ赤・白が1.5倍。同じ色どうしの重なりは網目にならない', () => {
+  let s; let sp;
+  for (const n of [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) { s = sandbox(n); sp = spotN(s, 2); if (sp) break; }
+  assert.ok(sp);
+  const e = addEnemy(s, 'rat', 0, sp.d); e.hp = 1000; e.maxHp = 1000; e.stun = 1e9;
+  build(s, sp.peds[0], 'red'); build(s, sp.peds[1], 'red');
+  run(s, 60);
+  assert.ok(Math.abs((1000 - e.hp) - 6 * 2) < 0.05, `赤2本は各6のまま（網目なし） ${1000 - e.hp}`);
+});
+
+test('網目の中では赤のダメージが1.5倍になる', () => {
+  const s = sandbox(3);
+  const { d, a, b } = spot(s);
+  const e = addEnemy(s, 'rat', 0, d); e.hp = 1000; e.maxHp = 1000; e.stun = 1e9;
+  build(s, a, 'red');
+  run(s, 60);
+  const one = 1000 - e.hp;
+  build(s, b, 'blue');
+  s.towers.forEach((tw) => { tw.off = 0; });
+  const h0 = e.hp; run(s, 60);
+  assert.ok(Math.abs((h0 - e.hp) - one * MESH_MUL) < 0.05, `網目で1.5倍 ${one} → ${h0 - e.hp}`);
+});
+
+test('合図は電池を使わず、重なる色が多いほど強い（2色24／3色36／4色48）', () => {
+  assert.equal(SIGNAL_COST, 0);
+  assert.deepEqual([2, 3, 4].map(signalDamage), [24, 36, 48]);
+  let s; let sp;
+  for (const n of [12, 13, 14, 15, 16, 17, 6, 7, 8, 9, 10, 11]) { s = sandbox(n); sp = spotN(s, 3); if (sp) break; }
+  assert.ok(sp, '3つの台座が近い地点');
+  const e = addEnemy(s, 'deer', 0, sp.d); e.hp = 1000; e.stun = 1e9;
+  build(s, sp.peds[0], 'red'); build(s, sp.peds[1], 'blue'); build(s, sp.peds[2], 'yellow');
+  s.towers.forEach((tw) => { tw.off = 0; });
+  const { q } = sp;
+  assert.equal(colorsAt(s, q.x, q.y).size, 3);
+  const e0 = s.energy; const h0 = e.hp;
+  assert.ok(signal(s, q.x, q.y).ok);
+  assert.equal(s.energy, e0, '電池は減らない');
+  assert.equal(h0 - e.hp, 36);
+});
+
+test('合図のまとめ撃ち：2体目から1体ごとに電池+2', () => {
+  const s = sandbox(3);
+  const { d, q, a, b } = spot(s);
+  for (let i = 0; i < 4; i++) { const r = addEnemy(s, 'rabbit', 0, d); r.hp = 5; r.stun = 1e9; }
+  build(s, a, 'red'); build(s, b, 'blue');
+  s.towers.forEach((tw) => { tw.off = 0; });
+  const e0 = s.energy;
+  assert.ok(signal(s, q.x, q.y).ok);
+  assert.equal(s.energy, Math.min(ENERGY_CAP, e0 + 4 * ENEMIES.rabbit.reward + 3 * COMBO_ENERGY));
+});
+
+test('第1夜（手引きの夜）だけ影の体力が弱め', () => {
+  const s1 = createNight(0); const s2 = createNight(1);
+  s1.waveIdx = 0; s2.waveIdx = 0;
+  startWave(s1); startWave(s2);
+  run(s1, 600); run(s2, 600);
+  const a = s1.enemies.find((e) => e.type === 'rabbit' || e.type === 'rat');
+  const b = s2.enemies.find((e) => e.type === a.type);
+  assert.ok(a && b);
+  assert.ok(a.maxHp < b.maxHp, `${a.maxHp} < ${b.maxHp}`);
 });

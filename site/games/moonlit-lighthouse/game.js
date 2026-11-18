@@ -191,7 +191,7 @@ function towerIcon(type) {
 
 function renderBar(force = false) {
   if (!S || screen !== 'play') return;
-  const key = [ui.mode, ui.ped, ui.tower, ui.choice, ui.target, !!ui.sig, S.inWave, S.waveIdx, S.paused, !!S.reserved.signal, S.reserved.keeper, S.keeper.type, S.result, guide?.step, guide?.hit].join('|');
+  const key = [ui.mode, ui.ped, ui.tower, ui.choice, ui.target, ui.sig ? ui.sig.x + ',' + ui.sig.y : '', S.inWave, S.waveIdx, S.paused, !!S.reserved.signal, S.reserved.keeper, S.keeper.type, S.result, guide?.step, guide?.hit].join('|');
   if (!force && key === barKey) { updateBar(); return; }
   barKey = key;
   const msg = $('barMsg'); const btns = $('barBtns');
@@ -219,8 +219,9 @@ function renderBar(force = false) {
     b += `<button class="bb go" data-act="confirmMove" data-cost="${L.RELOCATE_COST}" ${ui.target != null ? '' : 'disabled'}>ここへ移す<small>⚡${L.RELOCATE_COST}</small></button>`;
     b += '<button class="bb x" data-act="cancel" aria-label="やめる">✕</button>';
   } else if (ui.mode === 'signal') {
-    m = ui.sig ? '範囲OK！ <b>もう一度タップ</b>か《放つ》' : '<b>金の網目</b>（ちがう色の光の重なり）をタップ';
-    b += `<button class="bb sig" data-act="fire" data-cost="${L.SIGNAL_COST}" ${ui.sig ? '' : 'disabled'}>放つ<small>⚡${L.SIGNAL_COST} ${L.SIGNAL_DMG}ダメ＋停止</small></button>`;
+    const nc = ui.sig ? L.colorsAt(S, ui.sig.x, ui.sig.y).size : 0;
+    m = ui.sig ? `範囲OK！ <b>${nc}色</b>の重なり → <b>${L.signalDamage(nc)}ダメ</b>。<b>もう一度タップ</b>か《放つ》` : '<b>金の網目</b>（ちがう色の光の重なり）をタップ。色が多いほど強い';
+    b += `<button class="bb sig" data-act="fire" ${ui.sig ? '' : 'disabled'}>放つ<small>${ui.sig ? L.signalDamage(nc) : L.SIGNAL_DMG}ダメ＋停止</small></button>`;
     b += '<button class="bb x" data-act="cancel" aria-label="やめる">✕</button>';
   } else if (ui.mode === 'keeper') {
     m = `<b>${KEEPERS[S.keeper.type].name}</b>の行き先：道の上の○をタップ`;
@@ -228,7 +229,7 @@ function renderBar(force = false) {
   } else {
     // 通常
     const parts = [];
-    if (S.reserved.signal) parts.push('合図を予約中 <button class="chip" data-act="unreserveSig">取消（⚡返却）</button>');
+    if (S.reserved.signal) parts.push('合図を予約中 <button class="chip" data-act="unreserveSig">取消</button>');
     if (S.reserved.keeper != null) parts.push('灯守の移動を予約中 <button class="chip" data-act="unreserveKeep">取消</button>');
     const av = L.keepersAvailable(S.night);
     if (S.waveIdx === 0 && !S.inWave && av.length > 1) {
@@ -237,7 +238,7 @@ function renderBar(force = false) {
     }
     if (!parts.length) parts.push(idleHint());
     m = parts.join(' ');
-    b += `<button class="bb sig" data-act="signal" data-cost="${L.SIGNAL_COST}">合図<small data-dyn="sig">⚡20</small><span class="cd" data-dyn="sigcd"></span></button>`;
+    b += `<button class="bb sig" data-act="signal">合図<small data-dyn="sig">準備OK</small><span class="cd" data-dyn="sigcd"></span></button>`;
     b += `<button class="bb dark" data-act="keeper">灯守<small data-dyn="keep">${KEEPERS[S.keeper.type].name}</small><span class="cd" data-dyn="keepcd"></span></button>`;
     b += `<button class="bb go" data-act="wave" data-dyn="wavebtn">次の波<small data-dyn="wave">▶</small></button>`;
   }
@@ -259,7 +260,7 @@ function idleHint() {
     if (S.waveIdx === 0) return '台座をタップして塔を置き、《次の波》で開始';
     return `波${S.waveIdx}完了！ 次の予告を見て塔を備えよう`;
   }
-  return '台座・塔をタップで操作／金の網目に影が入ったら《合図》';
+  return '台座・塔をタップで操作／金の網目の中は光が1.5倍。影が集まったら《合図》';
 }
 
 function updateBar() {
@@ -278,9 +279,9 @@ function updateBar() {
   const sig = btns.querySelector('[data-act="signal"]');
   if (sig) {
     const cd = S.signalCd; const reserved = !!S.reserved.signal;
-    sig.querySelector('[data-dyn="sig"]').textContent = reserved ? '予約中' : cd > 0 ? `あと${Math.ceil(cd)}秒` : S.energy < L.SIGNAL_COST ? '⚡不足' : '⚡20';
+    sig.querySelector('[data-dyn="sig"]').textContent = reserved ? '予約中' : cd > 0 ? `あと${Math.ceil(cd)}秒` : '準備OK';
     sig.querySelector('[data-dyn="sigcd"]').style.transform = `scaleX(${cd / L.SIGNAL_CD})`;
-    sig.disabled = cd > 0 || reserved || S.energy < L.SIGNAL_COST || !!S.result;
+    sig.disabled = cd > 0 || reserved || !!S.result;
     sig.classList.toggle('ready', !sig.disabled && S.inWave);
   }
   const kp = btns.querySelector('[data-act="keeper"]');
@@ -695,7 +696,9 @@ function handleFx() {
         particles.push({ k: 'ring', x: f.x, y: f.y, r: f.r, life: 0.7, t: 0 });
         for (let i = 0; i < 26; i++) { const a = (i / 26) * Math.PI * 2; particles.push({ k: 'star', x: f.x, y: f.y, vx: Math.cos(a) * 2.6, vy: Math.sin(a) * 2.6, life: 0.6, t: 0, c: '#ffd36b', r: 0.05 }); }
         audio.signal(f.killed);
+        if (f.colors >= 3) floatText(f.x, f.y - 1.1, `${f.colors}色 ${f.dmg}ダメ`, '#fff3c4', 1.2);
         if (f.killed >= 3) { floatText(f.x, f.y - 0.5, `${f.killed}体！`, '#ffe08a', 1.4); shakeIt(4); }
+        if (f.bonus) floatText(f.x + 0.6, f.y + 0.1, `+${f.bonus}⚡`, '#ffe08a', 1.2);
         if (guide && typeof guide.step === 'number' && guide.step >= 3) { guide.step = 'boom'; guide.kills = f.killed; guide.doneAt = performance.now() + 1500; $('coach').hidden = true; }
         break;
       case 'stop': particles.push({ k: 'ring2', x: f.x, y: f.y, r: 0.6, life: 0.5, t: 0 }); audio.stop(); break;
@@ -719,7 +722,7 @@ function handleFx() {
       case 'upgrade': audio.upgrade(); particles.push({ k: 'ring2', x: f.x, y: f.y, r: 0.9, life: 0.5, t: 0, c: A.LIGHT[f.type] }); break;
       case 'move': audio.move(); particles.push({ k: 'trail', x: f.fx0, y: f.fy0, x2: f.x, y2: f.y, life: 0.5, t: 0, c: A.LIGHT[f.type] }); break;
       case 'sell': audio.sell(); break;
-      case 'refund': toast('合図の条件が崩れたので返却した'); break;
+      case 'refund': toast('網目が消えたので合図を取りやめた'); break;
       default: break;
     }
   }
@@ -985,6 +988,12 @@ function drawEnemy(e, q, t) {
     ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(X - w / 2, yy, w, 5);
     ctx.fillStyle = d.boss ? '#ff8a6a' : '#ffd36b'; ctx.fillRect(X - w / 2, yy, w * Math.max(0, e.hp / e.maxHp), 5);
   }
+  if (e._mesh) {
+    // 網目の中：光が強まる（赤・白が1.5倍）。足元に金の火花
+    const k = (t * 3 + e.id * 0.37) % 1;
+    ctx.strokeStyle = `rgba(255,214,90,${0.85 * (1 - k)})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(X, Y + u * 0.32, u * (0.25 + k * 0.3), u * (0.08 + k * 0.1), 0, 0, Math.PI * 2); ctx.stroke();
+  }
   if (d.armor && !e._yellow) { ctx.fillStyle = '#c8d0ff'; ctx.font = `bold ${Math.round(cs * 0.22)}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('鎧', X, Y + u * 0.55); }
 }
 
@@ -1119,7 +1128,7 @@ function drawEntranceChips(t) {
 const COACH = {
   intro: { k: '目的', html: '影の群れが<b>道を歩いて灯台へ</b>向かってくる。灯台にたどり着かれると<b>♥耐久</b>が減る。<br>♥が0になる前に、<b>6つの波をしのげば夜明け</b>。<br>上の数字：<b>♥</b>＝耐久／<b>⚡</b>＝電池（塔を建てるお金）／<b>0/6</b>＝波。', btn: 'つぎへ' },
   light: { k: '塔の光', html: '塔のまわりの<b>光の輪</b>に入った影は削られる。<b>赤</b>＝撃って削る／<b>青</b>＝遅くする。<br>最初の群れが来る。見てみよう。', btn: '波を始める' },
-  0: { k: '光を重ねる', html: '光で影が消えた！ でも1つの光だけでは、群れは止めきれない。<br>ちがう色の光が<b>重なる所</b>は、まとめて倒せる場所になる。<b>青い塔をタップ</b>しよう。<span class="coach-p">（いまは一時停止中）</span>' },
+  0: { k: '光を重ねる', html: '光で影が消えた！ でも1つの光だけでは、群れは止めきれない。<br>ちがう色の光が<b>重なる所</b>は光が<b>1.5倍</b>になり、まとめて倒せる場所になる。<b>青い塔をタップ</b>しよう。<span class="coach-p">（いまは一時停止中）</span>' },
   1: { k: '光を重ねる', html: '青の光を<b>赤の光に重ねたい</b>。塔は動かせるので<b>《移設》</b>を押そう。<span class="coach-p">（いまは一時停止中）</span>' },
   2: { k: '光を重ねる', html: '<b>光っている真ん中の台座</b>をタップ。赤い光と青い光が重なる。<span class="coach-p">（いまは一時停止中）</span>' },
   3: { k: '金の網目', html: '赤と青が重なって<b>金の網目</b>ができた。<br>影が網目に入るまで待とう……' },
@@ -1133,7 +1142,7 @@ function renderCoach() {
   const key = guide.step === 3 && guide.hit ? 'hit' : guide.step;
   const c = COACH[key]; if (!c) { el.hidden = true; return; }
   let html = c.html;
-  if (key === 'done') html = `${guide.kills >= 2 ? `<b>${guide.kills}体</b>まとめて` : '網目の影が'}星屑に！ これがこのゲームの決め技。<ul class="coach-l"><li><b>台座の＋</b>で塔を建てる（⚡を使う。⚡は影を倒すと増える）</li><li>塔をタップで<b>強化・移設</b></li><li>波が終わったら<b>《次の波》</b></li></ul>`;
+  if (key === 'done') html = `${guide.kills >= 2 ? `<b>${guide.kills}体</b>まとめて` : '網目の影が'}星屑に！ これがこのゲームの決め技。<ul class="coach-l"><li><b>台座の＋</b>で塔を建てる（⚡を使う。⚡は影を倒すと増える）</li><li>重なる色が多いほど合図は強い（3色・4色）</li><li>塔をタップで<b>強化・移設</b></li><li>波が終わったら<b>《次の波》</b></li></ul>`;
   el.innerHTML = `<span class="coach-k">${c.k}</span><span class="coach-t">${html}</span>${c.btn ? `<button id="coachBtn" class="coach-btn" type="button">${c.btn}</button>` : ''}`;
   el.hidden = false;
   el.classList.toggle('mid', key === 'intro' && view.portrait);

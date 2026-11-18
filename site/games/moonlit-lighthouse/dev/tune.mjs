@@ -9,6 +9,7 @@ if (cfg.redCost) TOWERS.red.cost = cfg.redCost;
 if (cfg.white) TOWERS.white.dps = cfg.white;
 if (cfg.armor) RULES.armor = cfg.armor;
 if (cfg.sig) RULES.signalDmg = cfg.sig;
+for (const k of ['mesh','sigCost','sigStep','combo']) if (cfg[k] != null) RULES[k] = cfg[k];
 for (const k of ['red','blue','yellow','white']) if (cfg[k+'T']) Object.assign(TOWERS[k], cfg[k+'T']);
 const N = cfg.tries || 16;
 const nights = cfg.nights || NIGHTS.map((_, i) => i);

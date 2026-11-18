@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { NIGHTS } from '../levels.js';
 import {
   createNight, step, applyAction, wavePreview, towerAt, towerRadius, TOWERS, ENEMIES, dist, pointAt,
-  isOverlap, signalRadius, RULES, enemyPos, remaining, upgradeCost, towerAvailable, keepersAvailable, SIGNAL_COST, replay,
+  isOverlap, signalRadius, RULES, enemyPos, remaining, upgradeCost, towerAvailable, keepersAvailable, SIGNAL_COST, replay, colorsAt, signalDamage,
 } from '../logic.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -137,12 +137,13 @@ function bestSignal(s) {
       const x = c.x + ox; const y = c.y + oy;
       if (!isOverlap(s, x, y)) continue;
       let score = 0; let kills = 0; let urgent = false;
+      const D = signalDamage(colorsAt(s, x, y).size);
       for (const o of s.enemies) {
         const q = enemyPos(s, o);
         if (dist(q.x, q.y, x, y) > r) continue;
         const d = ENEMIES[o.type];
-        score += Math.min(o.hp, RULES.signalDmg) / RULES.signalDmg + (d.boss ? 2 : 0) + (remaining(s, o) < 4 ? 1 : 0);
-        if (o.hp <= RULES.signalDmg) kills += 1;
+        score += Math.min(o.hp, D) / D + (d.boss ? 2 : 0) + (remaining(s, o) < 4 ? 1 : 0);
+        if (o.hp <= D) kills += 1;
         if (d.boss || remaining(s, o) < 2.5) urgent = true;
       }
       if (!best || score > best.score) best = { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100, score, kills, urgent };
@@ -186,7 +187,7 @@ function attempt(nightIndex, mode, seed, keeper) {
       if (target && s.keeper.point !== target.i) act({ a: 'keep', p: target.i });
       act({ a: 'wave' });
     } else if (s.frame % 6 === 0) {
-      if (s.signalCd <= 0 && s.energy >= SIGNAL_COST) {
+      if (s.signalCd <= 0 && s.energy >= RULES.sigCost) {
         const b = bestSignal(s);
         if (b && prm.sigMin < 1e8 && (b.kills >= prm.sigKills || b.urgent)) act({ a: 'sig', x: b.x, y: b.y });
       }
