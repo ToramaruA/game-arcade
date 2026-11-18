@@ -536,7 +536,7 @@ export function drawKoro(ctx, x, y, o = {}) {
 }
 
 // 予告の弧（葉・橋の飛び先）
-export function drawPadPreview(ctx, level, s, c, t, reduce, focus, koro = null) {
+export function drawPadPreview(ctx, level, s, c, t, reduce, focus, koro = null, close = true) {
   const load = loadOf(level, s);
   const heavy = isHeavy(load);
   const from = iso(c.x + 0.5, c.y + 0.5, c.h);
@@ -546,8 +546,9 @@ export function drawPadPreview(ctx, level, s, c, t, reduce, focus, koro = null) 
     const to = iso(tgt.x + 0.5, tgt.y + 0.5, tgt.h);
     const lift = which === 'light' ? 60 : 18;
     const mx = (from.x + to.x) / 2; const my = Math.min(from.y, to.y) - lift;
+    if (!active && !close) continue; // 遠くの葉・橋は、今の重さの行き先だけ
     ctx.save();
-    ctx.globalAlpha = active ? (focus ? 1 : 0.85) : 0.28;
+    ctx.globalAlpha = active ? (focus ? 1 : close ? 0.85 : 0.55) : 0.28;
     if (c.style === 'bridge' && active) {
       // 板の橋（沈む/持ち上がる）
       const sag = which === 'heavy' ? 14 : -8;
@@ -563,7 +564,7 @@ export function drawPadPreview(ctx, level, s, c, t, reduce, focus, koro = null) 
       ctx.strokeStyle = active ? '#ff6f5a' : '#ffffff'; ctx.lineWidth = active ? 3.5 : 2.5;
       ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.quadraticCurveTo(mx, my, to.x, to.y); ctx.stroke(); ctx.setLineDash([]);
     }
-    if (!active) {
+    if (!active && focus) {
       const lbl = `${which === 'heavy' ? '重いとき' : '軽いとき'}→${tgt.h > c.h ? '高い所' : tgt.h < c.h ? '低い所' : 'ここ'}`;
       const near = koro && Math.hypot(koro.x - to.x, koro.y - to.y) < 40;
       ctx.globalAlpha = near ? 0.3 : 0.8; ctx.fillStyle = 'rgba(255,255,255,.9)'; roundRect(ctx, to.x - 34, to.y - 26, 68, 16, 8); ctx.fill();
@@ -577,6 +578,7 @@ export function drawPadPreview(ctx, level, s, c, t, reduce, focus, koro = null) 
       const lbl = `いま${heavy ? '重い' : '軽い'}→${tgt.h > c.h ? '高い所' : tgt.h < c.h ? '低い所' : 'ここ'}`;
       const near = koro && Math.hypot(koro.x - to.x, koro.y - to.y) < 40;
       if (near) ctx.globalAlpha = 0.35;
+      if (!close) { ctx.restore(); continue; } // 遠くの札は出さない（足あとと線だけ）
       ctx.fillStyle = '#fff'; roundRect(ctx, to.x - 44, to.y - 30, 88, 20, 10); ctx.fill();
       ctx.strokeStyle = '#ff6f5a'; ctx.lineWidth = 2; ctx.stroke();
       ctx.fillStyle = '#c0442e'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(blocked ? '×' : lbl, to.x, to.y - 15);

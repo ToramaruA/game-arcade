@@ -82,7 +82,7 @@ function computeBounds() { bounds = boardBounds(level); }
 function camera() {
   const narrow = W < 520; const bw = bounds.x1 - bounds.x0 + (narrow ? 24 : 110); const bh = bounds.y1 - bounds.y0 + (narrow ? 20 : 60);
   const fit = Math.min(W / bw, H / bh);
-  const minS = narrow ? 0.72 : 0.6;
+  const minS = narrow ? 0.8 : 0.6; // スマホはマスを大きめに（はみ出す分はコロにカメラが寄る）
   let scale = Math.min(1.7, Math.max(fit, minS)) * userZoom;
   const p = koroWorld();
   let cx = (bounds.x0 + bounds.x1) / 2; let cy = (bounds.y0 + bounds.y1) / 2 + 20;
@@ -162,7 +162,7 @@ function frame() {
   }
   if (!koroDrawn) drawKoroNow(kv, t);
   // 予告（橋・葉の行き先）
-  for (const c of level.cells) if (c.t === 'pad') drawPadPreview(ctx, level, state, c, t, settings.calm, nearPad(c), koroWorld());
+  for (const c of level.cells) if (c.t === 'pad') { const kc = cellOf(state.pos); const close = Math.abs(kc.x - c.x) + Math.abs(kc.y - c.y) <= 2; drawPadPreview(ctx, level, state, c, t, settings.calm, nearPad(c), koroWorld(), close); }
   drawWeightPips();
   drawMoveGuide(t, targets);
   if (hintCell >= 0 && t - hintT < 3.2) { const p = cellWorld(hintCell); ctx.save(); ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(p.x, p.y, 30 + Math.sin(t * 8) * 3, 15, 0, 0, 7); ctx.stroke(); ctx.restore(); }
@@ -220,10 +220,14 @@ function rockWorld(r) {
 
 // ---------- 盤面の案内 ----------
 const DIR_GLYPH = ['↗', '↘', '↙', '↖'];
+let lastBumpT = -99;
 const ACT_LABEL = { board: '乗せる', drop: '降ろす', deliver: '届ける' };
 function badge(x, y, text, fill, color = '#fff', size = 12) {
   ctx.save(); ctx.font = `bold ${size}px sans-serif`; ctx.textAlign = 'center';
   const w = ctx.measureText(text).width + 12;
+  // 画面の端からはみ出さないように
+  const left = cam.x - W / 2 / cam.s + w / 2 + 4; const right = cam.x + W / 2 / cam.s - w / 2 - 4;
+  if (left < right) x = Math.max(left, Math.min(right, x));
   ctx.fillStyle = fill; ctx.beginPath(); ctx.roundRect(x - w / 2, y - size - 4, w, size + 8, (size + 8) / 2); ctx.fill();
   ctx.fillStyle = color; ctx.fillText(text, x, y); ctx.restore();
 }
@@ -233,8 +237,8 @@ function drawWeightPips() {
     const at = state.aloc[a.k]; if (at < 0 || delivered(level, state, a.k) || flying(a.k)) continue;
     const p = cellWorld(at);
     const y = p.y - 52; const n = a.weight;
-    ctx.fillStyle = 'rgba(255,253,246,.92)'; ctx.beginPath(); ctx.roundRect(p.x - n * 6 - 4, y - 7, n * 12 + 8, 14, 7); ctx.fill();
-    for (let i = 0; i < n; i++) { ctx.fillStyle = '#7a5a3a'; ctx.beginPath(); ctx.arc(p.x - (n - 1) * 6 + i * 12, y, 4, 0, 7); ctx.fill(); }
+    ctx.fillStyle = 'rgba(255,253,246,.9)'; ctx.beginPath(); ctx.roundRect(p.x - n * 5 - 3, y - 6, n * 10 + 6, 12, 6); ctx.fill();
+    for (let i = 0; i < n; i++) { ctx.fillStyle = '#7a5a3a'; ctx.beginPath(); ctx.arc(p.x - (n - 1) * 5 + i * 10, y, 3.2, 0, 7); ctx.fill(); }
   }
 }
 // コロのとなり4マス：進める所に矢印（方向ボタンと同じ記号）、乗せる・降ろす・届ける所に札
@@ -247,10 +251,12 @@ function drawMoveGuide(t, targets) {
     const kind = targets.get(n);
     if (kind) {
       let text = ACT_LABEL[kind];
-      if (kind === 'board') { const k = animalAt(state, n); const nl = load + level.animals[k].weight; text = `乗せる→重さ${nl}${nl >= 2 ? '（重い）' : '（軽い）'}`; }
+      if (kind === 'board') { const k = animalAt(state, n); const nl = load + level.animals[k].weight; text = `乗せる→重さ${nl}`; }
       badge(p.x, p.y - 64, `${DIR_GLYPH[d]} ${text}`, kind === 'deliver' ? '#e2553f' : kind === 'board' ? '#e0902a' : '#4f9bd0', '#fff', 12);
       continue;
     }
+    // 方向の矢印は、最初の2面と、ぶつかって進めなかった直後だけ出す（画面をすっきりさせる）
+    if (level.id > 2 && now() - lastBumpT > 5) continue;
     const r = act(level, state, d);
     if (!r.ok) continue;
     const bob = settings.calm ? 0 : Math.sin(t * 4 + d) * 2;
@@ -309,7 +315,7 @@ function doAct(dir, pick, { fromWalk = false } = {}) {
   if (!r.ok) {
     if (r.need === 'pick') { showPick(r, dir); return false; }
     state = { ...state, face: dir };
-    anim = { kind: 'bump', t0: now(), dur: 0.16, dir };
+    anim = { kind: 'bump', t0: now(), dur: 0.16, dir }; lastBumpT = now();
     audio.sfx.bump();
     if (r.why === 'full') pulseLoad();
     let msg = r.reason;
