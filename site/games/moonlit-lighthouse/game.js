@@ -110,7 +110,7 @@ function startNight(idx, opts = {}) {
   resetUi();
   const n = NIGHTS[idx];
   const firstEver = idx === 0 && mode === 'normal' && profile.stars.normal[0] === 0 && profile.assistStars.normal[0] === 0 && !opts.fromSelect && !opts.restore;
-  guide = firstEver ? { step: 0 } : null;
+  guide = firstEver ? { step: 'intro' } : null;
   requestAnimationFrame(resize);
   if (!opts.restore) saveSnapshot();
   let line = n.line;
@@ -118,8 +118,7 @@ function startNight(idx, opts = {}) {
   if (n.newTower === 'white') line = '新しい塔：白塔（光の中の全員を削る）';
   if (n.unlockKeeper) line = `灯守${KEEPERS[n.unlockKeeper].name}が仲間に！ 波の前に灯守を選べる`;
   if (guide) {
-    showRibbon('光を重ねて影を止める', 0);
-    setTimeout(() => { if (S && S.night === idx && S.waveIdx === 0 && !S.inWave && guide) { L.startWave(S); renderBar(true); } }, 900);
+    hideRibbon(); renderCoach();
   } else {
     showRibbon(opts.restore ? `第${idx + 1}夜の波${S.waveIdx + 1}から再開` : line, 4200);
   }
@@ -175,7 +174,7 @@ function updateHud() {
   lastHp = S.hp;
   $('btnPause').innerHTML = S.paused ? ICON_PLAY : ICON_PAUSE;
   $('btnPause').classList.toggle('on', S.paused);
-  $('pausedTag').hidden = !S.paused || !$('menu').hidden;
+  $('pausedTag').hidden = !S.paused || !$('menu').hidden || !!guide;
 }
 
 // ───────── 操作欄 ─────────
@@ -192,7 +191,7 @@ function towerIcon(type) {
 
 function renderBar(force = false) {
   if (!S || screen !== 'play') return;
-  const key = [ui.mode, ui.ped, ui.tower, ui.choice, ui.target, !!ui.sig, S.inWave, S.waveIdx, S.paused, !!S.reserved.signal, S.reserved.keeper, S.keeper.type, S.result, guide?.step].join('|');
+  const key = [ui.mode, ui.ped, ui.tower, ui.choice, ui.target, !!ui.sig, S.inWave, S.waveIdx, S.paused, !!S.reserved.signal, S.reserved.keeper, S.keeper.type, S.result, guide?.step, guide?.hit].join('|');
   if (!force && key === barKey) { updateBar(); return; }
   barKey = key;
   const msg = $('barMsg'); const btns = $('barBtns');
@@ -298,7 +297,7 @@ function updateBar() {
   // 手引きの光
   for (const el of btns.querySelectorAll('.pulse')) el.classList.remove('pulse');
   if (guide) {
-    const want = { 1: 'relocate', 3: 'signal' }[guide.step];
+    const want = guide.step === 1 ? 'relocate' : guide.step === 3 && guide.hit ? 'signal' : null;
     if (want) btns.querySelector(`[data-act="${want}"]`)?.classList.add('pulse');
     if (guide.step === 4 && ui.sig) btns.querySelector('[data-act="fire"]')?.classList.add('pulse');
   }
@@ -319,13 +318,13 @@ function onBarClick(e) {
     case 'build': doBuild(); break;
     case 'cancel': resetUi(); break;
     case 'upgrade': if (t) { const r = L.upgrade(S, t.id); if (!r.ok) fail(r.reason); } break;
-    case 'relocate': if (t) { if (S.energy < L.RELOCATE_COST) fail('energy'); else { ui.mode = 'relocate'; ui.target = null; if (guide?.step === 1) guide.step = 2; } } break;
+    case 'relocate': if (t) { if (S.energy < L.RELOCATE_COST) fail('energy'); else { ui.mode = 'relocate'; ui.target = null; if (guide?.step === 1) { guide.step = 2; renderCoach(); } } } break;
     case 'confirmMove': doMove(); break;
     case 'sell': if (t) { L.sell(S, t.id); resetUi(); } break;
-    case 'signal': if (S.signalCd <= 0 && S.energy >= L.SIGNAL_COST) { resetUi(); ui.mode = 'signal'; if (guide?.step === 3) guide.step = 4; } else fail(S.signalCd > 0 ? 'cd' : 'energy'); break;
+    case 'signal': if (S.signalCd <= 0 && S.energy >= L.SIGNAL_COST) { resetUi(); ui.mode = 'signal'; if (guide?.step === 3) { guide.step = 4; renderCoach(); } } else fail(S.signalCd > 0 ? 'cd' : 'energy'); break;
     case 'fire': doSignal(); break;
     case 'keeper': resetUi(); ui.mode = 'keeper'; break;
-    case 'wave': if (L.startWave(S)) { resetUi(); } break;
+    case 'wave': if (L.startWave(S)) { resetUi(); if (guide && (guide.step === 'intro' || guide.step === 'light')) { guide.step = 'watch'; $('coach').hidden = true; } } break;
     case 'pickKeeper': {
       const k = el.dataset.k;
       if (S.waveIdx === 0 && !S.inWave) {
@@ -358,14 +357,15 @@ function doMove() {
   const r = L.relocate(S, t.id, ui.target);
   if (!r.ok) { fail(r.reason); return; }
   resetUi();
-  if (guide && guide.step <= 2) { guide.step = 3; showRibbon('金の網目に影が入ったら《合図》！', 0); }
+  if (guide && typeof guide.step === 'number' && guide.step <= 2) { guide.step = 3; guide.wait = true; L.setPaused(S, false); renderCoach(); }
 }
 function doSignal() {
   if (!ui.sig) return;
   const r = L.signal(S, ui.sig.x, ui.sig.y);
   if (!r.ok) { fail(r.reason); return; }
-  if (r.reserved) toast('合図を予約した（再開で発動）');
+  if (r.reserved && !guide) toast('合図を予約した（再開で発動）');
   resetUi();
+  if (guide && S.paused) { L.setPaused(S, false); renderCoach(); }
 }
 function fail(reason) {
   audio.error();
@@ -421,7 +421,7 @@ function onBoardTap(x, y) {
   if (pi >= 0) {
     const t = L.towerAt(S, pi);
     resetUi();
-    if (t) { ui.mode = 'tower'; ui.tower = t.id; if (guide && guide.step === 0 && t.type === 'blue') guide.step = 1; }
+    if (t) { ui.mode = 'tower'; ui.tower = t.id; if (guide && guide.step === 0 && t.type === 'blue') { guide.step = 1; renderCoach(); } }
     else { ui.mode = 'ped'; ui.ped = pi; }
     return;
   }
@@ -687,6 +687,7 @@ function handleFx() {
         if (f.boss && f.type === 'kingdeer') fawns.push({ x: f.x, y: f.y, t: 0 });
         if (f.boss) { shakeIt(10); showRibbon(f.type === 'lord' ? '夜の主の影が剥がれ、星屑になった……' : `${L.ENEMIES[f.type].name}を退けた！`, 3000); }
         audio.pop();
+        if (guide && guide.step === 'watch' && !guide.sawKill) { guide.sawKill = true; guide.pauseAt = performance.now() + 900; }
         break;
       }
       case 'leak': shakeIt(f.loss >= 2 ? 9 : 5); lhFlash = 1; audio.leak(); floatText(S.map.lh.x, S.map.lh.y - 0.6, `-${f.loss}`, '#ff8a6a'); break;
@@ -695,7 +696,7 @@ function handleFx() {
         for (let i = 0; i < 26; i++) { const a = (i / 26) * Math.PI * 2; particles.push({ k: 'star', x: f.x, y: f.y, vx: Math.cos(a) * 2.6, vy: Math.sin(a) * 2.6, life: 0.6, t: 0, c: '#ffd36b', r: 0.05 }); }
         audio.signal(f.killed);
         if (f.killed >= 3) { floatText(f.x, f.y - 0.5, `${f.killed}体！`, '#ffe08a', 1.4); shakeIt(4); }
-        if (guide && guide.step >= 3) { guide.step = 5; showRibbon('影が星屑に！ 船の窓に灯がともった', 3200); guide = null; }
+        if (guide && typeof guide.step === 'number' && guide.step >= 3) { guide.step = 'boom'; guide.kills = f.killed; guide.doneAt = performance.now() + 1500; $('coach').hidden = true; }
         break;
       case 'stop': particles.push({ k: 'ring2', x: f.x, y: f.y, r: 0.6, life: 0.5, t: 0 }); audio.stop(); break;
       case 'wave': {
@@ -739,6 +740,7 @@ function frame(now) {
       if (n >= 12) acc = 0;
     } else acc = 0;
     if (S.fx.length) handleFx();
+    guideTick();
     if (resultTimer > 0) { resultTimer -= dt; if (resultTimer <= 0) showResult(); }
     if (dawn > 0 && dawn < 1) dawn = Math.min(1, dawn + dt * 0.6);
     updateHud(); renderBar();
@@ -1112,7 +1114,52 @@ function drawEntranceChips(t) {
   }
 }
 
-// 手引き（第1夜の初回だけ）
+// ───────── 手引き（第1夜の初回だけ）─────────
+// 流れ：目的（何を守るか）→ 光で影が消えるのを見る → 光を重ねる（青塔を動かす）→ 網目に入ったら合図 → まとめ
+const COACH = {
+  intro: { k: '目的', html: '影の群れが<b>道を歩いて灯台へ</b>向かってくる。灯台にたどり着かれると<b>♥耐久</b>が減る。<br>♥が0になる前に、<b>6つの波をしのげば夜明け</b>。<br>上の数字：<b>♥</b>＝耐久／<b>⚡</b>＝電池（塔を建てるお金）／<b>0/6</b>＝波。', btn: 'つぎへ' },
+  light: { k: '塔の光', html: '塔のまわりの<b>光の輪</b>に入った影は削られる。<b>赤</b>＝撃って削る／<b>青</b>＝遅くする。<br>最初の群れが来る。見てみよう。', btn: '波を始める' },
+  0: { k: '光を重ねる', html: '光で影が消えた！ でも1つの光だけでは、群れは止めきれない。<br>ちがう色の光が<b>重なる所</b>は、まとめて倒せる場所になる。<b>青い塔をタップ</b>しよう。<span class="coach-p">（いまは一時停止中）</span>' },
+  1: { k: '光を重ねる', html: '青の光を<b>赤の光に重ねたい</b>。塔は動かせるので<b>《移設》</b>を押そう。<span class="coach-p">（いまは一時停止中）</span>' },
+  2: { k: '光を重ねる', html: '<b>光っている真ん中の台座</b>をタップ。赤い光と青い光が重なる。<span class="coach-p">（いまは一時停止中）</span>' },
+  3: { k: '金の網目', html: '赤と青が重なって<b>金の網目</b>ができた。<br>影が網目に入るまで待とう……' },
+  hit: { k: '合図', html: '<b>今！</b> 網目の中に影がいる。<b>《合図》</b>を押して、<b>網目をタップ</b>しよう。網目の中の影をまとめて吹き飛ばす。<span class="coach-p">（いまは一時停止中）</span>' },
+  4: { k: '合図', html: '<b>金の網目をタップ</b>して、もう一度タップ（か《放つ》）で発動。' },
+  done: { k: 'できた', html: '', btn: '遊びはじめる' },
+};
+function renderCoach() {
+  const el = $('coach');
+  if (!guide || screen !== 'play') { el.hidden = true; return; }
+  const key = guide.step === 3 && guide.hit ? 'hit' : guide.step;
+  const c = COACH[key]; if (!c) { el.hidden = true; return; }
+  let html = c.html;
+  if (key === 'done') html = `${guide.kills >= 2 ? `<b>${guide.kills}体</b>まとめて` : '網目の影が'}星屑に！ これがこのゲームの決め技。<ul class="coach-l"><li><b>台座の＋</b>で塔を建てる（⚡を使う。⚡は影を倒すと増える）</li><li>塔をタップで<b>強化・移設</b></li><li>波が終わったら<b>《次の波》</b></li></ul>`;
+  el.innerHTML = `<span class="coach-k">${c.k}</span><span class="coach-t">${html}</span>${c.btn ? `<button id="coachBtn" class="coach-btn" type="button">${c.btn}</button>` : ''}`;
+  el.hidden = false;
+  el.classList.toggle('mid', key === 'intro' && view.portrait);
+  const b = $('coachBtn'); if (b) b.addEventListener('click', coachNext);
+}
+function coachNext() {
+  audio.unlock();
+  if (!guide) return;
+  if (guide.step === 'intro') { guide.step = 'light'; renderCoach(); return; }
+  if (guide.step === 'light') { guide.step = 'watch'; $('coach').hidden = true; L.startWave(S); showRibbon('光の輪に入った影が削られていく', 0); renderBar(true); return; }
+  if (guide.step === 'done') { guide = null; $('coach').hidden = true; hideRibbon(); L.setPaused(S, false); showRibbon('《次の波》で次へ。電池⚡で塔を増やそう', 3600); renderBar(true); updateHud(); }
+}
+// 毎フレーム：見せたい瞬間で止める
+function guideTick() {
+  if (!guide || !S) return;
+  if (guide.step === 'watch' && guide.pauseAt && performance.now() >= guide.pauseAt) {
+    guide.step = 0; guide.pauseAt = 0; hideRibbon(); L.setPaused(S, true); renderCoach(); renderBar(true);
+  }
+  if (guide.step === 'boom' && performance.now() >= guide.doneAt) { guide.step = 'done'; L.setPaused(S, true); renderCoach(); renderBar(true); }
+  if (guide.step === 3 && guide.wait && !S.paused) {
+    // 網目に何体か入ったところで止める（1体だけで撃たせない）。残りが少なければその数で
+    const inMesh = S.enemies.filter((e) => { const q = L.enemyPos(S, e); return L.isOverlap(S, q.x, q.y); }).length;
+    if (inMesh >= Math.min(3, S.enemies.length) && inMesh > 0) { guide.wait = false; guide.hit = true; L.setPaused(S, true); renderCoach(); renderBar(true); }
+  }
+}
+
 function drawGuide(t) {
   if (!guide) return;
   const cs = view.cs;
@@ -1124,6 +1171,11 @@ function drawGuide(t) {
     ctx.beginPath(); ctx.moveTo(X, Y + cs * 0.35); ctx.lineTo(X - cs * 0.2, Y); ctx.lineTo(X + cs * 0.2, Y); ctx.closePath(); ctx.fill(); ctx.stroke();
     if (label) { ctx.font = `bold ${Math.round(Math.max(14, cs * 0.34))}px sans-serif`; ctx.textAlign = 'center'; ctx.strokeText(label, lx, Y - cs * 0.12); ctx.fillText(label, lx, Y - cs * 0.12); }
   };
+  if (guide.step === 'intro') {
+    for (const p of S.map.paths) { const q = L.pointAt(p, 0.6); arrow(q.x, q.y, '影はここから'); }
+    arrow(S.map.lh.x, S.map.lh.y, '灯台を守る');
+  }
+  if (guide.step === 'light') { const r = S.towers.find((q) => q.type === 'red'); if (r) { const p = S.map.peds[r.ped]; arrow(p.x, p.y, '光の輪'); } }
   const blue = S.towers.find((q) => q.type === 'blue');
   if (guide.step === 0 && blue && ui.mode !== 'tower') { const p = S.map.peds[blue.ped]; arrow(p.x, p.y, '青塔をタップ'); }
   if (guide.step === 2 && ui.mode === 'relocate') { const p = S.map.peds[2]; if (!L.towerAt(S, 2)) arrow(p.x, p.y, 'ここへ'); }
@@ -1230,4 +1282,4 @@ async function setupOg() {
 }
 
 // 動作確認用の小さな窓口（自動テストで盤面の座標を知るため）
-window.__moonlit = { state: () => S, toScreen: (x, y) => ({ x: sx(x, y), y: sy(x, y) }), ui };
+window.__moonlit = { state: () => S, toScreen: (x, y) => ({ x: sx(x, y), y: sy(x, y) }), ui, guide: () => guide, overlapCenter: () => overlapCenter() };
