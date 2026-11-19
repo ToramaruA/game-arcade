@@ -67,7 +67,7 @@ function stageK() {
 function drawScene() {
   const key = S.phase === 'end' ? `vista${S.support.length}${S.coop.length}${S.broken}` : `ch${Math.min(S.ch, 3)}`;
   if (key !== bgKey) {
-    $('bgLayer').innerHTML = S.phase === 'end' ? buildVista({ support: S.support.length, coop: S.coop.length, broken: S.broken }) : buildBackground(S.ch);
+    $('bgLayer').innerHTML = S.phase === 'end' ? buildVista({ support: S.support.length, coop: S.coop.length, broken: S.broken, broken: S.broken }) : buildBackground(S.ch);
     bgKey = key;
   }
   if (S.phase === 'end') { $('ovLayer').innerHTML = ''; return; }
@@ -81,9 +81,9 @@ function drawScene() {
   }));
   $('ovLayer').innerHTML = buildOverlay({
     ch: S.ch, k: stageK(), padX: padX(), sites,
-    falling: S.ch === 1, support: S.support.length, coop: S.coop.length,
+    falling: S.ch === 1, support: S.support.length, coop: S.coop.length, broken: S.broken,
     stamp: S.phase === 'after' && S.choices[S.ch] === 'H',
-    yuiX: 128,
+    yuiX: Math.max(128, padX() + 46),
   });
   for (const el of $('ovLayer').querySelectorAll('[data-site]')) {
     const id = el.dataset.site;
@@ -107,7 +107,7 @@ function drawHud() {
 
   const chips = [];
   const proofs = Object.values(S.proofs);
-  if (proofs.length) chips.push(`<span class="chip">${ICON.proof}証明 ${proofs.join('・')}</span>`);
+  if (proofs.length) chips.push(`<span class="chip">${ICON.proof}証明 ${proofs.map((p) => PROOFS[p].name.replace('の証明', '')).join('・')}</span>`);
   if (S.support.length) chips.push(`<span class="chip">${ICON.flag}支持旗 ${S.support.length}</span>`);
   if (S.coop.length) chips.push(`<span class="chip">${ICON.key}協力鍵 ${S.coop.length}（${S.coop.map((k) => L.personName(k.from)).join('・')}）</span>`);
   const live = S.promises.filter((p) => !p.broken);
@@ -169,7 +169,7 @@ function drawTalk() {
   const done = shown >= lines.length;
   const lbl = nextLabel();
   const nb = $('nextBtn');
-  nb.hidden = done && !lbl;
+  nb.hidden = (done && !lbl) || (S.phase === 'intro' && S.ch === 1);
   nb.textContent = done ? (lbl || '') : '続きを読む ▸';
   if (S.phase === 'intro' && S.ch === 1 && done) {
     box.insertAdjacentHTML('beforeend', '<li class="narr tip"><b>▲ 上の絵の、光る空のかけらをタップ</b></li>');
@@ -198,6 +198,7 @@ function drawInv() {
   const g = settings.hint ? L.guide(S) : null;
   $('sites').innerHTML = L.siteList(S).map((x) => `<button type="button" class="site ${g?.site === x.id ? 'hinted' : ''}" data-site-btn="${x.id}" ${x.visited || x.locked ? 'disabled' : ''}>${x.visited ? '✓ ' : ''}${esc(x.name)}<small>${x.visited ? `${esc(EVIDENCE[x.ev].name)}を得た` : x.locked ? 'まずは光るかけらから' : '調べる'}</small></button>`).join('');
   const cf = $('visitConfirm');
+  $('sites').before(cf);
   if (pendingSite) {
     const site = L.siteList(S).find((x) => x.id === pendingSite);
     $('visitText').innerHTML = `<b>${esc(site.name)}</b>を調べる？<br>調査 残り ${S.actionsLeft} → ${S.actionsLeft - 1}。調べた場所には戻れない。`;
@@ -207,7 +208,7 @@ function drawInv() {
 
 function drawTrial() {
   const g = settings.hint ? L.guide(S) : null;
-  $('testis').innerHTML = L.testimonies(S).map((t) => testiHtml(t, { button: true, selected: sel.t === t.id, hinted: g?.testimony === t.id && sel.t !== t.id })).join('');
+  $('testis').innerHTML = L.testimonies(S).map((t) => testiHtml(t, { button: true, selected: sel.t === t.id, hinted: g?.testimony === t.id && !sel.t })).join('');
   const slots = document.querySelectorAll('.slot');
   slots.forEach((b, i) => {
     const id = sel.slots[i];
@@ -225,8 +226,9 @@ const OPT_ICON = { P: ICON.flag, Q: ICON.key, H: ICON.stamp };
 function drawChoice() {
   const opts = L.choiceOptions(S);
   const owner = L.secretOwner(S);
+  const sec = S.pairId ? SECRETS[S.secrets.at(-1)] : null;
   $('choiceAsk').innerHTML = S.pairId
-    ? `<b>${esc(L.personName(owner))}の秘密</b>を知った。この真実を、誰に伝える？`
+    ? `<b>${esc(L.personName(owner))}（${esc(PEOPLE[owner].role)}）の秘密「${esc(sec.title)}」</b>を知った。<br><small>${esc(sec.text)}</small><br>この真実を、誰に伝える？<br><small class="goal">支持旗・協力鍵・保留印は、四日目に選べる結末を決める。</small>`
     : '証明できなかった。記録を保留して先へ進もう。';
   $('opts').innerHTML = opts.map((o) => `<button type="button" class="opt ${pick === o.id ? 'sel' : ''}" data-opt="${o.id}" ${o.allowed ? '' : 'disabled'} aria-pressed="${pick === o.id}">
     <span class="ic" style="background:${o.id === 'P' ? '#fff3a3' : o.id === 'Q' ? '#c6f1f8' : '#eef6f8'}">${OPT_ICON[o.id]}</span>
@@ -283,6 +285,7 @@ function onSite(id) {
   pendingSite = id;
   render();
   $('visitYes').focus({ preventScroll: true });
+  $('visitConfirm').scrollIntoView({ block: 'nearest', behavior: settings.reduce ? 'auto' : 'smooth' });
 }
 
 function doVisit(id) {
@@ -343,11 +346,10 @@ function onPresent() {
     busy = true;
     slotsEl.classList.remove('ng'); slotsEl.classList.add('ok');
     sfx.connect();
-    setTimeout(() => { busy = false; slotsEl.classList.remove('ok'); render(); }, settings.reduce ? 50 : 750);
+    setTimeout(() => { busy = false; slotsEl.classList.remove('ok'); sel = { t: null, slots: [null, null] }; render(); }, settings.reduce ? 50 : 750);
   } else {
     slotsEl.classList.remove('ok'); void slotsEl.offsetWidth; slotsEl.classList.add('ng');
     sfx.miss();
-    sel.slots = [null, null];
     render();
   }
 }

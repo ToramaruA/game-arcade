@@ -194,7 +194,7 @@ div.testi { cursor: default; }
 
 @media (max-width: 860px) {
   .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "panel" "shelf"; padding: 8px; gap: 8px; }
-  .stage { border-radius: 14px; aspect-ratio: 390 / 290; }
+  .stage { border-radius: 14px; aspect-ratio: 390 / 330; }
   .chap b { font-size: 13px; }
   .chap small { font-size: 10px; }
   .chap { padding: 3px 8px; }
@@ -220,3 +220,5 @@ div.testi { cursor: default; }
 .cardInfo { min-height: 24px; bottom: 3px; }
 @media (max-width: 860px) { .card { width: calc(50% - 4px); min-width: 0; } }
 .og .logo { color: #0b8fab; background: rgba(255,255,255,.88); padding: 10px 26px; border-radius: 20px; text-shadow: none; box-shadow: 0 6px 24px rgba(11,143,171,.3); }
+.ask small { font-size: 14px; color: var(--ink2); }
+.ask small.goal { color: var(--cyanDeep); }

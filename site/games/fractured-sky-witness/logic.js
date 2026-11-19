@@ -150,7 +150,7 @@ export function choiceOptions(s) {
       effects: [
         `市民の支持旗 ${s.support.length}→${s.support.length + 1}`,
         ...(s.coop.length ? [`協力鍵 ${s.coop.length}→0`] : []),
-        ...live.map((p) => `${personName(p.to)}との約束を破る（取り消せない）`),
+        ...live.map((p) => `${personName(p.to)}との約束を破る（取り消せない）：秘密を広場で話す人だと知られ、協力をやめられる`),
         ...(live.length || s.coop.length ? ['橋の結末に影響'] : []),
       ],
       warn: live.length > 0 || s.coop.length > 0,
@@ -158,7 +158,7 @@ export function choiceOptions(s) {
     {
       id: 'Q', name: '本人にだけ伝える', sub: owner ? `${ownerName}の秘密を守ると約束する` : '',
       allowed: proven, why: proven ? '' : '証明がないので、公開も約束もできない',
-      effects: [`協力鍵 ${s.coop.length}→${s.coop.length + 1}（${ownerName}から）`, `${ownerName}と約束する`, '市民の支持は増えない'],
+      effects: [`協力鍵 ${s.coop.length}→${s.coop.length + 1}（${ownerName}から）`, `${ownerName}と秘密を守る約束をする（あとで公開すると破れる）`, '市民の支持は増えない'],
       warn: false,
     },
     {
@@ -262,7 +262,8 @@ export function guide(s) {
     if (!s.visited.length) return { site: 'plaza' };
     if (!s.visited.includes('tower')) return { site: 'tower' };
   }
-  if (s.phase === 'trial' && s.evidence.includes('e1') && s.evidence.includes('e2')) return { testimony: 't1a', evs: ['e1', 'e2'] };
+  // 審理：まず証言だけ示し、1回外したら証拠の組も示す
+  if (s.phase === 'trial' && s.evidence.includes('e1') && s.evidence.includes('e2')) return { testimony: 't1a', evs: s.attemptsLeft < CONFIG.attempts ? ['e1', 'e2'] : [] };
   return null;
 }
 
@@ -275,19 +276,19 @@ export function endingOutlook(s) {
   return ENDINGS.map((e) => {
     let status; let why;
     if (e.id === 'sew') {
-      if (!hasS) { status = 'closed'; why = '第1章で安全の証明(S)を得ていない'; }
-      else if (s.holds.length) { status = 'open'; why = 'S と保留印がそろっている'; }
+      if (!hasS) { status = 'closed'; why = '第1章で「安全の証明」を得ていない'; }
+      else if (s.holds.length) { status = 'open'; why = '安全の証明と保留印がそろっている'; }
       else { status = 'near'; why = '第4章で保留すれば届く'; }
     } else if (e.id === 'bridge') {
       if (s.broken) { status = 'closed'; why = '約束を破ったので、橋は渡れない'; }
-      else if (!hasB) { status = 'closed'; why = '第3章で橋の証明(B)を得ていない'; }
-      else if (coop >= 2) { status = 'near'; why = `協力鍵${coop}つ。第4章で橋の承認(J)を立証すれば届く`; }
-      else if (coop === 1) { status = 'near'; why = '協力鍵1つ。第4章でJを立証し、もう1人と約束すれば届く'; }
+      else if (!hasB) { status = 'closed'; why = '第3章で「橋の証明」を得ていない'; }
+      else if (coop >= 2) { status = 'near'; why = `協力鍵${coop}つ。第4章で「橋の承認」を立証すれば届く`; }
+      else if (coop === 1) { status = 'near'; why = '協力鍵1つ。第4章で「橋の承認」を立証し、もう1人と約束すれば届く'; }
       else { status = 'closed'; why = '協力鍵が足りない'; }
     } else if (e.id === 'record') {
-      if (sup >= 2) { status = 'near'; why = `支持旗${sup}つ。第2章のT と第4章の記録の承認(R)で届く`; }
-      else if (sup === 1) { status = 'near'; why = '支持旗1つ。第4章でもう一度公開すれば届く（T と R も必要）'; }
-      else { status = 'far'; why = '支持旗0。第2章と第4章で公開すれば届く（試作では第2章を省略）'; }
+      if (sup >= 2) { status = 'near'; why = `支持旗${sup}つ。第2章の「真相」と第4章の「記録の承認」を立証すれば届く`; }
+      else if (sup === 1) { status = 'near'; why = '支持旗1つ。第4章でもう一度公開すれば届く（第2章の「真相」と第4章の「記録の承認」も必要）'; }
+      else { status = 'far'; why = 'あなたの選択：ここまで一度も公開していない。第2章（試作では省略）と第4章で公開すれば届く'; }
     } else { status = 'open'; why = 'いつでも選べる'; }
     return { ...e, status, why };
   });

@@ -66,7 +66,9 @@ function sky(other) {
   s += `<g opacity=".18"><polygon points="520,0 600,0 300,460 220,460" fill="#ffffff"/><polygon points="660,0 690,0 430,460 400,460" fill="#ffffff"/></g>`;
   // 裂け目
   s += `<polygon points="${crackPoly(34, 38, 4, 5)}" fill="#ffffff" opacity=".55" filter="url(#fGlow)"/>`;
+  s += `<polygon points="${crackPoly(30, 34, 10, 4)}" fill="none" stroke="${C.cyanDeep}" stroke-opacity=".55" stroke-width="2.2"/>`;
   s += `<polygon points="${crackPoly(26, 30)}" fill="url(#gCrack)" stroke="#ffffff" stroke-width="2"/>`;
+  s += `<polygon points="${crackPoly(9, 10, 3, 6)}" fill="${C.lemon2}" opacity=".75"/>`;
   if (other) s += otherCity();
   s += `<polygon points="${crackPoly(14, 16, 6, 9)}" fill="none" stroke="${C.cyan}" stroke-opacity=".35" stroke-width="1.2"/>`;
   s += `<polyline points="${CRACK.map(([x, y]) => `${x},${y}`).join(' ')}" fill="none" stroke="#ffffff" stroke-width="2.5" opacity=".9"/>`;
@@ -323,10 +325,11 @@ export function buildOverlay(view) {
     s += `</g>`;
   }
   // ユイ と 協力鍵
-  s += yui(view.yuiX ?? 96, 392, 1.05);
+  s += yui(view.yuiX ?? 96, 392, 1.05 * Math.min(1.4, view.k || 1));
   for (let i = 0; i < view.coop; i++) {
     s += `<g class="keyfx" transform="translate(${(view.yuiX ?? 96) + 26 + i * 18} 372)"><circle r="7" fill="#fff" opacity=".7" filter="url(#fSoft)"/><circle cx="0" cy="-3" r="4" fill="none" stroke="${C.cyanDeep}" stroke-width="2"/><line x1="0" y1="1" x2="0" y2="10" stroke="${C.cyanDeep}" stroke-width="2"/><line x1="0" y1="7" x2="3" y2="7" stroke="${C.cyanDeep}" stroke-width="2"/></g>`;
   }
+  if (view.broken) s += `<g transform="translate(${(view.yuiX ?? 96) - 34} 380)"><path d="M -16 0 Q -10 -9 -3 -2" fill="none" stroke="#e5484d" stroke-width="2.6"/><path d="M 3 2 Q 10 9 16 0" fill="none" stroke="#e5484d" stroke-width="2.6"/></g>`;
   if (view.stamp) s += `<g class="stampfx" transform="translate(150 360) rotate(-12)"><rect x="-26" y="-14" width="52" height="28" rx="4" fill="none" stroke="${C.cyanDeep}" stroke-width="2.5"/><text x="0" y="6" text-anchor="middle" fill="${C.cyanDeep}" font-size="15" font-weight="700">保留</text></g>`;
   return s;
 }
