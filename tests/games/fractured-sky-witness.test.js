@@ -5,13 +5,14 @@ import {
   CONFIG, newGame, visit, advance, present, giveUp, choose, choiceOptions, siteList, sceneLines, restoreChapter,
   endingOutlook, canVisit, chapterData, toTrial,
 } from '../../site/games/fractured-sky-witness/logic.js';
-import { CHAPTERS, PLAYABLE, EVIDENCE } from '../../site/games/fractured-sky-witness/story.js';
+import { CHAPTERS, PLAYABLE, EVIDENCE, PROLOGUE } from '../../site/games/fractured-sky-witness/story.js';
 import { run } from '../autoplay/fractured-sky-witness.mjs';
 
 const clone = (s) => structuredClone(s);
 
 // 章のはじめから、指定の場所を調べて審理に入る
 function investigate(s, sites) {
+  while (s.phase === 'prologue') advance(s);
   for (const id of sites) {
     if (s.phase === 'intro' && !(s.ch === 1 && !s.visited.length)) advance(s);
     const r = visit(s, id);
@@ -44,7 +45,7 @@ function ch3(s, choice, { prove = 'p3a' } = {}) {
 const outlook = (s) => Object.fromEntries(endingOutlook(s).map((e) => [e.id, e.status]));
 
 test('文章：1場面4表示まで、1表示80字以内', () => {
-  const scenes = [];
+  const scenes = PROLOGUE.map((b) => b.lines);
   for (const c of CHAPTERS) {
     if (c.intro) scenes.push([...c.intro, c.introGuide ? Object.values(c.introGuide)[0] : null].filter(Boolean));
     if (c.introGuide) for (const g of Object.values(c.introGuide)) assert.ok(g.text.length <= 80);
@@ -82,15 +83,26 @@ test('各章：4か所のうちどの3か所を選んでも、正しい組が必
   }
 });
 
+test('序章：いつもの朝 → 空が割れる → 調査を命じられる。そのあと第1章の導入へ', () => {
+  const s = newGame();
+  assert.equal(s.phase, 'prologue');
+  assert.deepEqual(PROLOGUE.map((b) => b.fx), ['calm', 'crack', 'after']);
+  assert.equal(visit(s, 'plaza').ok, false, '序章の間は調べられない');
+  for (let i = 0; i < PROLOGUE.length; i++) { assert.deepEqual(sceneLines(s), PROLOGUE[i].lines); advance(s); }
+  assert.equal(s.phase, 'intro');
+  assert.equal(s.ch, 1);
+});
+
 test('何もしないと進まない', () => {
   const s = newGame();
-  assert.equal(s.phase, 'intro');
+  assert.equal(s.phase, 'prologue');
   assert.equal(s.actionsLeft, CONFIG.actions);
   assert.deepEqual(s.evidence, []);
 });
 
 test('第1章の最初は光るかけら(e1)から。調査は3回、同じ場所には戻れない', () => {
   const s = newGame();
+  while (s.phase === 'prologue') advance(s);
   assert.equal(visit(s, 'tower').ok, false);
   assert.equal(visit(s, 'plaza').ev, 'e1');
   assert.equal(s.actionsLeft, 2);
@@ -194,9 +206,9 @@ test('章のはじめに戻ると、その時点の全状態（証拠・試行�
   assert.equal(back.coop.length, 1);
   assert.equal(back.broken, false);
   // 第1章のはじめに戻ると、まっさら
-  const n = newGame(); visit(n, 'plaza');
+  const n = newGame(); while (n.phase === 'prologue') advance(n); visit(n, 'plaza');
   const b1 = restoreChapter(n); delete b1.start;
-  const fresh = newGame(); delete fresh.start;
+  const fresh = newGame(); while (fresh.phase === 'prologue') advance(fresh); delete fresh.start; delete fresh.pro; delete b1.pro;
   assert.deepEqual(b1, fresh);
 });
 
@@ -275,7 +287,7 @@ test('無作為の有効操作でも詰まらず終わる（1000周）', () => {
 });
 
 test('状態は JSON にでき、複製しても同じ続きになる', () => {
-  const s = newGame(); visit(s, 'plaza');
+  const s = newGame(); while (s.phase === 'prologue') advance(s); visit(s, 'plaza');
   const t = JSON.parse(JSON.stringify(s));
   advance(s); advance(t);
   visit(s, 'tower'); visit(t, 'tower');

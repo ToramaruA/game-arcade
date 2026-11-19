@@ -64,7 +64,8 @@ function sky(other) {
   }
   // 斜めの光の帯
   s += `<g opacity=".18"><polygon points="520,0 600,0 300,460 220,460" fill="#ffffff"/><polygon points="660,0 690,0 430,460 400,460" fill="#ffffff"/></g>`;
-  // 裂け目
+  // 裂け目（序章で割れる演出のため、まとめて1つのグループにする）
+  s += '<g id="crackG">';
   s += `<polygon points="${crackPoly(34, 38, 4, 5)}" fill="#ffffff" opacity=".55" filter="url(#fGlow)"/>`;
   s += `<polygon points="${crackPoly(30, 34, 10, 4)}" fill="none" stroke="${C.cyanDeep}" stroke-opacity=".55" stroke-width="2.2"/>`;
   s += `<polygon points="${crackPoly(26, 30)}" fill="url(#gCrack)" stroke="#ffffff" stroke-width="2"/>`;
@@ -78,6 +79,7 @@ function sky(other) {
     const a = R2() * Math.PI * 2; const l = 14 + R2() * 26;
     s += `<polyline points="${x},${y} ${f(x + Math.cos(a) * l * 0.5)},${f(y + Math.sin(a) * l * 0.5 + 4)} ${f(x + Math.cos(a) * l)},${f(y + Math.sin(a) * l)}" fill="none" stroke="#ffffff" stroke-width="1.3" opacity=".8"/>`;
   }
+  s += '</g>';
   return s;
 }
 
@@ -242,7 +244,7 @@ function foreVane() {
 
 export function buildBackground(chNo) {
   const other = chNo >= 2;
-  return `${defs()}<g id="bg">${sky(other)}${fragments(chNo * 13 + 2)}${city(chNo >= 3 ? 41 : 7)}${landmarks(chNo)}${foreVane()}</g>`;
+  return `${defs()}<g id="bg">${sky(other)}<g id="fragG">${fragments(chNo * 13 + 2)}</g>${city(chNo >= 3 ? 41 : 7)}${landmarks(chNo)}${foreVane()}</g>`;
 }
 
 // 最後の見通し（試作の終わり）：裂け目の両側に二つの街、中央に未完成の橋

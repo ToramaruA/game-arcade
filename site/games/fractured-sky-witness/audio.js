@@ -41,6 +41,7 @@ export const sfx = {
   flag() { if (!ensure() || muted) return; const t = ctx.currentTime; [523, 659, 784].forEach((fq, i) => tone(fq, t + i * 0.08, 0.4, { vol: 0.08, type: 'triangle' })); },
   key() { if (!ensure() || muted) return; const t = ctx.currentTime; glass(1318, t, 0.1); glass(1760, t + 0.15, 0.08); },
   stamp() { if (!ensure() || muted) return; tone(196, ctx.currentTime, 0.18, { vol: 0.14, type: 'square' }); },
+  crack() { if (!ensure() || muted) return; const t = ctx.currentTime; tone(2600, t, 0.06, { vol: 0.08, type: 'square' }); tone(90, t + 0.03, 0.9, { vol: 0.14, type: 'sawtooth' }); [1568, 2093, 1319, 2637, 1760, 2349].forEach((fq, i) => glass(fq, t + 0.25 + i * 0.13, 0.06)); },
   snap() { if (!ensure() || muted) return; const t = ctx.currentTime; tone(2200, t, 0.05, { vol: 0.06, type: 'square' }); tone(140, t + 0.02, 0.4, { vol: 0.1, type: 'sawtooth' }); },
 };
 

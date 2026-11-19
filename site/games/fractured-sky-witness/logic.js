@@ -1,5 +1,5 @@
 // 空が割れた日の証人 — ルール（DOM を触らない）。状態はすべて JSON にできる（複製・保存・章頭への復元が簡単）。
-import { CHAPTERS, PLAYABLE, EVIDENCE, TAG_MEANING, SECRETS, PEOPLE, PROOFS, ENDINGS } from './story.js';
+import { PROLOGUE, CHAPTERS, PLAYABLE, EVIDENCE, TAG_MEANING, SECRETS, PEOPLE, PROOFS, ENDINGS } from './story.js';
 
 // 調整できる値はここに集める
 export const CONFIG = {
@@ -46,6 +46,8 @@ export function newGame() {
     start: null,
   };
   beginChapter(s, 1);
+  s.phase = 'prologue'; // 章頭の保存は「導入の後」。序章は最初の1回だけ
+  s.pro = 0;
   return s;
 }
 
@@ -199,6 +201,7 @@ export function choose(s, id) {
 // ----- 場面を進める -----
 export function advance(s) {
   switch (s.phase) {
+    case 'prologue': if (s.pro < PROLOGUE.length - 1) s.pro += 1; else s.phase = 'intro'; break;
     case 'intro': s.phase = 'investigate'; break;
     case 'site': s.siteId = null; s.phase = s.actionsLeft > 0 ? 'investigate' : 'trial'; break;
     case 'proven': case 'unproven': s.phase = 'choice'; break;
@@ -233,6 +236,7 @@ function guideKey(s) {
 export function sceneLines(s) {
   const c = ch(s);
   switch (s.phase) {
+    case 'prologue': return PROLOGUE[s.pro].lines;
     case 'intro': return c.introGuide ? [...c.intro, c.introGuide[guideKey(s)]] : c.intro;
     case 'site': return c.sites.find((x) => x.id === s.siteId)?.lines ?? [];
     case 'proven': return c.pairs.find((p) => p.id === s.pairId).proven;
@@ -252,7 +256,7 @@ export function sceneLines(s) {
 
 // 場面ごとの id（既読の記録用）
 export function sceneKey(s) {
-  return `${s.ch}:${s.phase}:${s.siteId || s.pairId || ''}:${s.phase === 'after' ? s.choices[s.ch] : ''}`;
+  return `${s.ch}:${s.phase}:${s.siteId || s.pairId || (s.phase === 'prologue' ? s.pro : '')}:${s.phase === 'after' ? s.choices[s.ch] : ''}`;
 }
 
 // 最初の面の手引き（ヒント ON のとき画面が使う）

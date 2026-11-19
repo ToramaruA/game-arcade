@@ -1,6 +1,6 @@
 // 描画と操作。ルールは logic.js、文章は story.js、絵は scene.js。
 import * as L from './logic.js';
-import { EVIDENCE, PEOPLE, PROOFS, SECRETS, ENDINGS } from './story.js';
+import { EVIDENCE, PEOPLE, PROOFS, SECRETS, ENDINGS, PROLOGUE } from './story.js';
 import { buildBackground, buildVista, buildOverlay, evIcon } from './scene.js';
 import { sfx, startBgm, setMuted } from './audio.js';
 
@@ -64,6 +64,14 @@ function stageK() {
   return Math.max(1, Math.min(1.7, 720 / w));
 }
 
+// 序章の舞台：割れる場面は「パキン」の行が出た瞬間に割る
+function proFx() {
+  if (S.phase !== 'prologue') return 'play';
+  const fx = PROLOGUE[S.pro].fx;
+  if (fx === 'crack') return shownKey === L.sceneKey(S) && shown >= 2 ? 'crack' : 'stir';
+  return fx;
+}
+
 function drawScene() {
   const key = S.phase === 'end' ? `vista${S.support.length}${S.coop.length}${S.broken}` : `ch${Math.min(S.ch, 3)}`;
   if (key !== bgKey) {
@@ -73,7 +81,9 @@ function drawScene() {
   if (S.phase === 'end') { $('ovLayer').innerHTML = ''; return; }
   const g = settings.hint ? L.guide(S) : null;
   const canAct = S.phase === 'investigate' || S.phase === 'intro';
-  const sites = S.phase === 'bridge' ? [] : L.siteList(S).map((x) => ({
+  const fx = proFx();
+  $('stage').dataset.fx = fx;
+  const sites = S.phase === 'bridge' || S.phase === 'prologue' ? [] : L.siteList(S).map((x) => ({
     ...x,
     locked: !x.visited && (!canAct || x.locked),
     hint: canAct && g?.site === x.id,
@@ -81,7 +91,7 @@ function drawScene() {
   }));
   $('ovLayer').innerHTML = buildOverlay({
     ch: S.ch, k: stageK(), padX: padX(), sites,
-    falling: S.ch === 1, support: S.support.length, coop: S.coop.length, broken: S.broken,
+    falling: S.ch === 1 && fx !== 'calm' && fx !== 'stir', support: S.support.length, coop: S.coop.length, broken: S.broken,
     stamp: S.phase === 'after' && S.choices[S.ch] === 'H',
     yuiX: Math.max(128, padX() + 46),
   });
@@ -97,9 +107,10 @@ function drawScene() {
 function drawHud() {
   const c = L.ch(S);
   $('chDay').textContent = S.phase === 'end' ? '四日目へ' : c.day;
-  $('chTitle').textContent = S.phase === 'end' ? '試作の終わり' : `第${c.no}章　${c.title}`;
+  $('chTitle').textContent = S.phase === 'end' ? '試作の終わり' : S.phase === 'prologue' ? '序章' : `第${c.no}章　${c.title}`;
+  if (S.phase === 'prologue') $('chDay').textContent = '一日目の朝';
   const act = $('actCnt'); const tr = $('tryCnt');
-  const inCh = !['bridge', 'end'].includes(S.phase);
+  const inCh = !['bridge', 'end', 'prologue'].includes(S.phase);
   act.hidden = !inCh;
   $('actDots').innerHTML = Array.from({ length: L.CONFIG.actions }, (_, i) => `<i class="dot ${i < S.actionsLeft ? '' : 'used'}"></i>`).join('') + `<b> ${S.actionsLeft}</b>`;
   tr.hidden = S.phase !== 'trial';
@@ -137,10 +148,11 @@ function drawShelf() {
   newEv = null;
 }
 
-const TALK = ['intro', 'site', 'proven', 'unproven', 'after', 'bridge'];
+const TALK = ['prologue', 'intro', 'site', 'proven', 'unproven', 'after', 'bridge'];
 
 function nextLabel() {
   switch (S.phase) {
+    case 'prologue': return PROLOGUE[S.pro].button;
     case 'intro': return S.ch === 1 ? null : '調査をはじめる ▸';
     case 'site': return S.actionsLeft > 0 ? `次の場所へ（調査 残り${S.actionsLeft}）▸` : '審理へ ▸';
     case 'proven': return 'この真実を、どうする？ ▸';
@@ -171,6 +183,11 @@ function drawTalk() {
   const nb = $('nextBtn');
   nb.hidden = (done && !lbl) || (S.phase === 'intro' && S.ch === 1);
   nb.textContent = done ? (lbl || '') : '続きを読む ▸';
+  if (S.phase === 'prologue') {
+    const before = $('stage').dataset.fx;
+    const now = proFx();
+    if (before !== now) { drawScene(); if (now === 'crack') quake(); }
+  }
   if (S.phase === 'intro' && S.ch === 1 && done) {
     box.insertAdjacentHTML('beforeend', '<li class="narr tip"><b>▲ 上の絵の、光る空のかけらをタップ</b></li>');
   }
@@ -266,6 +283,7 @@ function render() {
   if (ph === 'choice') drawChoice();
   if (ph === 'end') drawEnd();
   drawShelf();
+  $('shelf').hidden = S.phase === 'prologue';
   $('muteBtn').textContent = `音：${settings.mute ? 'なし' : 'あり'}`;
   $('motionBtn').textContent = `動き：${settings.reduce ? '減らす' : 'ふつう'}`;
   $('hintBtn').textContent = `最初の手引き：${settings.hint ? 'あり' : 'なし'}`;
@@ -312,6 +330,15 @@ function onNext() {
   if (S.phase === 'choice') pick = null;
   render();
   if (wasAfter || S.phase === 'intro') window.scrollTo({ top: 0, behavior: settings.reduce ? 'auto' : 'smooth' });
+}
+
+// 空が割れる瞬間：画面の揺れ・白い光・ガラスの音
+function quake() {
+  sfx.crack();
+  if (settings.reduce) return;
+  const st = $('stage');
+  st.classList.remove('quake'); void st.offsetWidth; st.classList.add('quake');
+  setTimeout(() => st.classList.remove('quake'), 1600);
 }
 
 function onEvCard(id) {
@@ -409,6 +436,7 @@ if (OG) {
   document.body.classList.add('og');
   // 共有画像：第3章、裂け目の向こうに街が見え、旗と鍵がある場面
   S = L.newGame();
+  while (S.phase === 'prologue') L.advance(S);
   L.visit(S, 'plaza'); L.advance(S); L.visit(S, 'tower'); L.advance(S); L.visit(S, 'roof'); L.advance(S);
   L.present(S, 't1a', 'e1', 'e2'); L.advance(S); L.choose(S, 'Q'); L.advance(S); L.advance(S);
   S.phase = 'investigate';
