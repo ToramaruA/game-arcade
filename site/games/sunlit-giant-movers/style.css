@@ -74,6 +74,10 @@ button:focus-visible, input:focus-visible { outline: 3px solid #3b82f6; outline-
 .title-screen { position: absolute; inset: 0; z-index: 10; display: flex; align-items: flex-end; justify-content: center; padding: 16px 16px calc(24px + var(--safe-b));
   background: linear-gradient(to bottom, rgba(255,255,255,0) 40%, rgba(255,247,232,.55) 75%); }
 .title-screen[hidden] { display: none; }
+/* タイトルの幕は押せないようにし、カードだけ押せる（上の図鑑・設定・面の名前を押せるように） */
+.title-screen { pointer-events: none; } .title-card { pointer-events: auto; }
+/* タイトル中は、遊ぶための操作と手引きを隠す（押しても何も起きないボタンを見せない） */
+body.on-title .controls { visibility: hidden; } body.on-title #coach { display: none; }
 .title-card { text-align: center; background: rgba(255,253,246,.88); border-radius: 26px; padding: 16px 20px 18px; box-shadow: 0 8px 30px rgba(120,80,40,.2); max-width: 420px; width: 100%; }
 .title-card .kicker { margin: 0; font-size: 12px; letter-spacing: .2em; color: var(--coral-d); font-weight: 700; }
 .title-card h2 { margin: 4px 0 4px; font-size: 28px; line-height: 1.25; color: #5a3424; text-shadow: 0 2px 0 #ffe0c8; }

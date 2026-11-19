@@ -165,7 +165,7 @@ function frame() {
   for (const c of level.cells) if (c.t === 'pad') { const kc = cellOf(state.pos); const close = Math.abs(kc.x - c.x) + Math.abs(kc.y - c.y) <= 1; drawPadPreview(ctx, level, state, c, t, settings.calm, nearPad(c), koroWorld(), close); }
   drawWeightPips(targets);
   drawMoveGuide(t, targets);
-  if (!anim) drawKoroMarker(t);
+  if (!anim && !titleOn) drawKoroMarker(t);
   if (hintCell >= 0 && t - hintT < 3.2) { const p = cellWorld(hintCell); ctx.save(); ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(p.x, p.y, 30 + Math.sin(t * 8) * 3, 15, 0, 0, 7); ctx.stroke(); ctx.restore(); }
   drawFx(t);
   if (anim && now() - anim.t0 >= anim.dur) finishAnim();
@@ -868,8 +868,9 @@ $('wipeBtn').addEventListener('click', () => {
 });
 
 // ---------- タイトル ----------
-function hideTitle() { titleOn = false; $('title').hidden = true; audio.ensure(); audio.startMusic(); coachStart = now(); updateCoach(); }
+function hideTitle() { titleOn = false; $('title').hidden = true; document.body.classList.remove('on-title'); audio.ensure(); audio.startMusic(); coachStart = now(); updateCoach(); }
 function setupTitle() {
+  document.body.classList.add('on-title');
   let saved = null; try { saved = JSON.parse(store.get('cur') || 'null'); } catch { /* なし */ }
   const has = clearedCount(progress) > 0 || (saved && saved.state && saved.state.moves > 0);
   const idx = saved ? LEVELS.findIndex((l) => l.id === saved.level) : -1;
