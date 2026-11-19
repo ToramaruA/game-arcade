@@ -10,7 +10,8 @@
     "og": "node scripts/make-og.js",
     "screenshot": "node scripts/screenshot.js",
     "site-index": "node scripts/site-index.js",
-    "autoplay": "node scripts/autoplay.mjs"
+    "autoplay": "node scripts/autoplay.mjs",
+    "ui-check": "node scripts/ui-check.mjs"
   },
   "devDependencies": {
     "playwright": "1.63.0"
