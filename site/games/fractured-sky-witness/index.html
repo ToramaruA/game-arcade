@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>空が割れた日の証人</title>
+  <meta name="description" content="割れた空の真実を、誰に伝える？ 証拠と約束で二つの街の未来を変える幻想ミステリー。">
+  <link rel="canonical" href="https://game-arcade-bdt.pages.dev/games/fractured-sky-witness/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="空が割れた日の証人">
+  <meta property="og:description" content="割れた空の真実を、誰に伝える？ 証拠と約束で二つの街の未来を変える幻想ミステリー。">
+  <meta property="og:url" content="https://game-arcade-bdt.pages.dev/games/fractured-sky-witness/">
+  <meta property="og:image" content="https://game-arcade-bdt.pages.dev/games/fractured-sky-witness/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#43c6dd">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="app" class="app">
+    <h1 class="sr">空が割れた日の証人</h1>
+    <section class="stage" id="stage">
+      <svg id="scene" viewBox="0 0 800 460" preserveAspectRatio="xMidYMid slice" role="img" aria-label="朝の白い階段都市。空に斜めの裂け目が走っている">
+        <g id="bgLayer"></g><g id="ovLayer"></g>
+      </svg>
+      <div class="hud" id="hud">
+        <div class="chap"><small id="chDay">一日目の朝</small><b id="chTitle">第1章　風のない落下</b></div>
+        <div class="counts">
+          <span class="cnt" id="actCnt" title="調査の残り"><em>調査</em><span id="actDots"></span></span>
+          <span class="cnt" id="tryCnt" title="提示の残り" hidden><em>提示</em><span id="tryDots"></span></span>
+        </div>
+      </div>
+      <p class="logo" aria-hidden="true">空が割れた日の証人<span>試作</span></p>
+      <div class="tools">
+        <button type="button" id="logBtn" class="tool" aria-label="ログを見る">ログ</button>
+        <button type="button" id="setBtn" class="tool" aria-label="設定">設定</button>
+      </div>
+      <div class="status" id="status" hidden></div>
+    </section>
+
+    <section class="panel" id="panel" aria-live="polite">
+      <p class="toast" id="toast" hidden></p>
+      <!-- 会話 -->
+      <div id="talk" class="talk" hidden>
+        <ol id="lines" class="lines"></ol>
+        <div class="row">
+          <button type="button" id="nextBtn" class="primary">次へ ▸</button>
+        </div>
+      </div>
+
+      <!-- 調査 -->
+      <div id="inv" class="inv" hidden>
+        <p class="ask" id="invAsk">どこを調べる？</p>
+        <div class="testis" id="invTestis"></div>
+        <div class="sites" id="sites"></div>
+        <div class="confirm" id="visitConfirm" hidden>
+          <p id="visitText"></p>
+          <div class="row"><button type="button" id="visitNo" class="ghost">やめる</button><button type="button" id="visitYes" class="primary">調べる</button></div>
+        </div>
+      </div>
+
+      <!-- 審理 -->
+      <div id="trial" class="trial" hidden>
+        <p class="ask">審理：<b>証言</b>を1つ選び、矛盾を示す<b>証拠を2つ</b>並べよう</p>
+        <div class="testis" id="testis"></div>
+        <div class="slots" id="slots">
+          <button type="button" class="slot" data-slot="0" aria-label="証拠の枠1">証拠 1</button>
+          <span class="link" id="slotLink"></span>
+          <button type="button" class="slot" data-slot="1" aria-label="証拠の枠2">証拠 2</button>
+        </div>
+        <p class="feedback" id="feedback" hidden></p>
+        <div class="row">
+          <button type="button" id="giveUpBtn" class="ghost small">立証せず進む</button>
+          <button type="button" id="presentBtn" class="primary" disabled>提示する</button>
+        </div>
+      </div>
+
+      <!-- 公開 / 約束 / 保留 -->
+      <div id="choice" class="choice" hidden>
+        <p class="ask" id="choiceAsk">この真実を、誰に伝える？</p>
+        <div class="opts" id="opts"></div>
+        <div class="row"><button type="button" id="chooseBtn" class="primary" disabled>これで決める</button></div>
+      </div>
+
+      <!-- 試作の終わり -->
+      <div id="end" class="end" hidden>
+        <p class="ask">試作はここまで。第4章「向こうの街の朝」と最終審理は本制作で作ります。</p>
+        <p class="sub">いまの選択で、四日目の審理に見えている結末：</p>
+        <ul class="outlook" id="outlook"></ul>
+        <p class="share" id="shareText"></p>
+        <div class="row">
+          <button type="button" id="replayCh" class="ghost">第3章のはじめから</button>
+          <button type="button" id="replayAll" class="primary">最初から（別の選択で）</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="shelf" id="shelf" aria-label="証拠の棚">
+      <p class="shelfHead"><b>証拠の棚</b><small id="shelfHint">空のかけらを集めると、ここに並ぶ</small></p>
+      <div class="cards" id="cards"></div>
+    </section>
+  </main>
+
+  <dialog id="evDlg" class="dlg">
+    <div class="evBig" id="evBig"></div>
+    <h2 id="evName"></h2>
+    <p id="evText"></p>
+    <form method="dialog"><button class="primary" value="close">閉じる</button></form>
+  </dialog>
+
+  <dialog id="logDlg" class="dlg">
+    <h2>ログ</h2>
+    <ol id="logList" class="logList"></ol>
+    <form method="dialog"><button class="primary" value="close">閉じる</button></form>
+  </dialog>
+
+  <dialog id="setDlg" class="dlg">
+    <h2>設定</h2>
+    <div class="setRows">
+      <button type="button" id="muteBtn" class="toggle">音：あり</button>
+      <button type="button" id="motionBtn" class="toggle">動き：ふつう</button>
+      <button type="button" id="hintBtn" class="toggle">最初の手引き：あり</button>
+      <button type="button" id="restartCh" class="ghost">この章のはじめから</button>
+      <button type="button" id="restartAll" class="ghost">最初から</button>
+    </div>
+    <form method="dialog"><button class="primary" value="close">閉じる</button></form>
+  </dialog>
+
+  <footer class="arcade-link"><a href="/">Game Arcade</a></footer>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
