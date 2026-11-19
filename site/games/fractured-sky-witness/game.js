@@ -1,6 +1,6 @@
 // 描画と操作。ルールは logic.js、文章は story.js、絵は scene.js。
 import * as L from './logic.js';
-import { EVIDENCE, PEOPLE, PROOFS, SECRETS } from './story.js';
+import { EVIDENCE, PEOPLE, PROOFS, SECRETS, ENDINGS } from './story.js';
 import { buildBackground, buildVista, buildOverlay, evIcon } from './scene.js';
 import { sfx, startBgm, setMuted } from './audio.js';
 
@@ -185,7 +185,7 @@ function scheduleReveal(total) {
 function testiHtml(t, { button, selected, hinted }) {
   const p = PEOPLE[t.who];
   const claim = esc(t.claim).replace(esc(t.mark), `<u>${esc(t.mark)}</u>`);
-  const inner = `<span class="who">${esc(p.name)}（${esc(p.role)}）の証言</span>「${claim}」<span class="hint">${esc(t.hint)}</span>`;
+  const inner = `<span class="who">${esc(p.name)}（${esc(p.role)}）の証言</span>「${claim}」<span class="hint">${esc(t.hint)}</span>${hinted ? '<span class="tag">手引き：まずはこの証言から</span>' : ''}`;
   if (!button) return `<div class="testi">${inner}</div>`;
   return `<button type="button" class="testi ${selected ? 'sel' : ''} ${hinted ? 'hinted' : ''}" data-t="${t.id}" aria-pressed="${selected}">${inner}</button>`;
 }
@@ -235,6 +235,7 @@ function drawChoice() {
     <b>${esc(o.name)}</b><span class="s">${esc(o.sub)}</span>
     ${o.allowed ? `<ul>${o.effects.map((e) => `<li class="${/破る|0$|影響/.test(e) ? 'bad' : ''}">${esc(e)}</li>`).join('')}</ul>` : `<span class="why">${esc(o.why)}</span>`}
   </button>`).join('');
+  $('choiceAsk').insertAdjacentHTML('beforeend', `<details class="endsHint"><summary>四日目の結末の条件を見る</summary><ul>${ENDINGS.map((e) => `<li><b>${esc(e.name)}</b>：${esc(e.need)}</li>`).join('')}</ul></details>`);
   const b = $('chooseBtn');
   b.disabled = !pick;
   b.textContent = pick ? `「${opts.find((o) => o.id === pick).name}」で決める` : '選んでから決める';
@@ -323,7 +324,6 @@ function onEvCard(id) {
     if (free < 0) sel.slots[1] = id; else sel.slots[free] = id;
   }
   sfx.tap();
-  S.feedback = null;
   $('slots').classList.remove('ng', 'ok');
   render();
 }

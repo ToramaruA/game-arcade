@@ -222,3 +222,9 @@ div.testi { cursor: default; }
 .og .logo { color: #0b8fab; background: rgba(255,255,255,.88); padding: 10px 26px; border-radius: 20px; text-shadow: none; box-shadow: 0 6px 24px rgba(11,143,171,.3); }
 .ask small { font-size: 14px; color: var(--ink2); }
 .ask small.goal { color: var(--cyanDeep); }
+.testi .tag { display: inline-block; margin-top: 4px; font-size: 12px; font-weight: 700; background: var(--lemon2); border-radius: 6px; padding: 1px 6px; }
+.testi.hinted { border-style: dashed; }
+.endsHint { margin-top: 6px; font-size: 13px; }
+.endsHint summary { cursor: pointer; color: var(--cyanDeep); font-weight: 700; min-height: 32px; }
+.endsHint ul { margin: 4px 0 0; padding-left: 18px; line-height: 1.6; }
+@media (max-width: 860px) { .chip { font-size: 11px; } .chip svg { width: 14px; height: 14px; } }
