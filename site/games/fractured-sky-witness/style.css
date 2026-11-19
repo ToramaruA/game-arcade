@@ -250,3 +250,17 @@ div.testi { cursor: default; }
 .openTitle small { display: block; font-size: .42em; letter-spacing: .3em; font-weight: 700; margin-bottom: 4px; }
 .stage[data-fx="calm"] .openTitle { opacity: 1; }
 .stage[data-fx="calm"] .logo { opacity: 0; }
+
+/* 人物と場面の切り替え */
+.fig.enter { animation: figIn .45s ease-out both; }
+@keyframes figIn { from { opacity: 0; transform: translateY(18px); } }
+.fig > g, .fig > path { transition: none; }
+#scene.swap #bgLayer { animation: swapIn .45s ease-out; }
+@keyframes swapIn { from { opacity: 0; } }
+.spinf { animation: spinf 1.2s linear infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes spinf { to { transform: rotate(360deg); } }
+
+.linkShow { animation: linkPop .6s ease-out both; }
+@keyframes linkPop { from { opacity: 0; } }
+.linkLine { stroke-dasharray: 200; animation: linkDraw .6s .15s ease-out both; }
+@keyframes linkDraw { from { stroke-dashoffset: 200; } to { stroke-dashoffset: 0; } }

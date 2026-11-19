@@ -1,7 +1,7 @@
 // 舞台の絵（SVG）。朝のシアン・レモン黄・白、透明アクリル板を重ねたコラージュ。
 // 背景（空・街・裂け目）は章ごとに1回だけ作り、調査地点や旗・鍵などは毎回描き直す。
 const W = 800; const H = 460;
-const C = {
+export const C = {
   sky0: '#43c6dd', sky1: '#8fe3ef', sky2: '#e6fbff',
   white: '#ffffff', shade: '#d3f1f7', shade2: '#b5e6ef', line: '#9fdbe7',
   lemon: '#ffe14d', lemon2: '#fff3a3', lemonDeep: '#f5c400',
@@ -9,8 +9,8 @@ const C = {
   peach: '#ffd2b8', rose: '#ffb7c9',
 };
 
-function rng(seed) { let x = seed >>> 0 || 1; return () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; }
-const f = (n) => Math.round(n * 10) / 10;
+export function rng(seed) { let x = seed >>> 0 || 1; return () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; }
+export const f = (n) => Math.round(n * 10) / 10;
 
 // 裂け目の折れ線（左上から右下へ）
 const CRACK = [[30, 8], [120, 40], [175, 34], [250, 78], [330, 70], [395, 112], [470, 104], [540, 150], [610, 142], [668, 186], [720, 196], [760, 232]];
@@ -21,7 +21,7 @@ function crackPoly(wTop, wBot, jitter = 0, seed = 3) {
   return [...up, ...dn].map(([x, y]) => `${f(x)},${f(y)}`).join(' ');
 }
 
-function defs() {
+export function defs() {
   return `<defs>
     <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="${C.sky0}"/><stop offset=".55" stop-color="${C.sky1}"/><stop offset="1" stop-color="${C.sky2}"/>
@@ -43,12 +43,13 @@ function defs() {
     </linearGradient>
     <filter id="fGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
     <filter id="fSoft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2"/></filter>
+    <linearGradient id="gFade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset=".45" stop-color="#ffffff" stop-opacity=".45"/><stop offset="1" stop-color="#ffffff" stop-opacity=".6"/></linearGradient>
     <clipPath id="clipCrack"><polygon points="${crackPoly(26, 30)}"/></clipPath>
   </defs>`;
 }
 
 // アクリル板（色面＋白いふち＋ずらした透明板）
-function plate(x, y, w, h, fill, op = 0.9, r = 3) {
+export function plate(x, y, w, h, fill, op = 0.9, r = 3) {
   return `<rect x="${f(x + 3)}" y="${f(y - 3)}" width="${f(w)}" height="${f(h)}" rx="${r}" fill="#ffffff" opacity=".35"/>
     <rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="${r}" fill="${fill}" fill-opacity="${op}" stroke="#ffffff" stroke-width="1.4"/>`;
 }
@@ -209,7 +210,7 @@ function fragments(seed) {
 }
 
 // 降ってくる空のかけら
-function fallingShards(seed) {
+export function fallingShards(seed) {
   const R = rng(seed);
   let s = '';
   for (let i = 0; i < 10; i++) {
@@ -221,7 +222,7 @@ function fallingShards(seed) {
 }
 
 // 記録係ユイの後ろ姿（顔は描かない）
-function yui(x, y, s = 1) {
+export function yui(x, y, s = 1) {
   return `<g transform="translate(${x} ${y}) scale(${s})" class="yui">
     <ellipse cx="0" cy="40" rx="20" ry="4" fill="${C.ink}" opacity=".15"/>
     <path d="M -13 38 L -10 6 Q 0 -2 10 6 L 13 38 Z" fill="${C.cyan}" stroke="#fff" stroke-width="1.5"/>
@@ -338,7 +339,7 @@ export function buildOverlay(view) {
 
 // 証拠の絵（棚・拡大用）
 export function evIcon(id) {
-  const box = (inner) => `<svg viewBox="0 0 64 64" aria-hidden="true"><polygon points="8,6 54,4 60,40 46,60 6,52 2,20" fill="url(#iShard)" stroke="#fff" stroke-width="2"/><polygon points="8,6 54,4 30,24" fill="#fff" opacity=".45"/>${inner}<defs><linearGradient id="iShard" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#c7f4fb"/><stop offset="1" stop-color="#fff3a3"/></linearGradient></defs></svg>`;
+  const box = (inner) => `<svg viewBox="0 0 64 64" aria-hidden="true"><polygon points="8,6 54,4 60,40 46,60 6,52 2,20" fill="url(#gShard)" stroke="#fff" stroke-width="2"/><polygon points="8,6 54,4 30,24" fill="#fff" opacity=".45"/>${inner}</svg>`;
   const ink = C.ink;
   switch (id) {
     case 'e1': return box(`<line x1="32" y1="48" x2="32" y2="18" stroke="${ink}" stroke-width="3"/><polygon points="32,10 24,22 40,22" fill="${ink}"/><circle cx="32" cy="48" r="4" fill="${C.lemonDeep}"/>`);

@@ -1,7 +1,9 @@
 // 描画と操作。ルールは logic.js、文章は story.js、絵は scene.js。
 import * as L from './logic.js';
 import { EVIDENCE, PEOPLE, PROOFS, SECRETS, ENDINGS, PROLOGUE } from './story.js';
-import { buildBackground, buildVista, buildOverlay, evIcon } from './scene.js';
+import { buildBackground, buildVista, buildOverlay, evIcon, yui } from './scene.js';
+import { figure, HAS_FIGURE } from './figures.js';
+import { buildSite, buildCourt, courtFront } from './closeups.js';
 import { sfx, startBgm, setMuted } from './audio.js';
 
 const SAVE_KEY = 'fractured-sky-witness:proto1';
@@ -72,18 +74,87 @@ function proFx() {
   return fx;
 }
 
-function drawScene() {
-  const key = S.phase === 'end' ? `vista${S.support.length}${S.coop.length}${S.broken}` : `ch${Math.min(S.ch, 3)}`;
-  if (key !== bgKey) {
-    $('bgLayer').innerHTML = S.phase === 'end' ? buildVista({ support: S.support.length, coop: S.coop.length, broken: S.broken, broken: S.broken }) : buildBackground(S.ch);
-    bgKey = key;
+// 舞台の種類：街／調べた場所の寄り／法廷／見通し
+function sceneMode() {
+  if (S.phase === 'end') return 'vista';
+  if (S.phase === 'site' && S.siteId) return `site:${S.siteId}`;
+  if (['trial', 'proven', 'unproven', 'choice'].includes(S.phase)) return `court:${S.ch}`;
+  return `city:${Math.min(S.ch, 3)}`;
+}
+
+// 表情の決まり（文に pose があればそれを使う）
+function poseFor(line, phase) {
+  if (line.pose) return line.pose;
+  if (line.who === 'city') return phase === 'after' || phase === 'prologue' ? 'smile' : 'shock';
+  if (phase === 'proven') return 'down';
+  if (phase === 'unproven' || phase === 'prologue') return 'firm';
+  if (phase === 'after') return S.choices[S.ch] === 'Q' ? 'smile' : S.choices[S.ch] === 'P' ? 'away' : 'neutral';
+  if (line.who === 'ol' && phase === 'intro') return 'firm';
+  return 'neutral';
+}
+
+// いま画面に立つ人物
+function speaker() {
+  const ph = S.phase;
+  if (ph === 'trial') {
+    const ts = L.testimonies(S);
+    const t = ts.find((x) => x.id === sel.t);
+    if (t) return [{ who: t.who, pose: S.feedback ? 'smile' : 'firm' }];
+    return ts.map((x) => ({ who: x.who, pose: 'firm' }));
   }
-  if (S.phase === 'end') { $('ovLayer').innerHTML = ''; return; }
-  const g = settings.hint ? L.guide(S) : null;
-  const canAct = S.phase === 'investigate' || S.phase === 'intro';
+  if (ph === 'choice') { const o = L.secretOwner(S); return o ? [{ who: o, pose: 'down' }] : []; }
+  if (!TALK.includes(ph) || shownKey !== L.sceneKey(S)) return [];
+  const lines = L.sceneLines(S).slice(0, shown);
+  for (let i = lines.length - 1; i >= 0; i--) if (HAS_FIGURE(lines[i].who)) return [{ who: lines[i].who, pose: poseFor(lines[i], ph) }];
+  // 文が地の文だけのときも、その場面の相手は残す
+  if (ph === 'proven') { const p = L.ch(S).pairs.find((x) => x.id === S.pairId); const t = L.testimonies(S).find((x) => x.id === p.refutes); return [{ who: t.who, pose: 'shock' }]; }
+  if (ph === 'unproven') return L.testimonies(S).map((x) => ({ who: x.who, pose: 'firm' }));
+  if (ph === 'after' && S.pairId) return [{ who: L.secretOwner(S), pose: poseFor({ who: L.secretOwner(S) }, 'after') }];
+  return [];
+}
+
+let figKey = '';
+function drawScene() {
+  const mode = sceneMode();
+  const key = mode === 'vista' ? `vista${S.support.length}${S.coop.length}${S.broken}` : mode;
+  if (key !== bgKey) {
+    let html;
+    if (mode === 'vista') html = buildVista({ support: S.support.length, coop: S.coop.length, broken: S.broken });
+    else if (mode.startsWith('site:')) html = buildSite(S.siteId);
+    else if (mode.startsWith('court:')) html = buildCourt(S.ch);
+    else html = buildBackground(S.ch);
+    $('bgLayer').innerHTML = html;
+    if (bgKey && !settings.reduce) { const st = $('scene'); st.classList.remove('swap'); void st.getBBox; st.classList.add('swap'); setTimeout(() => st.classList.remove('swap'), 500); }
+    bgKey = key;
+    figKey = '';
+  }
+  if (mode === 'vista') { $('ovLayer').innerHTML = ''; return; }
   const fx = proFx();
   $('stage').dataset.fx = fx;
-  const sites = S.phase === 'bridge' || S.phase === 'prologue' ? [] : L.siteList(S).map((x) => ({
+  const people = speaker();
+  const fk = people.map((p) => p.who).join(',');
+  const figs = people.length === 2
+    ? figure(people[0].who, people[0].pose, { x: Math.min(470, 800 - padX() - 250), scale: 0.86, cls: figKey.includes(people[0].who) ? '' : 'enter' }) + figure(people[1].who, people[1].pose, { x: Math.min(650, 800 - padX() - 75), scale: 0.86, cls: figKey.includes(people[1].who) ? '' : 'enter' })
+    : people.map((p) => figure(p.who, p.pose, { x: p.who === 'city' ? 560 : Math.min(615, 800 - padX() - 70), scale: p.who === 'city' ? 0.95 : 1.02, cls: figKey === fk ? '' : 'enter' })).join('');
+  figKey = fk;
+  if (mode.startsWith('court:')) {
+    // 立証の瞬間：2つの証拠が光の線でつながる
+    let link = '';
+    if (S.phase === 'proven' && S.pairId) {
+      const p = L.ch(S).pairs.find((x) => x.id === S.pairId);
+      const L0 = Math.max(140, padX() + 70);
+      link = `<g class="linkShow"><line x1="${L0}" y1="150" x2="${L0 + 200}" y2="150" stroke="#fff" stroke-width="14" opacity=".8" filter="url(#fGlow)"/><line x1="${L0}" y1="150" x2="${L0 + 200}" y2="150" stroke="#8ff0ff" stroke-width="5" class="linkLine"/>${p.evs.map((e, i) => `<g transform="translate(${L0 - 50 + i * 200} 100)"><circle cx="50" cy="50" r="62" fill="#fff" opacity=".7" filter="url(#fGlow)"/><svg width="100" height="100" viewBox="0 0 64 64">${evIcon(e).replace(/^<svg[^>]*>|<\/svg>$/g, '')}</svg></g>`).join('')}</g>`;
+    }
+    $('ovLayer').innerHTML = `${figs}${courtFront()}${yui(Math.max(130, padX() + 60), 404, 1.25)}${link}`;
+    return;
+  }
+  if (mode.startsWith('site:')) {
+    $('ovLayer').innerHTML = `${people.length ? '<rect x="470" y="0" width="330" height="460" fill="url(#gFade)"/>' : ''}${figs}`;
+    return;
+  }
+  const g = settings.hint ? L.guide(S) : null;
+  const canAct = S.phase === 'investigate' || S.phase === 'intro';
+  const sites = S.phase === 'bridge' || S.phase === 'prologue' || (people.length && !canAct) ? [] : L.siteList(S).map((x) => ({
     ...x,
     locked: !x.visited && (!canAct || x.locked),
     hint: canAct && g?.site === x.id,
@@ -94,7 +165,7 @@ function drawScene() {
     falling: S.ch === 1 && fx !== 'calm' && fx !== 'stir', support: S.support.length, coop: S.coop.length, broken: S.broken,
     stamp: S.phase === 'after' && S.choices[S.ch] === 'H',
     yuiX: Math.max(128, padX() + 46),
-  });
+  }) + (people.length ? `<rect x="440" y="0" width="360" height="460" fill="url(#gFade)"/>${figs}` : '');
   for (const el of $('ovLayer').querySelectorAll('[data-site]')) {
     const id = el.dataset.site;
     const site = sites.find((x) => x.id === id);
@@ -183,11 +254,9 @@ function drawTalk() {
   const nb = $('nextBtn');
   nb.hidden = (done && !lbl) || (S.phase === 'intro' && S.ch === 1);
   nb.textContent = done ? (lbl || '') : '続きを読む ▸';
-  if (S.phase === 'prologue') {
-    const before = $('stage').dataset.fx;
-    const now = proFx();
-    if (before !== now) { drawScene(); if (now === 'crack') quake(); }
-  }
+  const before = $('stage').dataset.fx;
+  drawScene();
+  if (S.phase === 'prologue' && before !== proFx() && proFx() === 'crack') quake();
   if (S.phase === 'intro' && S.ch === 1 && done) {
     box.insertAdjacentHTML('beforeend', '<li class="narr tip"><b>▲ 上の絵の、光る空のかけらをタップ</b></li>');
   }
