@@ -1,0 +1,39 @@
+name: Weekly access report
+
+# アクセス数のまとめを Issue「[REPORT] アクセスの記録」にコメントする（オーナーにメール通知が届く）。
+# 毎週月曜 8:23（日本時間）と、ゲームが公開されたとき（main の games.json が変わったとき）。
+on:
+  schedule:
+    - cron: '23 23 * * 0'
+  push:
+    branches: [main]
+    paths:
+      - site/games/games.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: access-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    if: github.repository == 'ToramaruA/game-arcade'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Post access report
+        env:
+          CF_ANALYTICS_TOKEN: ${{ secrets.CF_ANALYTICS_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPORT_REASON: ${{ github.event_name == 'push' && '（新しいゲームの公開時）' || '' }}
+          REPORT_MENTION: '@ToramaruA'
+        run: node scripts/analytics-report.mjs
