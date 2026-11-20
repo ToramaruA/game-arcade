@@ -259,6 +259,7 @@ function selectGuest(id) { ui.selGuest = id; ui.sel = 0; ui.mode = null; pending
 // 移動・建設の「置き場所を選ぶ」モード
 function enterMode(mode) {
   ui.mode = mode; pending = null; ui.ghost = null; panelMsg = '';
+  const r = canvas.getBoundingClientRect(); if (r.top < 0 || r.bottom > window.innerHeight) canvas.scrollIntoView({ block: 'start' });
   ui.highlights = new Map();
   for (let y = 0; y < s.H; y++) {
     for (let x = 0; x < s.W; x++) {
@@ -310,7 +311,7 @@ function onPlay() {
   unlock();
   if (!s) return;
   if (s.phase === 'done') { showResult(); return; }
-  if (guide === 'intro') { $('guideBtns').querySelector('button')?.click(); return; }
+  if (guide === 'intro') return;
   if (s.phase === 'prep') { if (guide === 'prep') { hideGuide(); guide = null; } s.phase = 'open'; paused = false; cancelMode(); stepOnce(); return; }
   paused = !paused;
   if (!paused) cancelMode();
@@ -385,6 +386,7 @@ function refreshAll() {
   bp.textContent = s.phase === 'prep' ? '▶ 開店する' : s.phase === 'done' ? '結果を見る' : paused ? '▶ 再開' : '⏸ 一時停止';
   bp.classList.toggle('pulse', s.phase === 'prep' && guide !== 'prep');
   $('btnSpeed').textContent = `${speed}倍`;
+  bp.disabled = guide === 'intro';
   $('btnReset').disabled = s.phase === 'prep' && JSON.stringify(s) === JSON.stringify(startSnap);
   renderPanel();
   renderGuests();
@@ -478,6 +480,7 @@ function renderPanel() {
       <div class="meter">${bands}${mm.on ? `<span class="cur" style="left:${pos(mm.T)}"></span>` : ''}<div class="ticks">${[15, 25, 35, 45].map((t) => `<span style="left:${pos(t)}">${t}</span>`).join('')}</div></div>
       <p class="muted">緑の枠＝入っている客の好み、桃の枠＝次に来る客の好み</p>
       <div class="factors">${factorHTML('温度', mm.on ? 1 : 0, mm.on ? `${mm.T}度${mm.exposed ? '・風で−5' : ''}` : '湯なし')}${factorHTML('静けさ', quiet === 0 ? 1 : quiet === 1 ? 0.5 : 0, quiet ? `にぎやか${quiet}` : mm.fenced ? '吸音垣で静か' : '静か')}${factorHTML('景色', mm.view, mm.view ? '見える' : mm.steamBy ? '湯気で×' : '建物で×')}</div>
+      ${mm.exposed ? `<p class="why">💨 ${DIR_NAMES[windAt(s)]}からの強風で−5度。浴槽の${DIR_NAMES[windAt(s)]}隣に、${DIR_NAMES[windAt(s)]}向きの風よけを置くと防げる。</p>` : ''}${!mm.view && !mm.steamBy ? '<p class="why">🏔 四方とも建物でふさがれて景色が見えない。島の外まで見通せる場所なら見える。</p>' : ''}
       <p class="muted">${!mm.supplied ? '管が源泉につながっていない。' : ''}入浴中・向かう客 ${users.length}/${F.seats}</p>
       <div class="btnrow"><button type="button" id="bMove" ${sb ? '' : 'disabled'}>移動</button><button type="button" id="bDel" ${sb ? '' : 'disabled'}>撤去（+${Math.floor(F.cost / 2)}）</button></div>
       ${sb ? '' : '<p class="muted">移動・撤去は一時停止中にできる</p>'}${err}`;
@@ -562,6 +565,9 @@ function showResult() {
   add('もう一度', sm.cleared ? 'ghost' : 'primary', () => startDay(s.day));
   const ni = dayIndex(s.day) + 1;
   if (sm.cleared && DAYS[ni]) add(`次へ：第${DAYS[ni].id}日`, 'primary', () => startDay(DAYS[ni].id));
+  if (sm.cleared && !DAYS[ni]) $('resMoney').insertAdjacentHTML('beforeend', '<br><b>試作はここまで。遊んでくれてありがとう！</b>');
+  if (sm.cleared && sm.good < sm.n) $('resMoney').insertAdjacentHTML('beforeend', '<br>全員満足を目指すなら：不満の理由（お湯・声・景色）を見て、風よけや配置を見直そう。');
+  $('toast').hidden = true; $('banner').hidden = true;
   $('result').showModal();
 }
 

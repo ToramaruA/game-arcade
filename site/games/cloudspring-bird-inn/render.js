@@ -73,6 +73,8 @@ const BIRD = {
 export function drawBird(ctx, sp, x, y, s, { dir = 1, bath = false, t = 0, mood = null } = {}) {
   const P = BIRD[sp] || BIRD.swan;
   ctx.save(); ctx.translate(x, y); ctx.scale(dir * s / 20, s / 20);
+  ctx.shadowColor = 'rgba(90,60,70,.55)'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.filter = 'drop-shadow(0 0 0.8px rgba(90,60,70,.9))';
   const bob = Math.sin(t * 3 + x) * (bath ? 0.6 : 0.3);
   ctx.translate(0, bob);
   if (!bath) { // 影と足
@@ -443,6 +445,26 @@ function drawWind(ctx, L, s, time, calm) {
   ctx.restore();
 }
 
+function drawCompass(ctx, L, s) {
+  const wind = windAt(s);
+  const mid = { N: [s.W - 0.6, -0.9], S: [0.4, s.H - 0.1], W: [-0.9, 0.4], E: [s.W - 0.1, s.H - 0.6] };
+  for (const [d, [x, y]] of Object.entries(mid)) {
+    let [px, py] = toScreen(L, x, y);
+    px = Math.max(40, Math.min(L.w - 40, px));
+    const on = d === wind;
+    tag(ctx, px, py, on ? `${({ N: '北', E: '東', S: '南', W: '西' })[d]}・風上` : ({ N: '北', E: '東', S: '南', W: '西' })[d], on ? '#5f9fb8' : 'rgba(255,255,255,.85)', on ? '#fff' : '#8a6d70', 11);
+  }
+}
+
+function drawSnow(ctx, L, time) {
+  ctx.fillStyle = 'rgba(255,255,255,.85)';
+  for (let i = 0; i < 40; i++) {
+    const x = (i * 83.7 + Math.sin(time + i) * 12 + time * 8) % L.w;
+    const y = (i * 47.3 + time * (18 + (i % 5) * 4)) % L.h;
+    ctx.beginPath(); ctx.arc(x, y, 1.2 + (i % 3) * 0.6, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
 // ---- 全体 ----
 // ui: { sel, cursor, mode, ghost, highlights: Map(cellKey->color), positions: Map(guestId->{x,y}), time, parts, calm, moods }
 export function draw(ctx, L, s, ui) {
@@ -481,7 +503,7 @@ export function draw(ctx, L, s, ui) {
         const off = list.length > 1 ? (idx ? 1 : -1) * L.TW * 0.14 : 0;
         const by = cy - L.TH * (b.type === 'shallow' ? 0.14 : 0.36);
         const mood = ui.moods?.get(g.id);
-        drawBird(ctx, g.sp, cx + off, by, L.TW * 0.42, { dir: idx ? -1 : 1, bath: true, t: time, mood: mood === 'good' ? 'happy' : null });
+        drawBird(ctx, g.sp, cx + off, by, L.TW * 0.5, { dir: idx ? -1 : 1, bath: true, t: time, mood: mood === 'good' ? 'happy' : null });
         // 水面（下半身を隠す）
         ctx.fillStyle = waterColor(m[b.id].T, m[b.id].on);
         ctx.globalAlpha = 0.9; ctx.beginPath(); ctx.ellipse(cx + off, by + 1, L.TW * 0.13, L.TH * 0.1, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
@@ -500,12 +522,12 @@ export function draw(ctx, L, s, ui) {
     if (g.st === 'wait' && !fly) {
       const i = waiting.indexOf(g);
       const [ex, ey] = toScreen(L, 0, 0);
-      sx = ex + ((i % 3) - 1) * L.TW * 0.2 - L.TW * 0.25 * Math.floor(i / 3); sy = ey + L.TH * 0.15 - L.TH * 0.12 * Math.floor(i / 3) + (i % 3 === 1 ? -3 : 0);
+      const row = Math.floor(i / 3) % 2; sx = ex + ((i % 3) - 1) * L.TW * 0.2 + row * L.TW * 0.1; sy = ey + L.TH * 0.2 - row * L.TH * 0.25 + (i % 3 === 1 ? -3 : 0);
     } else { [sx, sy] = toScreen(L, px, py); sy += L.TH * 0.15; }
     if (fly) { sy -= fly * L.h * 0.6; sx += fly * L.TW; }
     const hop = g.st === 'walk' && !ui.calm ? Math.abs(Math.sin(time * 9 + g.id)) * 3 : 0;
     drawables.push({ d: px + py + 0.4, z: 2, f: () => {
-      drawBird(ctx, g.sp, sx, sy - hop, L.TW * 0.44, { dir: fly ? 1 : (g.st === 'walk' ? 1 : -1), t: time });
+      drawBird(ctx, g.sp, sx, sy - hop, L.TW * 0.52, { dir: fly ? 1 : (g.st === 'walk' ? 1 : -1), t: time });
       if (g.st === 'wait' && g.why && !fly) bubble(ctx, sx, sy - L.TW * 0.5, g.why.includes('熱') ? '熱い…' : g.why.includes('ぬる') ? 'ぬるい…' : g.why.includes('空') ? '満員…' : '？', '#fff6d8');
       if (ui.selGuest === g.id) { ctx.strokeStyle = '#5a4146'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy - 8, L.TW * 0.22, 0, Math.PI * 2); ctx.stroke(); }
       if (!fly) ui.hits?.push({ g: g.id, x: sx, y: sy - 8, r: L.TW * 0.2 });
@@ -520,8 +542,9 @@ export function draw(ctx, L, s, ui) {
     if (!isBath(b)) continue;
     const mm = m[b.id];
     const [cx, cy] = toScreen(L, b.x, b.y);
-    const ty = cy - L.TH * 1.05;
-    const label = mm.on ? `${mm.T}°` : '閉';
+    const ty = cy - L.TH * 1.35;
+    const short = { bath: '', hot: '保温 ', shallow: '浅 ', view: '展望 ' }[b.type] || '';
+    const label = short + (mm.on ? `${mm.T}°` : '閉');
     const fs = Math.max(10, Math.min(13, L.TW * 0.17));
     tag(ctx, cx, ty, label, mm.on ? (mm.T >= 40 ? '#e07a6b' : mm.T >= 30 ? '#e8a25c' : '#6fb2c4') : '#b9a9a0', '#fff', fs);
     const icons = [];
@@ -531,6 +554,8 @@ export function draw(ctx, L, s, ui) {
     for (const [t, c] of icons) { tag(ctx, ix, ty + fs + 3, t, c, '#fff', Math.max(8, fs - 3)); ix += 26; }
   }
   drawWind(ctx, L, s, time, ui.calm);
+  drawCompass(ctx, L, s);
+  if (season === 'winter' && !ui.calm) drawSnow(ctx, L, time);
   if (ui.point) { // 手引きの矢印
     const [cx, cy] = toScreen(L, ui.point[0], ui.point[1]);
     const yy = cy - L.TH * 1.9 - Math.abs(Math.sin(time * 4)) * 8;
@@ -555,7 +580,7 @@ export function birdIcon(sp, size = 30) {
   c.width = size * r; c.height = size * r;
   const ctx = c.getContext('2d'); ctx.scale(r, r);
   const longNeck = sp === 'crane' || sp === 'swan' || sp === 'heron';
-  drawBird(ctx, sp, size * (longNeck ? 0.36 : 0.42), size * 0.97, size * (longNeck ? 0.62 : 0.78), { dir: 1 });
+  drawBird(ctx, sp, size * (longNeck ? 0.34 : 0.42), size * 0.95, size * (longNeck ? 0.58 : 0.78), { dir: 1 });
   return c;
 }
 

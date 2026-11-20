@@ -63,15 +63,17 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 
 /* ---- ゲーム ---- */
-.game { max-width: 1040px; margin: 0 auto; padding: 8px 10px 24px; display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-areas: "hud hud" "time time" "stage side" "ctl side" ". side"; gap: 8px 14px; align-items: start; }
+.game { max-width: 1040px; margin: 0 auto; padding: 8px 10px 24px; display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-areas: "hud hud" "cap cap" "time time" "stage side" "ctl side" ". side"; gap: 8px 14px; align-items: start; }
 .hud { grid-area: hud; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 8px; align-items: flex-start; }
 .hud-left { flex: 1 1 200px; }
 .timebar { grid-area: time; }
+.timecap { grid-area: cap; display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-soft); }
+.timecap .wkey { display: inline-block; width: 6px; height: 11px; border-radius: 2px; background: #6aa9c0; vertical-align: -1px; }
 .stage-wrap { grid-area: stage; position: relative; }
 .controls { grid-area: ctl; }
 .side { grid-area: side; display: grid; gap: 8px; align-content: start; }
 @media (max-width: 820px) {
-  .game { grid-template-columns: minmax(0, 1fr); grid-template-areas: "hud" "time" "stage" "ctl" "side"; padding: 6px 8px 24px; gap: 6px; }
+  .game { grid-template-columns: minmax(0, 1fr); grid-template-areas: "hud" "cap" "time" "stage" "ctl" "side"; padding: 6px 8px 24px; gap: 6px; }
 }
 
 .day-name { font-weight: 800; font-size: 17px; }
@@ -84,15 +86,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pips i { width: 7px; height: 11px; border-radius: 2px; background: #eadfd0; }
 .pips i.on { background: linear-gradient(#f7a98f, #e5776c); }
 .hud-right { display: flex; gap: 6px; align-items: stretch; }
-.wind, .next { background: rgba(255,255,255,.85); border: 1.5px solid #fff; border-radius: 12px; padding: 4px 8px; font-size: 12px; box-shadow: 0 2px 0 var(--cream-d); }
+.wind, .next { background: rgba(255,255,255,.85); border: 1.5px solid #fff; border-radius: 12px; padding: 4px 8px; font-size: 13px; box-shadow: 0 2px 0 var(--cream-d); }
 .wind { min-width: 84px; text-align: center; }
 .wind .arrow { display: inline-block; font-size: 20px; line-height: 1; transition: transform .4s; }
 .wind .strong { color: var(--warn); font-weight: 800; }
 .wind.warn { animation: blink .6s steps(2) infinite; background: #fff1d6; }
 @keyframes blink { 50% { box-shadow: 0 0 0 3px #f5b35c; } }
 .next { display: flex; gap: 6px; align-items: center; }
-.next .lbl { writing-mode: vertical-rl; font-size: 10px; color: var(--ink-soft); }
-.next .g { display: grid; justify-items: center; font-size: 11px; line-height: 1.2; min-width: 46px; }
+.next .lbl { font-size: 12px; color: var(--ink-soft); font-weight: 700; }
+.next .g { display: grid; justify-items: center; font-size: 12px; line-height: 1.2; min-width: 46px; }
 .next canvas { width: 30px; height: 30px; }
 
 .timebar { position: relative; height: 10px; border-radius: 6px; background: rgba(255,255,255,.7); overflow: visible; }
@@ -114,6 +116,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 .controls { display: flex; gap: 6px; flex-wrap: wrap; }
 .controls button, .panel button, .res-btns button, .guide-btns button { min-height: 44px; }
+.primary:disabled { opacity: .45; cursor: not-allowed; }
 .primary { padding: 8px 18px; border-radius: 12px; border: 0; background: linear-gradient(#f39aa8, #e07a8b); color: #fff; font-weight: 800; box-shadow: 0 3px 0 #c45f70; }
 .primary:active { transform: translateY(2px); box-shadow: 0 1px 0 #c45f70; }
 .ghost { padding: 8px 12px; border-radius: 12px; border: 1.5px solid #fff; background: rgba(255,255,255,.8); font-weight: 700; box-shadow: 0 2px 0 var(--cream-d); }
@@ -198,3 +201,4 @@ body.og #board { width: 100vw; height: 100vh !important; border-radius: 0; box-s
 .og-title b { font-size: 50px; line-height: 1.12; color: #6b3d47; }
 .og-title span { font-size: 20px; font-weight: 700; color: #8a6d70; }
 .og-koko { position: fixed; right: 36px; bottom: 20px; width: 170px; filter: drop-shadow(0 8px 10px rgba(120,60,70,.25)); }
+.wind small { font-size: 12px; }
