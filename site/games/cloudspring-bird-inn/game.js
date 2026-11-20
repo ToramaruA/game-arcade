@@ -246,7 +246,7 @@ function tapCell(x, y) {
   if (ui.mode) { modeTap(x, y); return; }
   const it = itemAt(s, x, y);
   ui.selGuest = 0; pending = null; panelMsg = '';
-  if (it) { ui.sel = it.id; ui.cursor = [x, y]; sfx.paper(); }
+  if (it) { ui.sel = it.id; ui.cursor = [x, y]; sfx.paper(); setTimeout(() => { const v = document.querySelector('.valve, .panel .btnrow'); const r = v?.getBoundingClientRect(); if (r && r.bottom > window.innerHeight) window.scrollBy({ top: r.bottom - window.innerHeight + 16 }); }, 0); }
   else { ui.sel = 0; ui.cursor = [x, y]; }
   updateGuide();
   refreshAll();
@@ -362,7 +362,8 @@ function refreshAll() {
   const w0 = windAt(s); const w1 = s.wind1;
   const soon = s.t < TUNE.windShiftAt && s.wind0 !== s.wind1;
   const warn = soon && s.t >= TUNE.windShiftAt - TUNE.windWarn && s.phase === 'open';
-  if (warn && !warnedWind) { warnedWind = true; toast(`あと${TUNE.windShiftAt - s.t}秒で${DIR_NAMES[w1]}風に変わる！ 風よけと弁を見直そう`); }
+  const anyone = s.guests.some((g) => g.st !== 'gone');
+  if (warn && !warnedWind && anyone) { warnedWind = true; toast(s.strong ? `あと${TUNE.windShiftAt - s.t}秒で${DIR_NAMES[w1]}風に変わる！ 風よけと弁を見直そう` : `あと${TUNE.windShiftAt - s.t}秒で${DIR_NAMES[w1]}風に。湯気の流れる向きが変わる`); }
   $('wind').className = `wind${warn ? ' warn' : ''}`;
   $('wind').innerHTML = `<span class="arrow" style="transform:rotate(${windAngle(w0)}deg)">➜</span><br>${DIR_NAMES[w0]}風${s.strong ? '<span class="strong">・強</span>' : ''}${soon ? `<br><small>${TUNE.windShiftAt}秒〜${DIR_NAMES[w1]}風</small>` : ''}`;
   // 次の客
@@ -450,6 +451,9 @@ function renderPanel() {
         const mm = ui.ghostM[it.id];
         body += `<div class="factors">${factorHTML('温度', mm.on ? 1 : 0, mm.on ? `${mm.T}度${mm.exposed ? '（風−5）' : ''}` : '湯なし')}${factorHTML('風', mm.exposed ? 0 : 1, mm.exposed ? 'さらされる' : '守られている')}${factorHTML('景色', mm.view, mm.view ? '見える' : mm.steamBy ? '湯気' : 'ふさがれる')}</div>`;
         if (!mm.supplied) body += '<p class="err">ここは源泉・管とつながらない（湯が出ない）</p>';
+      } else if (it.type === 'windbreak') {
+        const [dx, dy] = DIRS[it.dir]; const t = pv2(it.x - dx, it.y - dy);
+        body += `<p class="why">${DIR_NAMES[it.dir]}向き：${t ? `すぐ後ろの「${t}」を${DIR_NAMES[it.dir]}風から守る` : '後ろに浴槽がないので、今の向きでは何も守らない（置いた後に回せる）'}</p>`;
       }
       const cost = ui.mode.op === 'build' ? FACILITIES[ui.mode.type].cost : 0;
       body += `<div class="btnrow"><button type="button" id="pOk" class="on">ここに決める${cost ? `（${cost}）` : ''}</button><button type="button" id="pNo">やめる</button></div>`;
@@ -537,6 +541,8 @@ function renderPanel() {
   p.innerHTML = `<h3>${s.phase === 'prep' ? '準備中' : s.phase === 'done' ? '閉店' : paused ? '一時停止中' : '営業中'}</h3><p class="muted">${tip}</p>${err}`;
 }
 
+function pv2(x, y) { const t = itemAt(s, x, y); return t && isBath(t) ? labelOf(t) : null; }
+
 function buildDesc(t) {
   return { bath: '2席', hot: '2席・+5度', shallow: '1席・−5度', view: '1席・風よけ越しに景色', windbreak: '強風を止める', fence: '隣の声を−1' }[t] || '';
 }
@@ -568,6 +574,7 @@ function showResult() {
   if (sm.cleared && !DAYS[ni]) $('resMoney').insertAdjacentHTML('beforeend', '<br><b>試作はここまで。遊んでくれてありがとう！</b>');
   if (sm.cleared && sm.good < sm.n) $('resMoney').insertAdjacentHTML('beforeend', '<br>全員満足を目指すなら：不満の理由（お湯・声・景色）を見て、風よけや配置を見直そう。');
   $('toast').hidden = true; $('banner').hidden = true;
+  bb.querySelectorAll('button').forEach((b) => { b.disabled = true; setTimeout(() => { b.disabled = false; }, 800); });
   $('result').showModal();
 }
 

@@ -556,9 +556,10 @@ export function draw(ctx, L, s, ui) {
   drawWind(ctx, L, s, time, ui.calm);
   drawCompass(ctx, L, s);
   if (season === 'winter' && !ui.calm) drawSnow(ctx, L, time);
-  if (ui.point) { // 手引きの矢印
+  if (ui.point) { // 手引きの矢印と、光る枠
     const [cx, cy] = toScreen(L, ui.point[0], ui.point[1]);
-    const yy = cy - L.TH * 1.9 - Math.abs(Math.sin(time * 4)) * 8;
+    ctx.save(); ctx.strokeStyle = `rgba(111,168,58,${0.6 + 0.4 * Math.sin(time * 6)})`; ctx.lineWidth = 4; diamond(ctx, cx, cy - L.TH * 0.45, L.TW * 0.5, L.TH * 0.5); ctx.stroke(); ctx.restore();
+    const yy = cy - L.TH * 2.4 - Math.abs(Math.sin(time * 4)) * 8;
     ctx.fillStyle = '#6fa83a'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(cx, yy + 16); ctx.lineTo(cx - 12, yy); ctx.lineTo(cx - 5, yy); ctx.lineTo(cx - 5, yy - 12); ctx.lineTo(cx + 5, yy - 12); ctx.lineTo(cx + 5, yy); ctx.lineTo(cx + 12, yy); ctx.closePath(); ctx.stroke(); ctx.fill();
   }
