@@ -135,7 +135,11 @@ function handleEvent(e) {
     else { sfx.sad(); toast(`${SPECIES[g.sp].name} ${e.sat}点…（${shortWhy(g)}）`); }
   }
   if (e.type === 'leave') { sfx.sad(); toast(`${SPECIES[g.sp].name}が帰った：${e.why}`); }
-  if (e.type === 'wind') { sfx.wind(); banner(`風が変わった：${DIR_NAMES[e.dir]}風`); }
+  if (e.type === 'wind') {
+    sfx.wind(); banner(`風が変わった：${DIR_NAMES[e.dir]}風`);
+    const m = metrics(s); const cold = baths(s).filter((b) => m[b.id].exposed && m[b.id].on);
+    if (s.strong && cold.length) setTimeout(() => toast(`強風で冷えた：${cold.map((b) => `${labelOf(b)} ${m[b.id].T}度`).join('、')}`), 1900);
+  }
 }
 
 function shortWhy(g) {
@@ -544,7 +548,7 @@ function renderPanel() {
 function pv2(x, y) { const t = itemAt(s, x, y); return t && isBath(t) ? labelOf(t) : null; }
 
 function buildDesc(t) {
-  return { bath: '2席', hot: '2席・+5度', shallow: '1席・−5度', view: '1席・風よけ越しに景色', windbreak: '強風を止める', fence: '隣の声を−1' }[t] || '';
+  return { bath: '2席', hot: '2席・+5度', shallow: '1席・−5度', view: '1席・垣ごしでも景色が見える', windbreak: '強風を止める', fence: '隣の声を−1' }[t] || '';
 }
 
 // ---- 結果 ----
