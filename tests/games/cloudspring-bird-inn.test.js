@@ -332,18 +332,12 @@ test('日のやり直しは開始時の宿から（資金・図鑑が増えな�
   assert.ok(r2.news.every((n) => !r1.news.some((o) => o.sp === n.sp && o.k === n.k)));
 });
 
-test('図鑑：本編と日のやり直しで、36話すべてと屋根飾り10種が取れる', () => {
+test('図鑑：本編と日のやり直しで、36話すべてと屋根飾り10種が取れる（1日に開くのは各種1話まで）', () => {
   let dex = emptyDex();
-  for (const c of CAMP) dex = dexApply(dex, c.s).dex;
-  // 本編だけで足りない第三話は、その種が2羽以上来る日をやり直して90点以上にすれば取れる
-  for (const sp of SPECIES_LIST) {
-    for (let k = 0; k < 3; k++) {
-      if (dex[sp].s[k]) continue;
-      const day = DAYS.find((d) => d.guests.filter(([x]) => x === sp).length >= 2 && CAMP[d.id - 1].s.guests.filter((x) => x.sp === sp && x.sat >= (k === 2 ? TUNE.greatLine : TUNE.passLine)).length >= (k === 2 ? 2 : 1));
-      assert.ok(day, `${SPECIES[sp].name} 第${k + 1}話を取れる日がない`);
-      dex = dexApply(dex, CAMP[day.id - 1].s).dex;
-    }
-  }
+  const first = dexApply(dex, CAMP[0].s);
+  assert.ok(first.news.every((n, i, a) => a.filter((o) => o.sp === n.sp).length === 1), '同じ種の話は1日に1話');
+  // 本編を通し、そのあと日のやり直しを繰り返すと全部ひらく
+  for (let round = 0; round < 4; round++) for (const c of CAMP) dex = dexApply(dex, c.s).dex;
   assert.equal(storyCount(dex), 36);
   assert.equal(ornamentCount(dex), 10);
 });

@@ -97,7 +97,7 @@ function startDay(id, { resumeState = null } = {}) {
   running = true; paused = !!resumeState; acc = 0; speed = 1; frac = 1;
   ui.sel = 0; ui.selGuest = 0; ui.mode = null; ui.ghost = null; ui.highlights = null; ui.point = null; ui.parts = []; ui.flow = {}; ui.flying.clear(); ui.moods.clear();
   pending = null; panelMsg = ''; hintStep = 0; warnedWind = s.t >= TUNE.windShiftAt - TUNE.windWarn; freeze = false; guide = null;
-  hideGuide();
+  hideGuide(); $('banner').hidden = true; $('toast').hidden = true;
   snapshotPos();
   resize();
   const d = dayOf(id);
@@ -179,7 +179,7 @@ function updateGuide() {
     const m = metrics(s);
     const cold = baths(s).filter((b) => m[b.id].exposed);
     ui.highlights = new Map(cold.map((b) => [`${b.x},${b.y}`, 'rgba(79,147,176,.45)']));
-    showGuide(`今日は強い北風。青い筋が風の流れ。北側が開いた湯は、風で${TUNE.windChill}度冷える（札の「風で−${TUNE.windChill}°」）。白鳥は40度以上がほしいのに…`, [['どうすればいい？', () => { guide = 'w2'; updateGuide(); }], ['説明を飛ばす', () => { guide = null; ui.highlights = null; ui.point = null; hideGuide(); refreshAll(); }]]);
+    showGuide(`強い北風（青い筋）。北側が開いた湯は${TUNE.windChill}度冷える（札「風で−${TUNE.windChill}°」）。`, [['どうすればいい？', () => { guide = 'w2'; updateGuide(); }], ['説明を飛ばす', () => { guide = null; ui.highlights = null; ui.point = null; hideGuide(); refreshAll(); }]]);
   }
   if (guide === 'w2') {
     if (s.items.some((it) => it.type === 'windbreak' && baths(s).some((b) => shieldOf(s, b, windAt(s))?.id === it.id))) { guide = 'w3'; updateGuide(); return; }
@@ -201,14 +201,14 @@ function updateGuide() {
     const m = metrics(s);
     const left = baths(s).filter((b) => m[b.id].exposed).length;
     banner('風が止まった！ +5度');
-    showGuide(`風の筋が風よけで止まり、守った湯は冷えなくなった（札が「風よけ○」に）。${left ? 'もう1つの湯も同じように守るか、弁を1つ多く開けて補おう。' : ''}朝は湯が抜いてあるので、浴槽をタップして弁を開け、白鳥の40度にしてから開店しよう。60秒で東風に変わる。`, [['OK', () => { hideGuide(); ui.highlights = null; refreshAll(); }]]);
+    showGuide(`風が止まり、湯は冷えなくなった（札「風よけ○」）。${left ? 'もう1つの湯も守ろう。' : ''}次は弁を開けて40度にし、開店しよう。`, [['OK', () => { hideGuide(); ui.highlights = null; refreshAll(); }]]);
     guide = 'w4wait';
   }
   if (guide === 'w4') {
     const m = metrics(s, TUNE.windShiftAt);
     const cold = baths(s).filter((b) => m[b.id].exposed);
     ui.highlights = new Map(cold.map((b) => [`${b.x},${b.y}`, 'rgba(79,147,176,.45)']));
-    showGuide(`あと${TUNE.windShiftAt - s.t}秒で東風に変わる！ 光っている湯は、東風で冷える。一時停止中なので、湯の東どなりに東向きの風よけを置ける（今の風よけを回すと、守る湯が変わる）。`, [['▶ 再開する', () => { guide = null; ui.highlights = null; hideGuide(); paused = false; cancelMode(); refreshAll(); }]]);
+    showGuide(`あと${TUNE.windShiftAt - s.t}秒で東風！ 光る湯が冷える。一時停止中なので、湯の東どなりに風よけを置ける。`, [['▶ 再開する', () => { guide = null; ui.highlights = null; hideGuide(); paused = false; cancelMode(); refreshAll(); }]]);
   }
 }
 
@@ -676,7 +676,7 @@ function renderPanel() {
       const F = FACILITIES[t]; const c = checkEdit(s, { op: 'build', type: t, x, y, dir: windAt(s) }, { building: true });
       const total = c.ok ? -c.money : F.cost;
       return `<button type="button" data-t="${t}" ${c.ok ? '' : 'disabled'} class="${guide === 'w2' && t === 'windbreak' ? 'pulse' : ''}"><b>${F.name}${fresh.includes(t) ? ' <span class="new">新</span>' : ''}</b><small>${total}・${F.desc}</small></button>`;
-    }).join('')}<button type="button" id="bPipe"><b>${hasPipe ? '管を外す' : '床下の管'}</b><small>${hasPipe ? '0' : `${PIPE_COST}・源泉と浴槽をつなぐ`}</small></button></div>${err}`;
+    }).join('')}<button type="button" id="bPipe"><b>${hasPipe ? '床下の管を外す' : '床下の管'}</b><small>${hasPipe ? '無料' : `${PIPE_COST}・源泉と浴槽をつなぐ`}</small></button></div>${err}`;
     p.querySelectorAll('[data-t]').forEach((b) => b.addEventListener('click', () => {
       const t = b.dataset.t; const e = { op: 'build', type: t, x, y, dir: windAt(s) };
       const pv = preview(s, e, { building: true });
@@ -714,7 +714,7 @@ function showResult() {
   writeSave();
   $('resTitle').textContent = sm.cleared ? (sm.good === sm.n ? '全員大満足！' : '日クリア！') : 'あと少し…';
   $('resTitle').className = sm.cleared ? 'ok' : 'ng';
-  $('resLead').innerHTML = `${sm.n}羽中 ${sm.good}羽が満足（必要 ${sm.need}羽）${sm.cleared ? `<br><span class="stars">${starText(st)}</span> <small>★1＝6割 ★2＝8割 ★3＝全員</small>` : ''}`;
+  $('resLead').innerHTML = `${sm.n}羽中 ${sm.good}羽が満足（必要 ${sm.need}羽）${sm.cleared ? `<br><span class="stars">${starText(st)}</span> <small class="nowrap">★1:6割 ★2:8割 ★3:全員</small>` : ''}`;
   const ul = $('resList'); ul.innerHTML = '';
   for (const x of s.guests) {
     const li = document.createElement('li'); li.appendChild(birdIcon(x.sp));
@@ -760,7 +760,12 @@ function photoCanvas(lines) {
   const sc = Math.min(W / canvas.width, (H - 20) / canvas.height);
   const dw = canvas.width * sc; const dh = canvas.height * sc;
   g.drawImage(canvas, (W - dw) / 2, (H - dh) / 2, dw, dh);
-  g.fillStyle = 'rgba(255,250,240,.92)'; g.beginPath(); g.roundRect(24, 24, 470, 40 + lines.length * 36, 20); g.fill();
+  const happy = s ? s.guests.filter((x) => (x.sat ?? 0) >= TUNE.passLine) : [];
+  if (happy.length) {
+    g.fillStyle = 'rgba(255,250,240,.88)'; g.beginPath(); g.roundRect(24, H - 112, Math.min(W - 48, 30 + happy.length * 76), 92, 20); g.fill();
+    happy.forEach((x, i) => g.drawImage(birdIcon(x.sp, 72), 36 + i * 76, H - 106, 72, 72));
+  }
+  g.fillStyle = 'rgba(255,250,240,.92)'; g.beginPath(); g.roundRect(24, 24, 560, 40 + lines.length * 36, 20); g.fill();
   g.fillStyle = '#6b3d47'; g.font = '800 36px system-ui, sans-serif'; g.fillText('雲海温泉と渡り鳥の宿', 46, 72);
   g.font = '700 24px system-ui, sans-serif'; g.fillStyle = '#8a6d70';
   lines.forEach((t, i) => g.fillText(t, 46, 112 + i * 34));
@@ -769,9 +774,11 @@ function photoCanvas(lines) {
 function openPhoto(sm, st) {
   const d = dayOf(s.day);
   const c = photoCanvas([`第${s.day}日「${d.name}」 ${starText(st)}`, `${sm.n}羽中 ${sm.good}羽が満足・図鑑 ${storyCount(save.dex)}/36`]);
+  $('photoLead').textContent = '';
   showPhoto(c, `cloudspring-day${s.day}.png`);
 }
-function showPhoto(c, name) {
+function showPhoto(c, name, title = '記念写真') {
+  $('photoTitle').textContent = title;
   const url = c.toDataURL('image/png');
   $('photoImg').src = url;
   const a = $('photoSave'); a.href = url; a.download = name;
@@ -790,14 +797,17 @@ function openEnding() {
   else { g.fillStyle = '#bfe6e2'; g.fillRect(0, 0, 1200, 630); }
   g.fillStyle = 'rgba(255,250,240,.86)'; g.beginPath(); g.roundRect(40, 380, 1120, 220, 26); g.fill();
   const show = full ? SPECIES_LIST : (all.length ? all : ['swan', 'kingfisher']);
-  show.forEach((sp, i) => { const ic = birdIcon(sp, 84); g.drawImage(ic, 60 + (i % 12) * 92, 400, 84, 84); });
+  SPECIES_LIST.forEach((sp, i) => {
+    if (show.includes(sp)) g.drawImage(birdIcon(sp, 84), 60 + i * 92, 400, 84, 84);
+    else { g.fillStyle = 'rgba(160,130,120,.25)'; g.beginPath(); g.arc(102 + i * 92, 445, 30, 0, Math.PI * 2); g.fill(); g.fillStyle = '#a08a84'; g.font = '800 30px system-ui'; g.textAlign = 'center'; g.fillText('？', 102 + i * 92, 456); g.textAlign = 'left'; }
+  });
   g.fillStyle = '#6b3d47'; g.font = '800 40px system-ui, sans-serif';
   g.fillText(full ? '12種の渡り鳥が、そろって雲海へ' : `${show.length}種の渡り鳥が、雲海へ`, 70, 540);
   g.font = '700 24px system-ui, sans-serif'; g.fillStyle = '#8a6d70';
   g.fillText(`28日間の営業、おつかれさま。図鑑 ${storyCount(save.dex)}/36・★${Object.values(save.stars).reduce((a, b) => a + b, 0)}/84`, 70, 580);
   save.ended = true; writeSave();
   $('photoLead').textContent = full ? '全種の第二話を読んだので、全員集合の記念写真！' : '12種すべての第二話を読むと、全員集合の写真になる（日をえらんで再挑戦できる）。';
-  showPhoto(c, 'cloudspring-ending.png');
+  showPhoto(c, 'cloudspring-ending.png', '🎉 28日達成！ 渡り鳥の大行進');
   setTimeout(() => { $('photoLead').textContent = ''; }, 60000);
 }
 

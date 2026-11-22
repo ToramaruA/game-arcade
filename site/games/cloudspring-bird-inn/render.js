@@ -527,6 +527,7 @@ export function draw(ctx, L, s, ui) {
   for (const d of drawables) d.f();
 
   drawSteam(ctx, ui.parts || []);
+  drawWindFlow(ctx, L, s, ui.flow);
   // 浴槽の札（温度と、困っていること）を1行に並べる（スマホで縦に重ならないように）
   const fs = Math.max(10, Math.min(13, L.TW * 0.17));
   for (const b of s.items) {
@@ -535,8 +536,8 @@ export function draw(ctx, L, s, ui) {
     const [cx, cy] = toScreen(L, b.x, b.y);
     const ty = cy - L.TH * 1.3;
     const short = { bath: '', hot: '保温', shallow: '浅', view: '展望', group: '団体' }[b.type] || '';
-    const chips = [[short ? `${short} ${mm.on ? `${mm.T}°` : '閉'}` : (mm.on ? `${mm.T}°` : '閉'), mm.on ? (mm.T >= 40 ? '#e07a6b' : mm.T >= 30 ? '#e8a25c' : '#6fb2c4') : '#b9a9a0', fs]];
-    if (mm.exposed) chips.push([`風で−${TUNE.windChill}°`, '#4f93b0', fs - 2]);
+    const chips = [[short ? `${short} ${mm.on ? `${mm.T}°` : '湯なし'}` : (mm.on ? `${mm.T}°` : '湯なし'), mm.on ? (mm.T >= 40 ? '#e07a6b' : mm.T >= 30 ? '#e8a25c' : '#6fb2c4') : '#b9a9a0', fs]];
+    if (mm.exposed) chips.push([`風で−${TUNE.windChill}°`, mm.on ? '#4f93b0' : 'rgba(79,147,176,.55)', fs - 2]);
     else if (s.strong && mm.shield) chips.push(['風よけ○', '#7aa83f', fs - 3]);
     if (mm.view < 1) chips.push([mm.steamBy ? '湯気' : mm.view > 0 ? '景△' : '景×', '#b39aa0', fs - 3]);
     ctx.save(); const ws = chips.map(([t, , f]) => { ctx.font = `800 ${f}px system-ui, sans-serif`; return ctx.measureText(t).width + 12; }); ctx.restore();
@@ -549,7 +550,6 @@ export function draw(ctx, L, s, ui) {
       ctx.beginPath(); ctx.ellipse(cx, cy - L.TH * 0.45, L.TW * (0.25 + k * 0.2), L.TH * (0.25 + k * 0.2), 0, 0, Math.PI * 1.5); ctx.stroke(); ctx.restore();
     }
   }
-  drawWindFlow(ctx, L, s, ui.flow);
   drawCompass(ctx, L, s);
   if (season === 'winter' && !ui.calm) drawSnow(ctx, L, time);
   if (ui.point) { // 手引きの矢印と、光る枠
@@ -647,8 +647,12 @@ export function stepWindFlow(flow, s, dt, calm) {
   const wind = windAt(s);
   const [wx, wy] = DIRS[wind];
   const vx = -wx; const vy = -wy; // 風が吹いていく向き
-  const rate = (s.strong ? 14 : 4) * (calm ? 0.35 : 1);
-  if (flow.wind !== wind) { flow.list = []; flow.wind = wind; }
+  const rate = (s.strong ? 10 : 4) * (calm ? 0.35 : 1);
+  if (flow.wind !== wind) {
+    // 風が変わったら（日の始まりも）、島の上にすぐ筋を並べる
+    flow.list = []; flow.wind = wind;
+    for (let i = 0; i < (s.strong ? 14 : 6); i++) flow.list.push({ gx: Math.random() * s.W - 0.5, gy: Math.random() * s.H - 0.5, vx, vy, life: 0.3, stop: 0 });
+  }
   flow.acc = (flow.acc || 0) + dt * rate;
   while (flow.acc >= 1) {
     flow.acc -= 1;
@@ -674,8 +678,8 @@ function drawWindFlow(ctx, L, s, flow) {
     const [x1, y1] = toScreen(L, p.gx, p.gy);
     const [x0, y0] = toScreen(L, p.gx - p.vx * 0.8, p.gy - p.vy * 0.8);
     const a = p.stop ? Math.max(0, 0.9 - p.stop * 1.8) : Math.min(1, p.life * 3);
-    ctx.globalAlpha = a * (s.strong ? 0.95 : 0.55);
-    ctx.strokeStyle = s.strong ? '#6aa9c0' : '#ffffff'; ctx.lineWidth = s.strong ? 2.6 : 1.8;
+    ctx.globalAlpha = a * (s.strong ? 0.9 : 0.6);
+    ctx.strokeStyle = s.strong ? '#4f93b0' : '#ffffff'; ctx.lineWidth = s.strong ? Math.max(3, L.TW * 0.05) : 2;
     ctx.beginPath(); ctx.moveTo(x0, y0 - L.TH * 0.55); ctx.lineTo(x1, y1 - L.TH * 0.55); ctx.stroke();
     if (s.strong && !p.stop) { ctx.fillStyle = '#6aa9c0'; ctx.beginPath(); ctx.arc(x1, y1 - L.TH * 0.55, 2, 0, Math.PI * 2); ctx.fill(); }
     if (p.stop) { ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x1, y1 - L.TH * 0.55, 3 + p.stop * 8, 0, Math.PI * 2); ctx.fill(); }

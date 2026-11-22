@@ -196,7 +196,9 @@ export function dexApply(dex0, s) {
     const e = dex[sp];
     e.n += c70[sp] || 0;
     const want = [e.n >= 1, e.n >= 3, (c90[sp] || 0) >= 2];
-    want.forEach((w, k) => { if (w && !e.s[k]) { e.s[k] = true; news.push({ sp, k }); } });
+    // 物語は少しずつ：1日に開くのは、その種で次の1話だけ
+    const k = e.s.findIndex((x) => !x);
+    if (k >= 0 && want[k]) { e.s[k] = true; news.push({ sp, k }); }
   }
   return { dex, news };
 }

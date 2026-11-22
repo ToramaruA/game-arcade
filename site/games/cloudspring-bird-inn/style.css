@@ -52,7 +52,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .day-card .nm { font-weight: 800; font-size: 17px; }
 .day-card .ds { font-size: 13px; color: var(--ink-soft); }
 .day-card .ok { color: var(--good); font-weight: 800; }
-.title-koko { position: absolute; z-index: 2; right: 4%; bottom: 3%; width: min(26vw, 210px); height: auto; animation: bob 2.4s ease-in-out infinite; filter: drop-shadow(0 8px 10px rgba(120,60,70,.25)); }
+.title-koko { position: absolute; z-index: 1; pointer-events: none; right: 4%; bottom: 3%; width: min(26vw, 210px); height: auto; animation: bob 2.4s ease-in-out infinite; filter: drop-shadow(0 8px 10px rgba(120,60,70,.25)); }
 @keyframes bob { 50% { transform: translateY(-8px) rotate(-2deg); } }
 @media (max-width: 640px) {
   .title { align-items: start; }
@@ -195,7 +195,7 @@ dialog::backdrop { background: rgba(120,80,90,.35); }
 /* ---- 共有画像（?og=1） ---- */
 body.og { overflow: hidden; }
 body.og .game { display: block; max-width: none; padding: 0; }
-body.og .hud, body.og .timebar, body.og .controls, body.og .side, body.og .guide, body.og .toast, body.og .banner, body.og .arcade-link { display: none !important; }
+body.og .hud, body.og .timebar, body.og .timecap, body.og .controls, body.og .side, body.og .guide, body.og .toast, body.og .banner, body.og .arcade-link { display: none !important; }
 body.og #board { width: 100vw; height: 100vh !important; border-radius: 0; box-shadow: none; }
 .og-title { position: fixed; left: 40px; top: 36px; display: grid; gap: 10px; padding: 18px 24px; border-radius: 22px; background: rgba(255,250,240,.9); box-shadow: 0 6px 0 #e7a3ad, 0 14px 30px rgba(120,60,70,.2); }
 .og-title b { font-size: 50px; line-height: 1.12; color: #6b3d47; }
@@ -217,7 +217,7 @@ body.og #board { width: 100vw; height: 100vh !important; border-radius: 0; box-s
 .day-tile { width: 54px; min-height: 44px; display: grid; place-items: center; border-radius: 10px; border: 1.5px solid #fff; background: #fff; box-shadow: 0 2px 0 var(--cream-d); padding: 2px; line-height: 1.1; }
 .day-tile b { font-size: 15px; } .day-tile small { font-size: 10px; color: #d99a2b; }
 .day-tile:disabled { opacity: .45; cursor: not-allowed; }
-@media (max-width: 420px) { .day-tile { width: 44px; } .season-row .se { width: 100%; } }
+@media (max-width: 420px) { .day-tile { width: 41px; } .season-row { gap: 3px; } .season-row .se { width: 100%; } }
 
 /* ---- 結果の追加 ---- */
 .stars { color: #e8a22c; font-size: 22px; letter-spacing: 2px; }
@@ -241,7 +241,7 @@ body.og #board { width: 100vw; height: 100vh !important; border-radius: 0; box-s
 .dex-card li.ok { color: var(--ink); }
 .orn-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .orn { width: 64px; min-height: 76px; display: grid; justify-items: center; border-radius: 12px; border: 2px solid #fff; background: #fff; padding: 2px; }
-.orn canvas { width: 44px; height: 44px; }
+.orn canvas { width: 44px; height: 44px; border-radius: 8px; background: linear-gradient(#cdebe7, #fbe9df); }
 .orn small { font-size: 10px; }
 .orn.on { border-color: var(--leaf-d); background: #f3f9df; }
 .orn:disabled { opacity: .6; cursor: default; }
@@ -258,3 +258,9 @@ body.og #board { width: 100vw; height: 100vh !important; border-radius: 0; box-s
 .wind .strong small, .wind .strong { font-size: 11px; }
 .chill { color: #3f86a6; font-weight: 800; margin-left: 2px; }
 .wind-note { background: #eaf4f8; border-radius: 10px; padding: 6px 8px; }
+
+/* 結果・図鑑のボタンは、長い一覧の下に隠れないように下に固定 */
+.result .res-btns, .dex .res-btns, .photo .res-btns { position: sticky; bottom: -16px; margin: 8px -16px -16px; padding: 10px 16px 14px; background: linear-gradient(rgba(251,243,226,0), var(--cream) 30%); }
+@media (max-width: 520px) { .res-list { max-height: 30vh; } .result-head img { width: 56px; } .result h2 { font-size: 19px; } }
+
+.nowrap { white-space: nowrap; font-size: 11px; }
