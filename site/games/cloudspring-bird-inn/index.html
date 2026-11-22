@@ -24,8 +24,9 @@
       <p class="title-sub">雲海に浮かぶ、渡り鳥の湯宿</p>
       <h1>雲海温泉と<br>渡り鳥の宿</h1>
       <p class="title-lead">お湯を分け、風を読み、<br>渡り鳥をもてなそう。</p>
-      <div class="day-cards" id="dayCards"></div>
-      <p class="proto-note">試作版：最初の日と、冬の日（先取り）の2日だけ遊べます</p>
+      <p class="title-feat">春夏秋冬の28日・12種の渡り鳥・図鑑36話</p>
+      <div class="title-main" id="titleMain"></div>
+      <div class="day-grid" id="dayGrid" hidden></div>
     </div>
     <img class="title-koko" src="art/char-koko-welcome.webp" alt="宿主のココ" width="512" height="479">
   </section>
@@ -84,8 +85,26 @@
       </div>
     </div>
     <ul class="res-list" id="resList"></ul>
+    <div class="res-news" id="resNews"></div>
     <p class="res-money" id="resMoney"></p>
     <div class="res-btns" id="resBtns"></div>
+  </dialog>
+
+  <!-- 図鑑 -->
+  <dialog id="dex" class="dex">
+    <h2>渡り鳥の図鑑 <small id="dexCount"></small></h2>
+    <div class="dex-list" id="dexList"></div>
+    <h3>屋根飾り <small>第二話をひらいた種の数だけ増える・タップで付け替え</small></h3>
+    <div class="orn-list" id="ornList"></div>
+    <div class="res-btns"><button type="button" id="dexClose" class="primary">閉じる</button></div>
+  </dialog>
+
+  <!-- 記念写真 -->
+  <dialog id="photo" class="photo">
+    <h2>記念写真</h2>
+    <p id="photoLead" class="muted"></p>
+    <img id="photoImg" alt="宿の記念写真">
+    <div class="res-btns"><a id="photoSave" class="ghost btnlink" download="cloudspring.png">画像を保存</a><button type="button" id="photoClose" class="primary">閉じる</button></div>
   </dialog>
 
   <!-- 設定 -->

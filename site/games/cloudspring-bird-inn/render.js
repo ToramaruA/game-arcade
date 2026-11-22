@@ -1,5 +1,12 @@
 // 盤面の描画（Canvas2D・等角の紙工作風）。ルールは logic.js、ここは見た目だけ。
-import { DIRS, FACILITIES, SPECIES, isBath, metrics, windAt, network, TUNE } from './logic.js';
+import { DIRS, FACILITIES, SPECIES, isBath, metrics, windAt, network, TUNE, seasonOf, itemAt, inside } from './logic.js';
+
+const SEASON_COL = {
+  spring: { grass: ['#c6dc6c', '#9fbf45'], tree: ['#f6b8c4', '#ec9db0'], dot: '#f39fb0', deck: ['#fbf0db', '#f4e2c2'] },
+  summer: { grass: ['#a9d65e', '#7fb23a'], tree: ['#9fd36a', '#7cb84c'], dot: '#ffe27a', deck: ['#fbf0db', '#f4e2c2'] },
+  autumn: { grass: ['#e9c46a', '#d29b45'], tree: ['#f29a6b', '#e07a52'], dot: '#f27a5a', deck: ['#fbefdc', '#f2dfc2'] },
+  winter: { grass: ['#f4f7fb', '#d8e4ee'], tree: ['#ffffff', '#e6eef5'], dot: '#ffffff', deck: ['#fdf8f0', '#f1ebe2'] },
+};
 
 const C = {
   deck: '#fbf0db', deck2: '#f4e2c2', deckLine: '#e6cfa6', grass: '#c6dc6c', grassD: '#9fbf45',
@@ -184,13 +191,13 @@ function drawIsland(ctx, L, s, season) {
   ctx.fillStyle = C.rockD;
   ctx.beginPath(); ctx.moveTo(R[0] - hw * 0.6, R[1] + depth * 0.6); ctx.lineTo(B[0], B[1] + depth); ctx.lineTo(B[0] - hw * 0.4, B[1] + depth * 2.1); ctx.closePath(); ctx.fill();
   // 草の縁
-  const g = season === 'winter' ? ['#f4f7fb', '#d8e4ee'] : [C.grass, C.grassD];
+  const g = SEASON_COL[season].grass;
   ctx.fillStyle = g[1];
   ctx.beginPath(); ctx.moveTo(...Lf); ctx.lineTo(...B); ctx.lineTo(...R); ctx.lineTo(R[0], R[1] + 8); ctx.lineTo(B[0], B[1] + 8); ctx.lineTo(Lf[0], Lf[1] + 8); ctx.closePath(); ctx.fill();
   ctx.fillStyle = g[0];
   ctx.beginPath(); ctx.moveTo(T[0], T[1] - 5); ctx.lineTo(R[0] + 6, R[1]); ctx.lineTo(B[0], B[1] + 5); ctx.lineTo(Lf[0] - 6, Lf[1]); ctx.closePath(); ctx.fill();
   // 小さな花（紙の葉）
-  ctx.fillStyle = season === 'winter' ? '#ffffff' : '#f39fb0';
+  ctx.fillStyle = SEASON_COL[season].dot;
   for (let i = 0; i < 9; i++) {
     const k = (i + 0.5) / 9;
     const px = Lf[0] + (B[0] - Lf[0]) * k; const py = Lf[1] + (B[1] - Lf[1]) * k + 6;
@@ -202,14 +209,14 @@ function drawIsland(ctx, L, s, season) {
 
 
 // 奥の浮島に建つ紙工作の旅館（母屋）と、入口へ渡る橋
-function drawInn(ctx, L, s, time, season) {
+function drawInn(ctx, L, s, time, season, ornament) {
   const gx = s.W * 0.55; const gy = -1.9;
   const [cx, cy] = toScreen(L, gx, gy);
   const hw = L.TW * 1.25; const hh = L.TH * 1.25;
   // 浮島
   ctx.fillStyle = C.rockD; ctx.beginPath(); ctx.moveTo(cx - hw, cy); ctx.lineTo(cx, cy + hh); ctx.lineTo(cx, cy + hh + L.TH * 1.4); ctx.closePath(); ctx.fill();
   ctx.fillStyle = C.rockDD; ctx.beginPath(); ctx.moveTo(cx + hw, cy); ctx.lineTo(cx, cy + hh); ctx.lineTo(cx, cy + hh + L.TH * 1.4); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = season === 'winter' ? '#f4f7fb' : C.grass; diamond(ctx, cx, cy, hw, hh); ctx.fill();
+  ctx.fillStyle = SEASON_COL[season].grass[0]; diamond(ctx, cx, cy, hw, hh); ctx.fill();
   // 橋（入口の門の上へ）
   const [ex, ey] = toScreen(L, 0, 0);
   ctx.strokeStyle = '#d9b48a'; ctx.lineWidth = Math.max(4, L.TW * 0.1); ctx.lineCap = 'round';
@@ -231,6 +238,7 @@ function drawInn(ctx, L, s, time, season) {
   ctx.fillStyle = '#f4b6c0'; ctx.beginPath(); ctx.moveTo(cx - rw, ry); ctx.lineTo(cx, ry - rh * 0.5); ctx.lineTo(cx, ry - rh); ctx.lineTo(cx - rw * 0.35, ry - rh * 0.75); ctx.closePath(); ctx.fill();
   ctx.fillStyle = '#eea3af'; ctx.beginPath(); ctx.moveTo(cx + rw, ry); ctx.lineTo(cx, ry - rh * 0.5); ctx.lineTo(cx, ry - rh); ctx.lineTo(cx + rw * 0.35, ry - rh * 0.75); ctx.closePath(); ctx.fill();
   if (season === 'winter') { ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.moveTo(cx - rw * 0.35, ry - rh * 0.75); ctx.lineTo(cx, ry - rh); ctx.lineTo(cx + rw * 0.35, ry - rh * 0.75); ctx.lineTo(cx, ry - rh * 0.6); ctx.closePath(); ctx.fill(); }
+  if (ornament) drawOrnament(ctx, ornament, cx, ry - rh - L.TH * 0.35, L.TW * 0.2, time);
   // 煙突の湯けむり
   for (let i = 0; i < 3; i++) { const k = (time * 0.35 + i / 3) % 1; ctx.fillStyle = `rgba(255,255,255,${0.7 * (1 - k)})`; ctx.beginPath(); ctx.arc(cx + rw * 0.3 + Math.sin(k * 5) * 5, ry - rh * 0.9 - k * L.TH * 1.5, 4 + k * 8, 0, Math.PI * 2); ctx.fill(); }
   // 提灯
@@ -244,7 +252,7 @@ function drawInn(ctx, L, s, time, season) {
 // 島の縁の桜の木（紙工作）
 function drawTree(ctx, x, y, r, season, time) {
   ctx.fillStyle = '#b88a6a'; ctx.fillRect(x - 2, y - r * 1.2, 4, r * 1.2);
-  const col = season === 'winter' ? ['#ffffff', '#e6eef5'] : ['#f6b8c4', '#ec9db0'];
+  const col = SEASON_COL[season].tree;
   const sw = Math.sin(time * 1.3 + x) * 1.5;
   for (const [ox, oy, rr, c] of [[-0.5, -1.3, 0.7, 1], [0.5, -1.4, 0.7, 1], [0, -1.9, 0.75, 0], [-0.2, -1.4, 0.6, 0]]) {
     ctx.fillStyle = col[c]; ctx.beginPath();
@@ -257,8 +265,7 @@ function drawTree(ctx, x, y, r, season, time) {
 function drawTile(ctx, L, s, x, y, season, hl) {
   const [cx, cy] = toScreen(L, x, y);
   const hw = L.TW / 2; const hh = L.TH / 2;
-  ctx.fillStyle = (x + y) % 2 ? C.deck : C.deck2;
-  if (season === 'winter') ctx.fillStyle = (x + y) % 2 ? '#fdf8f0' : '#f1ebe2';
+  ctx.fillStyle = SEASON_COL[season].deck[(x + y) % 2 ? 0 : 1];
   diamond(ctx, cx, cy, hw - 1, hh - 0.5); ctx.fill();
   // 板の線
   ctx.strokeStyle = 'rgba(190,150,110,.22)'; ctx.lineWidth = 1;
@@ -333,11 +340,11 @@ function drawBath(ctx, L, it, m, time, sel) {
   const [cx, cy] = toScreen(L, it.x, it.y);
   const F = FACILITIES[it.type];
   const small = it.type === 'shallow' || it.type === 'view';
-  const k = small ? 0.72 : 0.86;
+  const k = small ? 0.72 : it.type === 'group' ? 0.96 : 0.86;
   const hw = L.TW / 2 * k; const hh = L.TH / 2 * k;
   const z = L.TH * (it.type === 'shallow' ? 0.34 : 0.55);
   const top = cy - z + L.TH * 0.1;
-  const frame = it.type === 'hot' ? ['#f6d2a8', '#e3b17e', '#cf9a68'] : it.type === 'view' ? ['#f9dfe6', '#ebb9c4', '#d99eab'] : [C.pink, C.pinkD, C.pinkDD];
+  const frame = it.type === 'hot' ? ['#f6d2a8', '#e3b17e', '#cf9a68'] : it.type === 'view' ? ['#f9dfe6', '#ebb9c4', '#d99eab'] : it.type === 'group' ? ['#d9e8a6', '#b5cf6a', '#9ab655'] : it.type === 'shallow' ? ['#e5f0ee', '#c7dcd8', '#aac6c1'] : [C.pink, C.pinkD, C.pinkDD];
   box(ctx, cx, top, hw, hh, z, frame[0], frame[1], frame[2]);
   // 側面の紙の葉
   ctx.fillStyle = 'rgba(255,255,255,.35)';
@@ -428,23 +435,6 @@ function drawSteam(ctx, parts) {
   }
 }
 
-// 強風の筋
-function drawWind(ctx, L, s, time, calm) {
-  if (!s.strong || calm) return;
-  const [wx, wy] = DIRS[windAt(s)];
-  const vx = -(wx - wy); const vy = -(wx + wy) * 0.5;
-  const n = Math.hypot(vx, vy) || 1;
-  ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
-  for (let i = 0; i < 10; i++) {
-    const k = ((time * 0.45 + i * 0.137) % 1);
-    const bx = (i * 97) % L.w; const by = (i * 61) % L.h;
-    const x = bx + vx / n * (k - 0.5) * L.w * 0.9; const y = by + vy / n * (k - 0.5) * L.w * 0.9;
-    ctx.globalAlpha = Math.sin(k * Math.PI) * 0.8;
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + vx / n * 26, y + vy / n * 26); ctx.stroke();
-  }
-  ctx.restore();
-}
-
 function drawCompass(ctx, L, s) {
   const wind = windAt(s);
   const mid = { N: [s.W - 0.6, -0.9], S: [0.4, s.H - 0.1], W: [-0.9, 0.4], E: [s.W - 0.1, s.H - 0.6] };
@@ -471,10 +461,10 @@ export function draw(ctx, L, s, ui) {
   const m = metrics(s);
   const time = ui.time;
   if (ui.hits) ui.hits.length = 0;
-  const season = s.base <= 15 ? 'winter' : 'spring';
+  const season = seasonOf(s.day);
   ctx.clearRect(0, 0, L.w, L.h);
   drawBackground(ctx, L, time, ui.calm);
-  drawInn(ctx, L, s, time, season);
+  drawInn(ctx, L, s, time, season, ui.ornament);
   drawIsland(ctx, L, s, season);
   for (let y = 0; y < s.H; y++) for (let x = 0; x < s.W; x++) drawTile(ctx, L, s, x, y, season, ui.highlights?.get(`${x},${y}`));
   drawEntrance(ctx, L);
@@ -490,7 +480,7 @@ export function draw(ctx, L, s, ui) {
   for (const g of s.guests) {
     if (g.st === 'bath') (bathersByBath[g.target] ||= []).push(g);
   }
-  const waiting = s.guests.filter((g) => g.st === 'wait');
+  const waiting = s.guests.filter((g) => g.st === 'wait' && !g.chair);
   for (const g of s.guests) {
     if (g.st === 'pending' || (g.st === 'gone' && !ui.flying?.has(g.id))) continue;
     const pos = ui.positions?.get(g.id);
@@ -519,7 +509,7 @@ export function draw(ctx, L, s, ui) {
     else if (pos) { px = pos.x; py = pos.y; }
     else { [px, py] = [g.x, g.y]; }
     let sx; let sy;
-    if (g.st === 'wait' && !fly) {
+    if (g.st === 'wait' && !fly && !g.chair) {
       const i = waiting.indexOf(g);
       const [ex, ey] = toScreen(L, 0, 0);
       const row = Math.floor(i / 3) % 2; sx = ex + ((i % 3) - 1) * L.TW * 0.2 + row * L.TW * 0.1; sy = ey + L.TH * 0.2 - row * L.TH * 0.25 + (i % 3 === 1 ? -3 : 0);
@@ -537,23 +527,29 @@ export function draw(ctx, L, s, ui) {
   for (const d of drawables) d.f();
 
   drawSteam(ctx, ui.parts || []);
-  // 浴槽の札（温度と、困っていること）
+  // 浴槽の札（温度と、困っていること）を1行に並べる（スマホで縦に重ならないように）
+  const fs = Math.max(10, Math.min(13, L.TW * 0.17));
   for (const b of s.items) {
     if (!isBath(b)) continue;
     const mm = m[b.id];
     const [cx, cy] = toScreen(L, b.x, b.y);
-    const ty = cy - L.TH * 1.35;
-    const short = { bath: '', hot: '保温 ', shallow: '浅 ', view: '展望 ' }[b.type] || '';
-    const label = short + (mm.on ? `${mm.T}°` : '閉');
-    const fs = Math.max(10, Math.min(13, L.TW * 0.17));
-    tag(ctx, cx, ty, label, mm.on ? (mm.T >= 40 ? '#e07a6b' : mm.T >= 30 ? '#e8a25c' : '#6fb2c4') : '#b9a9a0', '#fff', fs);
-    const icons = [];
-    if (mm.exposed) icons.push(['風', '#7fb7cf']);
-    if (!mm.view) icons.push([mm.steamBy ? '湯気' : '景×', '#b39aa0']);
-    let ix = cx - (icons.length - 1) * 13;
-    for (const [t, c] of icons) { tag(ctx, ix, ty + fs + 3, t, c, '#fff', Math.max(8, fs - 3)); ix += 26; }
+    const ty = cy - L.TH * 1.3;
+    const short = { bath: '', hot: '保温', shallow: '浅', view: '展望', group: '団体' }[b.type] || '';
+    const chips = [[short ? `${short} ${mm.on ? `${mm.T}°` : '閉'}` : (mm.on ? `${mm.T}°` : '閉'), mm.on ? (mm.T >= 40 ? '#e07a6b' : mm.T >= 30 ? '#e8a25c' : '#6fb2c4') : '#b9a9a0', fs]];
+    if (mm.exposed) chips.push([`風で−${TUNE.windChill}°`, '#4f93b0', fs - 2]);
+    else if (s.strong && mm.shield) chips.push(['風よけ○', '#7aa83f', fs - 3]);
+    if (mm.view < 1) chips.push([mm.steamBy ? '湯気' : mm.view > 0 ? '景△' : '景×', '#b39aa0', fs - 3]);
+    ctx.save(); const ws = chips.map(([t, , f]) => { ctx.font = `800 ${f}px system-ui, sans-serif`; return ctx.measureText(t).width + 12; }); ctx.restore();
+    let x0 = cx - (ws.reduce((a, w) => a + w, 0) + (ws.length - 1) * 2) / 2;
+    chips.forEach(([t, c, f], i) => { tag(ctx, x0 + ws[i] / 2, ty, t, c, '#fff', f); x0 += ws[i] + 2; });
+    // 冷えている湯には、青い風の渦
+    if (mm.exposed && !ui.calm) {
+      const k = (time * 1.2) % 1;
+      ctx.save(); ctx.strokeStyle = `rgba(79,147,176,${0.8 * (1 - k)})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(cx, cy - L.TH * 0.45, L.TW * (0.25 + k * 0.2), L.TH * (0.25 + k * 0.2), 0, 0, Math.PI * 1.5); ctx.stroke(); ctx.restore();
+    }
   }
-  drawWind(ctx, L, s, time, ui.calm);
+  drawWindFlow(ctx, L, s, ui.flow);
   drawCompass(ctx, L, s);
   if (season === 'winter' && !ui.calm) drawSnow(ctx, L, time);
   if (ui.point) { // 手引きの矢印と、光る枠
@@ -571,7 +567,120 @@ function drawItem(ctx, L, s, it, m, time, ui) {
   if (isBath(it)) return drawBath(ctx, L, it, m[it.id] || { T: s.base, on: false }, time, sel);
   if (it.type === 'windbreak') return drawWindbreak(ctx, L, it, sel);
   if (it.type === 'fence') return drawFence(ctx, L, it, sel);
+  drawDeco(ctx, L, it, time, ui);
+  if (sel) { const [cx, cy] = toScreen(L, it.x, it.y); ctx.strokeStyle = '#5a4146'; ctx.lineWidth = 3; diamond(ctx, cx, cy, L.TW / 2 - 2, L.TH / 2 - 1); ctx.stroke(); }
   return null;
+}
+
+// 茶店・椅子・案内板・花壇・お祭り台・見晴らし塔・屋根飾り台
+function drawDeco(ctx, L, it, time, ui) {
+  const [cx, cy] = toScreen(L, it.x, it.y);
+  const hw = L.TW / 2; const hh = L.TH / 2;
+  if (it.type === 'teahouse') {
+    const z = L.TH * 0.55; const top = cy - z + hh * 0.2;
+    box(ctx, cx, top, hw * 0.62, hh * 0.62, z, '#fff7e8', '#f2dfbd', '#e4c99b');
+    // 桃の日よけ（しま模様）
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = i % 2 ? '#fff' : '#f39fb0';
+      const k0 = i / 4; const k1 = (i + 1) / 4;
+      const ax = cx - hw * 0.8 + hw * 0.8 * k0; const ay = top - hh * 0.1 + hh * 0.8 * k0;
+      const bx = cx - hw * 0.8 + hw * 0.8 * k1; const by = top - hh * 0.1 + hh * 0.8 * k1;
+      ctx.beginPath(); ctx.moveTo(ax, ay - 8); ctx.lineTo(bx, by - 8); ctx.lineTo(bx, by - 1); ctx.lineTo(ax, ay - 1); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = '#93b23c'; ctx.beginPath(); ctx.arc(cx + hw * 0.25, top - 4, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c9808e'; ctx.font = `800 ${Math.max(9, L.TW * 0.15)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('茶', cx + hw * 0.3, top + hh * 0.35 + z * 0.55);
+  } else if (it.type === 'chair') {
+    for (const k of [-0.25, 0.25]) box(ctx, cx + k * hw, cy - 6 + k * hh * 0.4, hw * 0.28, hh * 0.22, 6, '#e9c39a', '#d4a676', '#c08f5f');
+    ctx.fillStyle = '#d4a676'; ctx.fillRect(cx - hw * 0.5, cy - 16, hw, 3);
+  } else if (it.type === 'sign') {
+    ctx.fillStyle = '#b88a6a'; ctx.fillRect(cx - 1.5, cy - L.TH * 1.1, 3, L.TH * 1.0);
+    ctx.fillStyle = '#fff7e8'; ctx.strokeStyle = '#c9808e'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(cx - hw * 0.45, cy - L.TH * 1.2, hw * 0.9, L.TH * 0.42, 4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#e07a8b'; ctx.font = `800 ${Math.max(9, L.TW * 0.15)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('♨→', cx, cy - L.TH * 0.99); ctx.textBaseline = 'alphabetic';
+  } else if (it.type === 'flower') {
+    box(ctx, cx, cy - 6, hw * 0.6, hh * 0.6, 6, '#a07a5c', '#8a664a', '#77563c');
+    const cols = ['#f39fb0', '#ffe27a', '#ffffff', '#f6b8c4', '#f2a35c'];
+    for (let i = 0; i < 9; i++) { const a = i * 2.39; const r = (i % 3 + 1) * 0.16; ctx.fillStyle = cols[i % cols.length]; ctx.beginPath(); ctx.arc(cx + Math.cos(a) * hw * r * 1.6, cy - 8 + Math.sin(a) * hh * r * 1.6, 2.4, 0, Math.PI * 2); ctx.fill(); }
+  } else if (it.type === 'stage') {
+    const z = L.TH * 0.3; const top = cy - z + hh * 0.15;
+    box(ctx, cx, top, hw * 0.78, hh * 0.78, z, '#f6d2a8', '#e3b17e', '#cf9a68');
+    ctx.strokeStyle = '#c9808e'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - hw * 0.7, top - L.TH * 0.9); ctx.lineTo(cx + hw * 0.7, top - L.TH * 0.9); ctx.stroke();
+    for (let i = 0; i < 5; i++) { const k = (i + 0.5) / 5; ctx.fillStyle = ['#f39fb0', '#ffe27a', '#93b23c', '#7fb7cf', '#f39fb0'][i]; ctx.beginPath(); ctx.ellipse(cx - hw * 0.7 + hw * 1.4 * k, top - L.TH * 0.85, 3, 4, 0, 0, Math.PI * 2); ctx.fill(); }
+    // 太鼓
+    const bounce = ui.calm ? 0 : Math.abs(Math.sin(time * 5)) * 2;
+    ctx.fillStyle = '#e07a6b'; ctx.beginPath(); ctx.ellipse(cx, top - 6 - bounce, hw * 0.22, hh * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff1d6'; ctx.beginPath(); ctx.ellipse(cx, top - 9 - bounce, hw * 0.18, hh * 0.18, 0, 0, Math.PI * 2); ctx.fill();
+  } else if (it.type === 'tower') {
+    const z = L.TH * 1.6; const top = cy - z + hh * 0.2;
+    box(ctx, cx, top, hw * 0.32, hh * 0.32, z, '#fff7e8', '#f2dfbd', '#e4c99b');
+    ctx.fillStyle = '#e899a6'; ctx.beginPath(); ctx.moveTo(cx - hw * 0.5, top); ctx.lineTo(cx, top - L.TH * 0.6); ctx.lineTo(cx + hw * 0.5, top); ctx.lineTo(cx, top + hh * 0.4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#d97b8a'; ctx.beginPath(); ctx.moveTo(cx + hw * 0.5, top); ctx.lineTo(cx, top - L.TH * 0.6); ctx.lineTo(cx, top + hh * 0.4); ctx.closePath(); ctx.fill();
+  } else if (it.type === 'ornament') {
+    ctx.fillStyle = '#b88a6a'; ctx.fillRect(cx - 1.5, cy - L.TH * 1.3, 3, L.TH * 1.2);
+    drawOrnament(ctx, ui.ornament || 'leaf', cx, cy - L.TH * 1.45, L.TW * 0.2, time);
+  }
+}
+
+// 屋根飾り（10種）。x,y=中心、r=大きさ
+export function drawOrnament(ctx, id, x, y, r, time = 0) {
+  ctx.save(); ctx.translate(x, y);
+  const sway = Math.sin(time * 1.5) * 0.08; ctx.rotate(sway);
+  const star = (n, r1, r2, col) => { ctx.fillStyle = col; ctx.beginPath(); for (let i = 0; i < n * 2; i++) { const a = (i / (n * 2)) * Math.PI * 2 - Math.PI / 2; const rr = i % 2 ? r2 : r1; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } ctx.closePath(); ctx.fill(); };
+  switch (id) {
+    case 'leaf': ctx.fillStyle = '#93b23c'; ctx.beginPath(); ctx.ellipse(0, 0, r * 0.5, r, 0.5, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#c6dc6c'; ctx.beginPath(); ctx.moveTo(-r * 0.4, r * 0.6); ctx.lineTo(r * 0.4, -r * 0.6); ctx.stroke(); break;
+    case 'cloud': ctx.fillStyle = '#fff'; for (const [a, b, c] of [[-0.5, 0.1, 0.5], [0.1, -0.2, 0.6], [0.6, 0.1, 0.45]]) { ctx.beginPath(); ctx.arc(a * r, b * r, c * r, 0, Math.PI * 2); ctx.fill(); } break;
+    case 'flower': for (let i = 0; i < 5; i++) { const a = i * 1.2566; ctx.fillStyle = '#f39fb0'; ctx.beginPath(); ctx.arc(Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.5, r * 0.42, 0, Math.PI * 2); ctx.fill(); } ctx.fillStyle = '#ffe27a'; ctx.beginPath(); ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2); ctx.fill(); break;
+    case 'drop': ctx.fillStyle = '#9fd3e6'; ctx.beginPath(); ctx.moveTo(0, -r); ctx.quadraticCurveTo(r * 0.8, r * 0.2, 0, r * 0.8); ctx.quadraticCurveTo(-r * 0.8, r * 0.2, 0, -r); ctx.fill(); break;
+    case 'shell': ctx.fillStyle = '#f6d2c4'; ctx.beginPath(); ctx.moveTo(0, r * 0.7); for (let i = 0; i <= 6; i++) { const a = Math.PI + (i / 6) * Math.PI; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r * 0.9); } ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#e3a2ad'; for (let i = 1; i < 6; i++) { const a = Math.PI + (i / 6) * Math.PI; ctx.beginPath(); ctx.moveTo(0, r * 0.7); ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r * 0.9); ctx.stroke(); } break;
+    case 'mill': ctx.rotate(time * 2); for (let i = 0; i < 4; i++) { ctx.rotate(Math.PI / 2); ctx.fillStyle = i % 2 ? '#f39fb0' : '#ffe27a'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(r, -r * 0.2); ctx.lineTo(r * 0.7, r * 0.4); ctx.closePath(); ctx.fill(); } break;
+    case 'maple': star(5, r, r * 0.45, '#e9724c'); break;
+    case 'snow': ctx.strokeStyle = '#bfe0ee'; ctx.lineWidth = 2; for (let i = 0; i < 3; i++) { ctx.rotate(Math.PI / 3); ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.stroke(); } break;
+    case 'feather': ctx.fillStyle = '#a6d8f0'; ctx.beginPath(); ctx.ellipse(0, 0, r * 0.35, r, 0.4, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.moveTo(-r * 0.35, r * 0.9); ctx.lineTo(r * 0.35, -r * 0.9); ctx.stroke(); break;
+    case 'rainbow': ['#f39fb0', '#ffe27a', '#b9e39a', '#a6d8f0'].forEach((c, i) => { ctx.strokeStyle = c; ctx.lineWidth = r * 0.22; ctx.beginPath(); ctx.arc(0, r * 0.4, r * (1 - i * 0.22), Math.PI, 0); ctx.stroke(); }); break;
+    default: break;
+  }
+  ctx.restore();
+}
+
+// 風の流れ（島の上を風下へ流れる筋。風よけに当たると止まる）
+export function stepWindFlow(flow, s, dt, calm) {
+  const wind = windAt(s);
+  const [wx, wy] = DIRS[wind];
+  const vx = -wx; const vy = -wy; // 風が吹いていく向き
+  const rate = (s.strong ? 14 : 4) * (calm ? 0.35 : 1);
+  if (flow.wind !== wind) { flow.list = []; flow.wind = wind; }
+  flow.acc = (flow.acc || 0) + dt * rate;
+  while (flow.acc >= 1) {
+    flow.acc -= 1;
+    // 風上の縁の外から
+    const lane = Math.random() * (vx ? s.H : s.W) - 0.5;
+    const gx = vx ? (vx > 0 ? -1.2 : s.W + 0.2) : lane; const gy = vy ? (vy > 0 ? -1.2 : s.H + 0.2) : lane;
+    flow.list.push({ gx, gy, vx, vy, life: 0, stop: 0 });
+  }
+  for (const p of flow.list) {
+    if (p.stop) { p.stop += dt; continue; }
+    p.life += dt;
+    p.gx += p.vx * dt * (s.strong ? 2.4 : 1.4); p.gy += p.vy * dt * (s.strong ? 2.4 : 1.4);
+    const cx = Math.floor(p.gx + 0.5); const cy = Math.floor(p.gy + 0.5);
+    const it = inside(s, cx, cy) ? itemAt(s, cx, cy) : null;
+    if (it && it.type === 'windbreak' && it.dir === wind) p.stop = 0.001;
+  }
+  flow.list = flow.list.filter((p) => (p.stop ? p.stop < 0.5 : p.gx > -2 && p.gy > -2 && p.gx < s.W + 1.5 && p.gy < s.H + 1.5));
+}
+function drawWindFlow(ctx, L, s, flow) {
+  if (!flow?.list) return;
+  ctx.save(); ctx.lineCap = 'round';
+  for (const p of flow.list) {
+    const [x1, y1] = toScreen(L, p.gx, p.gy);
+    const [x0, y0] = toScreen(L, p.gx - p.vx * 0.8, p.gy - p.vy * 0.8);
+    const a = p.stop ? Math.max(0, 0.9 - p.stop * 1.8) : Math.min(1, p.life * 3);
+    ctx.globalAlpha = a * (s.strong ? 0.95 : 0.55);
+    ctx.strokeStyle = s.strong ? '#6aa9c0' : '#ffffff'; ctx.lineWidth = s.strong ? 2.6 : 1.8;
+    ctx.beginPath(); ctx.moveTo(x0, y0 - L.TH * 0.55); ctx.lineTo(x1, y1 - L.TH * 0.55); ctx.stroke();
+    if (s.strong && !p.stop) { ctx.fillStyle = '#6aa9c0'; ctx.beginPath(); ctx.arc(x1, y1 - L.TH * 0.55, 2, 0, Math.PI * 2); ctx.fill(); }
+    if (p.stop) { ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x1, y1 - L.TH * 0.55, 3 + p.stop * 8, 0, Math.PI * 2); ctx.fill(); }
+  }
+  ctx.restore();
 }
 
 // 小さな鳥アイコン（HTML の一覧用）
