@@ -460,6 +460,7 @@ $('btnReset').addEventListener('click', () => {
   startDay(s.day);
 });
 $('btnHint').addEventListener('click', () => {
+  if (s?.phase === 'open' && !paused) { paused = true; pauseSave(); refreshAll(); } // ヒントを読む間は止める
   const hs = hintsFor(s);
   showGuide(hs[hintStep % hs.length], [['OK', hideGuide], ...(hs.length > 1 ? [['次のヒント', () => { hintStep += 1; $('btnHint').click(); }]] : [])]);
 });
