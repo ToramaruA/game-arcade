@@ -41,6 +41,8 @@ const canvas = $('board');
 const ctx = canvas.getContext('2d');
 let L = null;
 
+const SEC = 1.4; // 1倍速で、ゲームの1秒を何秒で見せるか（考える時間を残す）
+let lastAutoPause = -99; // 困った客が出たら一時停止（考える時間を作る）
 const SEASON_ORDER = ['spring', 'summer', 'autumn', 'winter'];
 const stars = (sm) => (!sm.cleared ? 0 : sm.good === sm.n ? 3 : sm.rate >= 0.8 ? 2 : 1);
 const starText = (n) => '★'.repeat(n) + '☆'.repeat(3 - n);
@@ -93,7 +95,7 @@ function startDay(id, { resumeState = null } = {}) {
   startInn = inn ? JSON.parse(JSON.stringify(inn)) : null;
   s = resumeState || createState(id, { inn: startInn });
   startJSON = resumeState ? '' : JSON.stringify(s);
-  $('title').hidden = true; $('game').hidden = false;
+  $('title').hidden = true; $('game').hidden = false; window.scrollTo(0, 0);
   running = true; paused = !!resumeState; acc = 0; speed = 1; frac = 1;
   ui.sel = 0; ui.selGuest = 0; ui.mode = null; ui.ghost = null; ui.highlights = null; ui.point = null; ui.parts = []; ui.flow = {}; ui.flying.clear(); ui.moods.clear();
   pending = null; panelMsg = ''; hintStep = 0; warnedWind = s.t >= TUNE.windShiftAt - TUNE.windWarn; freeze = false; guide = null;
@@ -221,9 +223,19 @@ function stepOnce() {
   const ev = tick(s);
   frac = 0;
   for (const e of ev) handleEvent(e);
+  autoPause();
   if (before !== 'done' && s.phase === 'done') { save.cur = null; writeSave(); setTimeout(showResult, 900); }
   if (guide === 'w4wait' && s.t === TUNE.windShiftAt - TUNE.windWarn) { guide = 'w4'; paused = true; updateGuide(); }
   refreshAll();
+}
+
+function autoPause() {
+  if (save.opt.autoPause === false) return;
+  if (guide || s.phase !== 'open' || s.t - lastAutoPause < 12) return;
+  const x = s.guests.find((o) => o.st === 'wait' && o.why && !o.paused && o.waited >= 2);
+  if (!x) return;
+  x.paused = true; lastAutoPause = s.t; paused = true; pauseSave();
+  toast(`${SPECIES[x.sp].name}が待っている：${x.why}。止めておいたので、手を打ってから ▶再開`);
 }
 
 function handleEvent(e) {
@@ -267,7 +279,7 @@ function frame(now) {
   if (running && s && !$('game').hidden) {
     const live = s.phase === 'open' && !paused && !freeze && !document.hidden && !$('result').open && !$('menu').open;
     if (live) {
-      acc += dt * speed;
+      acc += dt * speed / SEC;
       if (acc >= 1) { acc -= 1; stepOnce(); }
       frac = Math.min(1, acc);
     } else frac = 1;
@@ -344,9 +356,17 @@ function tapCell(x, y) {
   if (ui.mode) { modeTap(x, y); return; }
   const it = itemAt(s, x, y);
   ui.selGuest = 0; pending = null; panelMsg = '';
-  if (it) { ui.sel = it.id; ui.cursor = [x, y]; sfx.paper(); }
-  else { ui.sel = 0; ui.cursor = [x, y]; }
-  setTimeout(() => { const v = $('panel'); const r = v?.getBoundingClientRect(); if (r && r.top > window.innerHeight - 120) window.scrollBy({ top: Math.min(r.top - window.innerHeight + 260, r.bottom - window.innerHeight + 16) }); }, 0);
+  if (it) {
+    ui.sel = it.id; ui.cursor = [x, y]; sfx.paper();
+    if (isBath(it) && !guide) {
+      // 隣（声が届く範囲）と、湯気が流れる風下のマスを見せる
+      ui.highlights = new Map();
+      for (const [dx, dy] of Object.values(DIRS)) if (inside(s, x + dx, y + dy)) ui.highlights.set(`${x + dx},${y + dy}`, 'rgba(240,170,90,.28)');
+      if (it.q >= 3) { const [wx, wy] = DIRS[windAt(s)]; if (inside(s, x - wx, y - wy)) ui.highlights.set(`${x - wx},${y - wy}`, 'rgba(255,255,255,.75)'); }
+    } else if (!guide) ui.highlights = null;
+  }
+  else { ui.sel = 0; ui.cursor = [x, y]; if (!guide) ui.highlights = null; }
+  setTimeout(() => { const v = $('panel'); const r = v?.getBoundingClientRect(); if (r && r.top > window.innerHeight - 120) window.scrollBy({ top: Math.min(r.top - window.innerHeight + 170, r.bottom - window.innerHeight + 16) }); }, 0);
   updateGuide();
   refreshAll();
 }
@@ -443,10 +463,11 @@ $('btnHint').addEventListener('click', () => {
   const hs = hintsFor(s);
   showGuide(hs[hintStep % hs.length], [['OK', hideGuide], ...(hs.length > 1 ? [['次のヒント', () => { hintStep += 1; $('btnHint').click(); }]] : [])]);
 });
-$('btnMenu').addEventListener('click', () => { if (s?.phase === 'open' && !paused) { paused = true; pauseSave(); } $('optMute').checked = !!save.opt.mute; $('optCalm').checked = !!save.opt.calm; $('menu').showModal(); refreshAll(); });
+$('btnMenu').addEventListener('click', () => { if (s?.phase === 'open' && !paused) { paused = true; pauseSave(); } $('optMute').checked = !!save.opt.mute; $('optCalm').checked = !!save.opt.calm; $('optAuto').checked = save.opt.autoPause !== false; $('menu').showModal(); refreshAll(); });
 $('btnCloseMenu').addEventListener('click', () => $('menu').close());
 $('btnToTitle').addEventListener('click', () => { $('menu').close(); pauseSave(); showTitle(); });
 $('optMute').addEventListener('change', (e) => { save.opt.mute = e.target.checked; setMuted(save.opt.mute); writeSave(); });
+$('optAuto').addEventListener('change', (e) => { save.opt.autoPause = e.target.checked; writeSave(); });
 $('optCalm').addEventListener('change', (e) => { save.opt.calm = e.target.checked; ui.calm = save.opt.calm; writeSave(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && s?.phase === 'open' && running) { paused = true; pauseSave(); refreshAll(); } });
 
@@ -464,7 +485,7 @@ function hintsFor(st) {
   if (kinds.some((sp) => SPECIES[sp].noisy) && kinds.some((sp) => mainNeed(sp) === 'quiet')) out.push('にぎやかな鳥（ツバメ・インコ）は、同じ湯と隣の湯をうるさくする。静けさ好き（サギ・フクロウ・ヤマガラ）の湯は離すか、吸音垣を隣に。');
   if (kinds.some((sp) => mainNeed(sp) === 'view')) out.push('景色好き（カワセミ・ツル）は、島の外まで見通せる湯を選ぶ。風よけや建物は視線をさえぎる。弁3以上の湯の湯気は、風下の湯の景色を隠す。');
   if (st.base <= 20) out.push('寒い季節は熱い湯にお湯を使う。保温の湯（+5度）なら少ない弁で熱くできる。お湯は全部で' + st.cap + 'つ分。空いた湯の弁を閉めて、次の客の湯へ回そう。');
-  out.push('客がまとめて来ると席が足りなくなる。浴槽を増やすか、休憩椅子で待ってもらおう。');
+  out.push(`客がまとめて来ると席が足りなくなる。浴槽を増やそう${buildable(st.day).includes('chair') ? '。休憩椅子があれば長く待ってくれる' : ''}。`);
   return out;
 }
 
@@ -505,7 +526,7 @@ function refreshAll() {
   const bp = $('btnPlay');
   bp.textContent = s.phase === 'prep' ? '▶ 開店する' : s.phase === 'done' ? '結果を見る' : paused ? '▶ 再開' : '⏸ 一時停止';
   bp.classList.toggle('pulse', s.phase === 'prep' && !guide);
-  $('btnSpeed').textContent = `${speed}倍`;
+  $('btnSpeed').textContent = `速さ ${speed}倍`;
   bp.disabled = guide === 'intro' || guide === 'w1' || guide === 'w2';
   $('btnReset').disabled = s.phase === 'prep' && JSON.stringify(s) === startJSON;
   renderPanel();
@@ -623,7 +644,7 @@ function renderPanel() {
       <div class="temp"><b>${mm.on ? `${mm.T}度` : '止まっている'}</b><small>弁 ${it.q}/${TUNE.qMax}・基温${s.base}＋${5 * it.q}${F.heat ? (F.heat > 0 ? `＋保温${F.heat}` : `${F.heat}（浅い）`) : ''}${mm.exposed ? `<span class="chill">−風${TUNE.windChill}</span>` : ''}</small></div>
       <button type="button" id="vUp" aria-label="弁を開ける" ${canUp ? '' : 'disabled'}>＋</button></div>
       <div class="meter">${bands}${mm.on ? `<span class="cur" style="left:${pos(mm.T)}"></span>` : ''}<div class="ticks">${[15, 25, 35, 45].map((t) => `<span style="left:${pos(t)}">${t}</span>`).join('')}</div></div>
-      <p class="muted">緑の枠＝入っている客の好み、桃の枠＝次に来る客の好み</p>
+      <p class="muted">緑の枠＝入っている客の好み、桃の枠＝次に来る客の好み。盤面の橙のマス＝声が届く隣${it.q >= 3 ? '、白いマス＝湯気が流れる風下（景色が消える）' : ''}</p>
       <div class="factors">${factorHTML('温度', mm.on ? 1 : 0, mm.on ? `${mm.T}度${mm.exposed ? `・風で−${TUNE.windChill}` : ''}` : '湯なし')}${factorHTML('静けさ', quiet === 0 ? 1 : quiet === 1 ? 0.5 : 0, quiet ? `にぎやか${quiet}` : mm.fenced ? '吸音垣で静か' : '静か')}${factorHTML('景色', mm.view, mm.view >= 1 ? '見える' : mm.steamBy ? '湯気で×' : mm.view > 0 ? '花壇で△' : '建物で×')}</div>
       ${windNote(it, mm)}${mm.view === 0 && !mm.steamBy ? '<p class="why">🏔 四方とも建物でふさがれて景色が見えない。島の外まで見通せる場所なら見える。</p>' : ''}${mm.stage ? '<p class="muted">🥁 お祭り台の隣：ツバメ・インコは+10点（ほかの客にはにぎやか）</p>' : ''}
       <p class="muted">${!mm.supplied ? '管が源泉につながっていない。' : ''}入浴中・向かう客 ${users.length}/${F.seats}</p>
