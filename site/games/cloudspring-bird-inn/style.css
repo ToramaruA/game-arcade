@@ -264,3 +264,14 @@ body.og #board { width: 100vw; height: 100vh !important; border-radius: 0; box-s
 @media (max-width: 520px) { .res-list { max-height: 30vh; } .result-head img { width: 56px; } .result h2 { font-size: 19px; } }
 
 .nowrap { white-space: nowrap; font-size: 11px; }
+
+/* 簡素化：上の操作は小さなアイコンに、湯のパネルは小さな1行の札に */
+.controls .ghost.icon { min-width: 48px; font-size: 18px; font-weight: 800; padding: 0 10px; }
+.panel .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 4px; }
+.panel .chip { font-size: 13px; padding: 3px 8px; border-radius: 999px; background: #eef7e6; color: #3d6a22; font-weight: 700; }
+.panel .chip.mid { background: #fff3d6; color: #8a5a00; }
+.panel .chip.bad { background: #fde3e6; color: #b0303f; }
+.panel .legend { font-size: 12px; color: var(--ink-soft); margin: 14px 0 6px; }
+.panel .legend .lg { display: inline-block; width: 14px; height: 10px; border: 2px solid; border-radius: 3px; vertical-align: -1px; margin-right: 3px; }
+.panel .legend .lg.g { border-color: #6fa83a; } .panel .legend .lg.p { border-color: #e08a9a; margin-left: 4px; }
+.valve .temp small.chill { color: #3b6fb0; font-weight: 700; }

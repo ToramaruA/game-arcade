@@ -455,6 +455,7 @@ $('btnPlay').addEventListener('click', onPlay);
 $('btnSpeed').addEventListener('click', () => { speed = speed === 1 ? 2 : 1; refreshAll(); });
 $('btnReset').addEventListener('click', () => {
   if (!s) return;
+  $('menu').close();
   if (s.phase !== 'prep' && !confirm('この日を、開店前の状態（設備・お金）からやり直しますか？')) return;
   save.cur = null; writeSave();
   startDay(s.day);
@@ -527,7 +528,7 @@ function refreshAll() {
   const bp = $('btnPlay');
   bp.textContent = s.phase === 'prep' ? '▶ 開店する' : s.phase === 'done' ? '結果を見る' : paused ? '▶ 再開' : '⏸ 一時停止';
   bp.classList.toggle('pulse', s.phase === 'prep' && !guide);
-  $('btnSpeed').textContent = `速さ ${speed}倍`;
+  $('btnSpeed').textContent = `×${speed}`;
   bp.disabled = guide === 'intro' || guide === 'w1' || guide === 'w2';
   $('btnReset').disabled = s.phase === 'prep' && JSON.stringify(s) === startJSON;
   renderPanel();
@@ -623,7 +624,8 @@ function renderPanel() {
   }
   const it = itemById(s, ui.sel);
   const sb = canBuild();
-  const moveRow = (refund) => `<div class="btnrow"><button type="button" id="bMove" ${sb ? '' : 'disabled'}>移動</button><button type="button" id="bDel" ${sb ? '' : 'disabled'}>撤去（+${refund}）</button></div>${sb ? '' : '<p class="muted">移動・撤去は一時停止中にできる</p>'}`;
+  // 移動・撤去は、できるとき（準備中・一時停止中）だけ出す
+  const moveRow = (refund) => (sb ? `<div class="btnrow"><button type="button" id="bMove">移動</button><button type="button" id="bDel">撤去（+${refund}）</button></div>` : '');
   const bindMove = () => {
     $('bMove')?.addEventListener('click', () => enterMode({ op: 'move', id: it.id }));
     $('bDel')?.addEventListener('click', () => { doEdit({ op: 'remove', id: it.id }); ui.sel = 0; refreshAll(); });
@@ -640,16 +642,21 @@ function renderPanel() {
     const quiet = Math.max(0, mm.noise - (mm.fenced ? 1 : 0));
     const canUp = checkEdit(s, { op: 'valve', id: it.id, q: it.q + 1 }).ok;
     const canDown = it.q > 0;
-    p.innerHTML = `<h3>${labelOf(it)} <span class="tag">${F.name}・${F.seats}席${F.heat ? `・${F.heat > 0 ? '+' : ''}${F.heat}度` : ''}</span></h3>
+    // いちばん見るもの（温度・＋−・好みのバー）を大きく、ほかは小さな1行にまとめる
+    const chip = (icon, val, text) => `<span class="chip ${val >= 1 ? '' : val > 0 ? 'mid' : 'bad'}">${icon}${text}</span>`;
+    const why = [];
+    if (s.strong && mm.exposed) why.push(windNote(it, mm));
+    else if (s.strong) { const wn = windNote(it, mm); if (!wn.includes('🛡')) why.push(wn); }
+    if (mm.view === 0 && !mm.steamBy) why.push('<p class="why">🏔 まわりが建物でふさがれて景色が見えない。</p>');
+    if (!mm.supplied) why.push('<p class="why">管が源泉につながっていない。</p>');
+    p.innerHTML = `<h3>${labelOf(it)} <span class="tag">${F.name}・${users.length}/${F.seats}席</span></h3>
       <div class="valve"><button type="button" id="vDown" aria-label="弁を閉める" ${canDown ? '' : 'disabled'}>−</button>
-      <div class="temp"><b>${mm.on ? `${mm.T}度` : '止まっている'}</b><small>弁 ${it.q}/${TUNE.qMax}・基温${s.base}＋${5 * it.q}${F.heat ? (F.heat > 0 ? `＋保温${F.heat}` : `${F.heat}（浅い）`) : ''}${mm.exposed ? `<span class="chill">−風${TUNE.windChill}</span>` : ''}</small></div>
+      <div class="temp"><b>${mm.on ? `${mm.T}度` : '湯なし'}</b>${mm.exposed ? `<small class="chill">風で−${TUNE.windChill}度</small>` : ''}</div>
       <button type="button" id="vUp" aria-label="弁を開ける" ${canUp ? '' : 'disabled'}>＋</button></div>
-      <div class="meter">${bands}${mm.on ? `<span class="cur" style="left:${pos(mm.T)}"></span>` : ''}<div class="ticks">${[15, 25, 35, 45].map((t) => `<span style="left:${pos(t)}">${t}</span>`).join('')}</div></div>
-      <p class="muted">緑の枠＝入っている客の好み、桃の枠＝次に来る客の好み。盤面の橙のマス＝声が届く隣${it.q >= 3 ? '、白いマス＝湯気が流れる風下（景色が消える）' : ''}</p>
-      <div class="factors">${factorHTML('温度', mm.on ? 1 : 0, mm.on ? `${mm.T}度${mm.exposed ? `・風で−${TUNE.windChill}` : ''}` : '湯なし')}${factorHTML('静けさ', quiet === 0 ? 1 : quiet === 1 ? 0.5 : 0, quiet ? `にぎやか${quiet}` : mm.fenced ? '吸音垣で静か' : '静か')}${factorHTML('景色', mm.view, mm.view >= 1 ? '見える' : mm.steamBy ? '湯気で×' : mm.view > 0 ? '花壇で△' : '建物で×')}</div>
-      ${windNote(it, mm)}${mm.view === 0 && !mm.steamBy ? '<p class="why">🏔 四方とも建物でふさがれて景色が見えない。島の外まで見通せる場所なら見える。</p>' : ''}${mm.stage ? '<p class="muted">🥁 お祭り台の隣：ツバメ・インコは+10点（ほかの客にはにぎやか）</p>' : ''}
-      <p class="muted">${!mm.supplied ? '管が源泉につながっていない。' : ''}入浴中・向かう客 ${users.length}/${F.seats}</p>
-      ${moveRow(Math.floor(F.cost / 2))}${err}`;
+      <div class="meter" title="緑の枠＝入っている客の好み、桃の枠＝次に来る客の好み">${bands}${mm.on ? `<span class="cur" style="left:${pos(mm.T)}"></span>` : ''}<div class="ticks">${[15, 25, 35, 45].map((t) => `<span style="left:${pos(t)}">${t}</span>`).join('')}</div></div>
+      ${s.day <= 2 ? '<p class="legend"><i class="lg g"></i>入浴中の客の好み　<i class="lg p"></i>次の客の好み</p>' : ''}
+      <div class="chips">${chip('♨', mm.on ? 1 : 0, mm.on ? `${mm.T}度` : '湯なし')}${chip('🔇', quiet === 0 ? 1 : quiet === 1 ? 0.5 : 0, quiet ? `にぎやか${quiet}` : '静か')}${chip('🏔', mm.view, mm.view >= 1 ? '景色○' : mm.steamBy ? '湯気で×' : mm.view > 0 ? '景色△' : '景色×')}${mm.stage ? '<span class="chip">🥁お祭り</span>' : ''}</div>
+      ${why.join('')}${moveRow(Math.floor(F.cost / 2))}${err}`;
     $('vUp').addEventListener('click', () => doEdit({ op: 'valve', id: it.id, q: it.q + 1 }));
     $('vDown').addEventListener('click', () => doEdit({ op: 'valve', id: it.id, q: it.q - 1 }));
     bindMove();
