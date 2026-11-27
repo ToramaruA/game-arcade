@@ -1,4 +1,4 @@
-// どのゲームでも使える自動プレイヤー（何もしない／でたらめ／MCTS）。
+// どのゲームでも使える自動プレイヤー（でたらめ／MCTS。放置の検証は必要な場合のみ）。
 // ゲーム側は下の「標準の形」（game オブジェクト）を書くだけでよい。詳しくは tests/autoplay/README.md。
 //
 // game = {
@@ -6,7 +6,8 @@
 //   start(stage, seed) -> state      // 乱数は state の中に持つ（rng の状態も state に入れる）
 //   clone(state) -> state            // 省略時は structuredClone
 //   actions(state) -> [action, ...]  // 今できる操作（「何もしない」も含める）
-//   idle(state) -> action            // 何もしない操作
+//   idle(state) -> action            // 待機操作（他の戦法でも使う）
+//   testNoop: true                   // 放置で勝てないことが仕様上重要な場合のみ指定（既定は false）
 //   apply(state, action)             // 操作して、次に判断する時点まで進める（state を書き換える）
 //   result(state) -> 'win' | 'lose' | null
 //   score(state) -> 0..1             // 途中の有利さ（勝ちに近いほど 1）。先読みを打ち切ったときに使う
@@ -79,9 +80,9 @@ export function playGame(game, stage, player, seed) {
 export function fromGame(game) {
   const L = { beginner: 30, expert: 300, ...(game.levels || {}) };
   const strategies = [
-    { id: 'noop', name: '何もしない', kind: 'noop', player: { type: 'noop' } },
     { id: 'random', name: 'でたらめ', kind: 'naive', player: { type: 'random' } },
   ];
+  if (game.testNoop === true) strategies.unshift({ id: 'noop', name: '何もしない', kind: 'noop', player: { type: 'noop' } });
   for (const [id, n] of Object.entries(game.naive || {})) strategies.push({ id: `naive-${id}`, name: `${n.name}（よく考える）`, kind: 'naive', player: { type: 'mcts', iterations: L.expert, allow: n.allow } });
   strategies.push({ id: 'beginner', name: '初心者（核を使う）', kind: 'core', level: 'beginner', player: { type: 'mcts', iterations: L.beginner } });
   strategies.push({ id: 'expert', name: '上級者（核を使う）', kind: 'core', level: 'expert', player: { type: 'mcts', iterations: L.expert } });
