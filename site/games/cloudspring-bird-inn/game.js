@@ -97,7 +97,7 @@ function startDay(id, { resumeState = null } = {}) {
   startJSON = resumeState ? '' : JSON.stringify(s);
   $('title').hidden = true; $('game').hidden = false; window.scrollTo(0, 0);
   running = true; paused = !!resumeState; acc = 0; speed = 1; frac = 1;
-  ui.sel = 0; ui.selGuest = 0; ui.mode = null; ui.ghost = null; ui.highlights = null; ui.point = null; ui.parts = []; ui.flow = {}; ui.flying.clear(); ui.moods.clear();
+  ui.sel = 0; ui.selGuest = 0; ui.mode = null; ui.cellInfo = null; ui.ghost = null; ui.highlights = null; ui.point = null; ui.parts = []; ui.flow = {}; ui.flying.clear(); ui.moods.clear();
   pending = null; panelMsg = ''; hintStep = 0; warnedWind = s.t >= TUNE.windShiftAt - TUNE.windWarn; freeze = false; guide = null;
   hideGuide(); $('banner').hidden = true; $('toast').hidden = true;
   snapshotPos();
@@ -371,19 +371,30 @@ function tapCell(x, y) {
   refreshAll();
 }
 
-function clearSel() { ui.sel = 0; ui.selGuest = 0; ui.cursor = null; ui.mode = null; ui.ghost = null; pending = null; ui.highlights = null; refreshAll(); }
+function clearSel() { ui.sel = 0; ui.selGuest = 0; ui.cursor = null; ui.mode = null; ui.cellInfo = null; ui.ghost = null; pending = null; ui.highlights = null; ui.cellInfo = null; refreshAll(); }
 
-function selectGuest(id) { ui.selGuest = id; ui.sel = 0; ui.mode = null; pending = null; refreshAll(); }
+function selectGuest(id) { ui.selGuest = id; ui.sel = 0; ui.mode = null; ui.cellInfo = null; pending = null; refreshAll(); }
 
 // 移動・建設の「置き場所を選ぶ」モード
 function enterMode(md) {
   ui.mode = md; pending = null; ui.ghost = null; panelMsg = '';
   const r = canvas.getBoundingClientRect(); if (r.top < 0 || r.bottom > window.innerHeight) canvas.scrollIntoView({ block: 'start' });
-  ui.highlights = new Map();
+  ui.highlights = new Map(); ui.cellInfo = null;
+  // 湯を建てる・動かすときは、置いたときの景色・風・うるささを先に調べて、マスの色と印で見せる
+  const bathMode = md.op === 'move' ? isBath(itemById(s, md.id)) : !!FACILITIES[md.type]?.bath;
+  if (bathMode) ui.cellInfo = new Map();
   for (let y = 0; y < s.H; y++) {
     for (let x = 0; x < s.W; x++) {
       const e = modeEdit(x, y);
-      if (e && checkEdit(s, e, { building: canBuild() }).ok) ui.highlights.set(`${x},${y}`, 'rgba(195,217,106,.55)');
+      if (!e || !checkEdit(s, e, { building: canBuild() }).ok) continue;
+      if (!bathMode) { ui.highlights.set(`${x},${y}`, 'rgba(195,217,106,.55)'); continue; }
+      const pv = preview(s, e, { building: canBuild() });
+      const it = pv.ok && pv.state.items.find((i) => (e.op === 'move' ? i.id === e.id : i.x === x && i.y === y));
+      const mm = it && pv.metrics[it.id];
+      if (!mm) { ui.highlights.set(`${x},${y}`, 'rgba(195,217,106,.55)'); continue; }
+      const noise = Math.max(0, mm.noise - (mm.fenced ? 1 : 0));
+      ui.cellInfo.set(`${x},${y}`, { view: mm.view, exposed: mm.exposed, noise });
+      ui.highlights.set(`${x},${y}`, mm.view >= 1 ? 'rgba(140,200,100,.55)' : mm.view > 0 ? 'rgba(240,205,110,.5)' : 'rgba(175,160,165,.45)');
     }
   }
   refreshAll();
@@ -408,11 +419,11 @@ function confirmPending() {
   const r = applyEdit(s, pending, { building: canBuild() });
   if (!r.ok) { panelMsg = r.reason; sfx.error(); }
   else { sfx.paper(); const it = pending.op === 'move' ? itemById(s, pending.id) : itemAt(s, pending.x, pending.y); ui.sel = it?.id || 0; ui.cursor = it ? [it.x, it.y] : null; }
-  pending = null; ui.mode = null; ui.ghost = null; ui.highlights = null;
+  pending = null; ui.mode = null; ui.cellInfo = null; ui.ghost = null; ui.highlights = null;
   updateGuide();
   refreshAll();
 }
-function cancelMode() { ui.mode = null; pending = null; ui.ghost = null; ui.highlights = null; panelMsg = ''; if (s) refreshAll(); }
+function cancelMode() { ui.mode = null; ui.cellInfo = null; pending = null; ui.ghost = null; ui.highlights = null; panelMsg = ''; if (s) refreshAll(); }
 
 function doEdit(e) {
   const before = e.op === 'valve' ? itemById(s, e.id)?.q ?? 0 : 0;
@@ -603,7 +614,7 @@ function renderPanel() {
   }
   if (ui.mode) {
     const what = ui.mode.op === 'move' ? `${labelOf(itemById(s, ui.mode.id))}の移動先` : `${FACILITIES[ui.mode.type].name}を置く場所`;
-    let body = `<h3>${what}を選ぶ</h3><p class="muted">緑のマスに置ける。置く前に、温度・景色・風の変化を見られる。</p>`;
+    let body = `<h3>${what}を選ぶ</h3>${ui.cellInfo ? '<p class="marks-legend"><span class="mk g">山</span>景色が見える（灰色のマス＝見えない）<span class="mk b">┄</span>青い点線＝風で冷える<span class="mk o">♪</span>うるさい</p>' : '<p class="muted">緑のマスに置ける。</p>'}`;
     if (pending) {
       const it = ui.ghost;
       if (isBath(it)) {

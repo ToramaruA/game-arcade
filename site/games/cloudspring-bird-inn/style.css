@@ -275,3 +275,7 @@ body.og #board { width: 100vw; height: 100vh !important; border-radius: 0; box-s
 .panel .legend .lg { display: inline-block; width: 14px; height: 10px; border: 2px solid; border-radius: 3px; vertical-align: -1px; margin-right: 3px; }
 .panel .legend .lg.g { border-color: #6fa83a; } .panel .legend .lg.p { border-color: #e08a9a; margin-left: 4px; }
 .valve .temp small.chill { color: #3b6fb0; font-weight: 700; }
+.panel .marks-legend { font-size: 13px; color: var(--ink-soft); margin: 2px 0 6px; line-height: 1.9; }
+.panel .marks-legend .mk { display: inline-block; min-width: 20px; padding: 0 5px; margin: 0 3px 0 8px; border-radius: 999px; border: 1.5px solid; background: #fff; font-size: 11px; font-weight: 800; text-align: center; }
+.panel .marks-legend .mk:first-child { margin-left: 0; }
+.panel .marks-legend .mk.g { color: #5f9e3a; } .panel .marks-legend .mk.b { color: #3b7fb0; } .panel .marks-legend .mk.o { color: #e0892e; }

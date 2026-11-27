@@ -336,6 +336,36 @@ function drawSource(ctx, L, it, time, calm) {
   }
 }
 
+// 性質の印：景色（山）・風（青い波）・うるさい（橙の音符）。文字を読まなくても分かるように
+export function drawMtn(ctx, x, y, r, view) {
+  const col = view >= 1 ? '#5f9e3a' : view > 0 ? '#d9a32c' : '#a99a9c';
+  ctx.save();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = col; ctx.beginPath();
+  ctx.moveTo(x - r * 0.7, y + r * 0.45); ctx.lineTo(x - r * 0.2, y - r * 0.45); ctx.lineTo(x + r * 0.05, y - r * 0.05);
+  ctx.lineTo(x + r * 0.3, y - r * 0.35); ctx.lineTo(x + r * 0.72, y + r * 0.45); ctx.closePath(); ctx.fill();
+  if (view <= 0) { ctx.strokeStyle = '#c0485a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - r * 0.75, y + r * 0.75); ctx.lineTo(x + r * 0.75, y - r * 0.75); ctx.stroke(); }
+  ctx.restore();
+}
+export function drawWindMark(ctx, x, y, r) {
+  ctx.save();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#3b7fb0'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.lineWidth = 1.8; ctx.lineCap = 'round';
+  for (const k of [-0.3, 0.25]) { ctx.beginPath(); ctx.moveTo(x - r * 0.6, y + k * r); ctx.quadraticCurveTo(x, y + k * r - r * 0.35, x + r * 0.6, y + k * r); ctx.stroke(); }
+  ctx.restore();
+}
+export function drawNoiseMark(ctx, x, y, r) {
+  ctx.save();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#e0892e'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#e0892e'; ctx.strokeStyle = '#e0892e'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.ellipse(x - r * 0.22, y + r * 0.35, r * 0.22, r * 0.16, -0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x - r * 0.02, y + r * 0.35); ctx.lineTo(x - r * 0.02, y - r * 0.5); ctx.lineTo(x + r * 0.4, y - r * 0.3); ctx.stroke();
+  ctx.restore();
+}
+
 function drawBath(ctx, L, it, m, time, sel) {
   const [cx, cy] = toScreen(L, it.x, it.y);
   const F = FACILITIES[it.type];
@@ -470,6 +500,19 @@ export function draw(ctx, L, s, ui) {
   drawEntrance(ctx, L);
   { const [lx, ly] = toScreen(L, -0.75, s.H - 1); drawTree(ctx, lx, ly, L.TW * 0.32, season, time); const [rx, ry] = toScreen(L, s.W - 0.1, s.H + 0.2); drawTree(ctx, rx, ry, L.TW * 0.28, season, time); }
   drawPipes(ctx, L, s, network(s), time);
+  if (ui.cellInfo) { // 湯を建てる・動かすとき：置いたらどうなるかを、置けるマスごとに印で見せる
+    const r = Math.max(6, L.TW * 0.11);
+    for (const [k, inf] of ui.cellInfo) {
+      const [x, y] = k.split(',').map(Number); const [cx, cy] = toScreen(L, x, y);
+      // 景色はマスの塗り（緑・黄・灰）と山の印、風は青い点線の縁、うるさいときだけ音符（1マスに印は2つまで）
+      if (inf.exposed) { ctx.save(); ctx.strokeStyle = '#3b7fb0'; ctx.lineWidth = 2.5; ctx.setLineDash([4, 3]); diamond(ctx, cx, cy, L.TW / 2 - 4, L.TH / 2 - 2.5); ctx.stroke(); ctx.restore(); }
+      const marks = [];
+      if (inf.view > 0) marks.push((xx) => drawMtn(ctx, xx, cy, r, inf.view));
+      if (inf.noise > 0) marks.push((xx) => drawNoiseMark(ctx, xx, cy, r));
+      let xx = cx - ((marks.length - 1) * (r * 2 + 2)) / 2;
+      for (const f of marks) { f(xx); xx += r * 2 + 2; }
+    }
+  }
   if (ui.cursor) { const [cx, cy] = toScreen(L, ui.cursor[0], ui.cursor[1]); ctx.strokeStyle = '#6fa83a'; ctx.lineWidth = 2.5; ctx.setLineDash([5, 4]); diamond(ctx, cx, cy, L.TW / 2 - 3, L.TH / 2 - 2); ctx.stroke(); ctx.setLineDash([]); }
 
   // 奥から順に：設備と鳥
@@ -539,10 +582,15 @@ export function draw(ctx, L, s, ui) {
     const chips = [[short ? `${short} ${mm.on ? `${mm.T}°` : '湯なし'}` : (mm.on ? `${mm.T}°` : '湯なし'), mm.on ? (mm.T >= 40 ? '#e07a6b' : mm.T >= 30 ? '#e8a25c' : '#6fb2c4') : '#b9a9a0', fs]];
     if (mm.exposed) chips.push([`風で−${TUNE.windChill}°`, mm.on ? '#4f93b0' : 'rgba(79,147,176,.55)', fs - 2]);
     else if (s.strong && mm.shield) chips.push(['風よけ○', '#7aa83f', fs - 3]);
-    if (mm.view < 1) chips.push([mm.steamBy ? '湯気' : mm.view > 0 ? '景△' : '景×', '#b39aa0', fs - 3]);
+    if (mm.steamBy) chips.push(['湯気', '#b39aa0', fs - 3]);
+    const ir = fs * 0.62; // 印（景色の山・うるさい音符）は札の右に並べる
+    const icons = [(xx) => drawMtn(ctx, xx, ty, ir, mm.view)];
+    if (mm.noise > (mm.fenced ? 1 : 0)) icons.push((xx) => drawNoiseMark(ctx, xx, ty, ir));
     ctx.save(); const ws = chips.map(([t, , f]) => { ctx.font = `800 ${f}px system-ui, sans-serif`; return ctx.measureText(t).width + 12; }); ctx.restore();
-    let x0 = cx - (ws.reduce((a, w) => a + w, 0) + (ws.length - 1) * 2) / 2;
+    const iw = icons.length * (ir * 2 + 2);
+    let x0 = cx - (ws.reduce((a, w) => a + w, 0) + (ws.length - 1) * 2 + iw) / 2;
     chips.forEach(([t, c, f], i) => { tag(ctx, x0 + ws[i] / 2, ty, t, c, '#fff', f); x0 += ws[i] + 2; });
+    icons.forEach((f) => { f(x0 + ir); x0 += ir * 2 + 2; });
     // 冷えている湯には、青い風の渦
     if (mm.exposed && !ui.calm) {
       const k = (time * 1.2) % 1;
