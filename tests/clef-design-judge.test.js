@@ -19,7 +19,7 @@ function answerSet(score=3.2,yes=0.85) {
 }
 test('design JSON schema is validated, with revision required for re-review',()=>{
   assert.deepEqual(parseDesignRequest(JSON.stringify(request)),request);
-  assert.equal(Object.keys(buildDesignPayload(request).questions).length,6);
+  assert.equal(Object.keys(buildDesignPayload(request).questions).length,7);
   assert.equal(buildDesignPayload(request).questions.ready_to_build.type,'noul');
   assert.throws(()=>parseDesignRequest(JSON.stringify({...request,revision:0})),/revision/);
   assert.throws(()=>parseDesignRequest(JSON.stringify({...request,design:{...design,core_decisions:''}})),/core_decisions/);
@@ -52,4 +52,16 @@ test('malformed or missing Clef answers never pass',()=>{
   badNoul.result.answers.ready_to_build.noul=NaN;
   assert.throws(()=>interpretDesignResponse(request,badNoul),/readiness probability invalid/);
   assert.throws(()=>interpretDesignResponse(request,{success:false,result:{}}),/missing answers/);
+});
+
+test('design must retain appeal even when all other criteria pass',()=>{
+  const response=answerSet();
+  response.result.answers.appeal.score=2.49;
+  const result=interpretDesignResponse(request,response);
+  assert.equal(result.status,'revise');
+  assert.deepEqual(result.weak_areas,['appeal']);
+  response.result.answers.appeal.score=2.5;
+  assert.equal(interpretDesignResponse(request,response).status,'ok');
+  delete response.result.answers.appeal;
+  assert.throws(()=>interpretDesignResponse(request,response),/score invalid/);
 });
