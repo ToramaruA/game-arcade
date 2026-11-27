@@ -1,7 +1,8 @@
 // Publish newly added games to the single X channel connected to Buffer.
 // This file has no side effects when imported by unit tests.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SITE_URL } from './config.js';
 
@@ -19,15 +20,43 @@ export function newlyPublishedGames(previous, current) {
 
 // Conservative approximation of X's weighted character count: Japanese/emoji = 2,
 // most ASCII = 1; links are treated as 23 characters.
-export function makeAnnouncement(game, siteUrl = SITE_URL) {
+const weight = (text) => [...text].reduce((sum, ch) => sum + (ch.codePointAt(0) > 0x7f ? 2 : 1), 0);
+const MAX_PROMO_IMAGE = 5 * 1024 * 1024;
+const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+export function validatePromoText(value) {
+  const text = String(value ?? '').trim();
+  if (!text || weight(text) > 220 || /https?:\/\/|www\./i.test(text)) {
+    throw new Error('Promo text must be nonempty, at most 220 weighted characters and contain no URL');
+  }
+  return text;
+}
+
+// An illustration and its copy are a pair. Older games may have neither.
+export function readPromo(slug, gamesDir = 'site/games') {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) throw new Error('Invalid game slug');
+  const folder = path.join(gamesDir, slug, 'promo');
+  const imagePath = path.join(folder, 'x-main.png');
+  const textPath = path.join(folder, 'x-post.txt');
+  if (!existsSync(imagePath) && !existsSync(textPath)) return null;
+  if (!existsSync(imagePath) || !existsSync(textPath)) throw new Error('Incomplete promo pair');
+  const image = readFileSync(imagePath);
+  if (image.length > MAX_PROMO_IMAGE || image.length < 24 ||
+      !image.subarray(0, 8).equals(PNG_SIGNATURE) || image.toString('ascii', 12, 16) !== 'IHDR' ||
+      image.readUInt32BE(16) === 0 || image.readUInt32BE(20) === 0) {
+    throw new Error('Promo image must be a PNG no larger than 5 MiB');
+  }
+  return { text: validatePromoText(readFileSync(textPath, 'utf8')) };
+}
+
+export function makeAnnouncement(game, siteUrl = SITE_URL, promo = null) {
   const url = siteUrl.replace(/\/$/, '') + '/games/' + game.slug + '/';
+  if (promo) return { url, imageUrl: url + 'promo/x-main.png', text: validatePromoText(promo.text) + '\n\n' + url };
   const title = String(game.title || '').trim();
   const description = String(game.description || '').trim();
   if (!title || !description) throw new Error('Missing game title or description: ' + game.slug);
   const before = '🎮 新作ゲーム公開！\n\n' + title + '\n\n';
   const after = '\n\n▶ 今すぐ遊ぶ\n' + url;
-  const weight = (text) => [...text].reduce((sum, ch) =>
-    sum + (ch.codePointAt(0) > 0x7f ? 2 : 1), 0);
   // Reserve space for the URL (23) and leave margin for network count rules.
   const available = 245 - weight(before) - weight('\n\n▶ 今すぐ遊ぶ\n') - 23;
   if (available <= 0) throw new Error('Game title is too long for X: ' + game.slug);
@@ -38,6 +67,13 @@ export function makeAnnouncement(game, siteUrl = SITE_URL) {
   }
   if (shortened.length < description.length) shortened += '…';
   return { url, imageUrl: url + 'og.png', text: before + shortened + after };
+}
+
+export function announcementFor(game, siteUrl = SITE_URL, gamesDir = 'site/games') {
+  let promo = null;
+  try { promo = readPromo(game.slug, gamesDir); }
+  catch (error) { console.warn('Invalid promo for ' + game.slug + '; using legacy announcement: ' + error.message); }
+  return makeAnnouncement(game, siteUrl, promo);
 }
 
 export function alreadyAnnounced(posts, gameUrl) {
@@ -124,7 +160,7 @@ async function waitForDeployment(game, announcement) {
     if (await isDeployed(game, announcement)) return;
     if (attempt < 23) await new Promise((resolve) => setTimeout(resolve, 10000));
   }
-  throw new Error('Cloudflare site/og.png not ready; no X post created for ' + game.slug);
+  throw new Error('Cloudflare game page or selected image not ready; no X post created for ' + game.slug);
 }
 
 async function publish(token, channel, announcement) {
@@ -155,7 +191,7 @@ export async function main() {
     const games = JSON.parse(readFileSync(GAMES_FILE, 'utf8'));
     const game = games.find((entry) => entry.slug === slug && entry.listed === true);
     if (!game) throw new Error('Unknown public game slug: ' + slug);
-    console.log('DRY RUN ONLY: ' + JSON.stringify(makeAnnouncement(game), null, 2));
+    console.log('DRY RUN ONLY: ' + JSON.stringify(announcementFor(game), null, 2));
     return;
   }
   if (process.env.GITHUB_EVENT_NAME !== 'push' || process.env.GITHUB_REF !== 'refs/heads/main') {
@@ -178,7 +214,7 @@ export async function main() {
   if (!token) throw new Error('BUFFER_API_KEY secret is missing.');
   const channel = await findXChannel(token);
   for (const game of added) {
-    const announcement = makeAnnouncement(game);
+    const announcement = announcementFor(game);
     await waitForDeployment(game, announcement);
     if (await findExistingPost(token, channel, announcement.url)) {
       console.log('Already posted; skipping: ' + game.slug);

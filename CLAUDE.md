@@ -61,6 +61,15 @@ AIが企画したゲームを Claude Code が作り、人が遊んで承認（Me
      - 素材が足りない・合わないときは、プログラムで描いて補い、PR に書く。
    - **見た目は Issue の「見た目・雰囲気」（直近の作品と偏らないように選んだ時間帯・色・画風）に従う**。`docs/taste.md` の「これまでの作品の見た目」の表に、この作品の行を足す（この変更は PR に含めてよい）。同じく、`docs/next-game-workflow.md` の「これまでの作品の種類」の表と、`docs/taste.md` の「Clef の点数と結果の記録」の表にも、Issue の「選定の記録」から1行ずつ足す。
    - `npm run og -- <slug>` で共有画像 `og.png` を作る。ゲーム画面が映えるように `?og=1` のときの見せ方を用意してよい。
+   - **公式Xの告知素材**：本制作でIssueの「公式Xの告知素材」を確認。既存の `art/<slug>` ブランチから `art/<slug>/promo/x-main.png` と `x-post.txt` を `site/games/<slug>/promo/` にコピーする（ゲーム素材の変換対象には含めない）。取得例（slugは実際の値に置き換える）：
+     ```sh
+     git fetch origin "refs/heads/art/$slug:refs/remotes/origin/art/$slug"
+     mkdir -p "site/games/$slug/promo"
+     git show "origin/art/$slug:art/$slug/promo/x-main.png" > "site/games/$slug/promo/x-main.png"
+     git show "origin/art/$slug:art/$slug/promo/x-post.txt" > "site/games/$slug/promo/x-post.txt"
+     ```
+     - 画像を開き、完成品と本文が同じ魅力を伝えているか確認。本文の事実と異なる箇所だけ直す（URLなし、全角換算110字以内）。PNGは5 MiB以下。取得失敗・実際と異なる画像などの場合は両方を入れず、理由をPRに記録する（従来のOG画像と定型文に戻る）。空ファイルや片方だけをコミットしない。
+     - PRの最終確認に画像・本文と確認結果（またはフォールバック理由）を載せる。`npm test` で素材の形式を検証する。制作・試作中に投稿せず、従来どおりマージ後の公開処理に任せる。
 4. 見た目の自己チェック：`npm run screenshot -- <slug>` で `test-results/<slug>/pc.png` と `phone.png` を撮り、画像を開いて自分の目で見る。
    - 「このスクショ1枚で、知らない人がやってみたくなるか」を `docs/taste.md` の基準で判定する。
    - 淡い単色背景に図形とボタンだけ、のような地味な画面なら、主役の絵・背景の描き込み・パネルや計器などの情報・光や動きの演出を足して作り直す（最大2回）。
