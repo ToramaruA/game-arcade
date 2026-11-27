@@ -7,6 +7,13 @@ export const DESIGN_FIELDS = [
   'failure_and_retry','replay_motivation','technical_scope','critical_review','fun_explanation'
 ];
 export const DESIGN_RUBRICS = {
+  appeal: [
+    '0: The original reason to try the game is absent or contradicted',
+    '1: The promised experience exists only in title, decoration or sales language',
+    '2: Some concrete payoff, but it is generic, delayed or weakly linked to player action',
+    '3: The original appeal is delivered through explicit actions and visible consequences early in play',
+    '4: The distinctive appeal drives coherent interactions, memorable scenes and varied concrete outcomes',
+  ],
   depth: [
     '0: Little or no player agency; mostly watching or clicking through',
     '1: Repeated trivial choices with one obvious answer',
@@ -43,7 +50,7 @@ export const DESIGN_RUBRICS = {
     '4: Complete, internally consistent playable design with feasible scope',
   ],
 };
-const THRESHOLDS = {depth:2.5,longevity:2.5,clarity:2,progression:2,coherence:2.5};
+const THRESHOLDS = {appeal:2.5,depth:2.5,longevity:2.5,clarity:2,progression:2,coherence:2.5};
 export const READY_THRESHOLD = 0.7;
 
 export function parseDesignRequest(body) {
@@ -83,7 +90,7 @@ export function buildDesignPayload(req) {
   }
   questions.ready_to_build={
     type:'noul',
-    instructions:'Based on the actual game design, is it ready to implement as an engaging, understandable browser game with meaningful decisions and enough content for 10 to 30 minutes? Answer YES only if the core interaction, first 30 seconds, levels, progression, failure/retry and UI are concretely specified and mutually consistent. Ignore attractive promises.',
+    instructions:'Based on the actual game design, is it ready to implement as an engaging, understandable browser game with meaningful decisions and enough content for 10 to 30 minutes? Answer YES only if the core interaction, first 30 seconds, levels, progression, failure/retry and UI are concretely specified and mutually consistent. Also require the original reason to try, recorded in fun_explanation, to be delivered by concrete early interactions and readable scenes. Do not infer missing promises or payoffs. Ignore attractive promises unsupported by mechanics.',
   };
   return {
     model:'clef',
@@ -116,6 +123,7 @@ export function interpretDesignResponse(req,apiResponse) {
   const overall=Number((Object.values(scores).reduce((a,b)=>a+b,0)/Object.keys(scores).length).toFixed(3));
   return {
     schema_version:1,phase:'design',revision:req.revision,
+    rubric_version:'appeal-v1',
     status:passed?'ok':'revise',ready_to_build_probability:readiness,minimum_ready_probability:READY_THRESHOLD,
     scores,score_average:overall,minimum_scores:THRESHOLDS,weak_areas:weak,
     note:passed?'Passes provisional design-review thresholds; this is not a substitute for playtesting.':
