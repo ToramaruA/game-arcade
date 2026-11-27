@@ -21,7 +21,7 @@ export function checkPlayer(mod) {
   if (!Array.isArray(mod.stages) || !mod.stages.length) errs.push('stages（面の一覧）がない');
   if (!Array.isArray(mod.strategies) || !mod.strategies.length) errs.push('strategies（戦法の一覧）がない');
   if (typeof mod.play !== 'function') errs.push('play(stage, strategy, seed) がない');
-  for (const k of ['noop', 'naive', 'core']) {
+  for (const k of ['naive', 'core']) {
     if (!(mod.strategies || []).some((s) => s.kind === k)) errs.push(`kind: '${k}' の戦法がない`);
   }
   for (const s of mod.strategies || []) if (!['noop', 'naive', 'core'].includes(s.kind)) errs.push(`戦法 ${s.id} の kind が noop/naive/core のどれでもない`);
@@ -45,8 +45,10 @@ export function judge(mod, t) {
   const out = [];
   const max = t.stages.length * t.runs;
   const idx = (k) => mod.strategies.map((s, j) => (s.kind === k ? j : -1)).filter((j) => j >= 0);
-  const noopWins = t.rows.filter((r) => idx('noop').some((j) => r.wins[j] > 0)).map((r) => r.stage.name);
-  out.push(noopWins.length ? `NG 何もしないで勝てる面がある：${noopWins.join('、')}` : 'OK 何もしないで勝てる面はない');
+  if (idx('noop').length) {
+    const noopWins = t.rows.filter((r) => idx('noop').some((j) => r.wins[j] > 0)).map((r) => r.stage.name);
+    out.push(noopWins.length ? `NG 何もしないで勝てる面がある：${noopWins.join('、')}` : 'OK 何もしないで勝てる面はない');
+  }
   for (const j of idx('naive')) {
     const rate = t.totals[j] / max;
     out.push(rate >= 0.75 ? `NG 「${mod.strategies[j].name}」だけで ${Math.round(rate * 100)}% 勝てる（考える意味が薄い）` : `OK 「${mod.strategies[j].name}」だけでは ${Math.round(rate * 100)}%`);
