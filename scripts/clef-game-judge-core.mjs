@@ -35,6 +35,13 @@ export function parseRequest(body) {
 }
 
 export const RUBRICS = {
+  appeal: [
+    '0: No understandable experience a newcomer would want to try',
+    '1: Generic premise or attractive promises unsupported by interaction',
+    '2: Understandable reason to try, but the concrete payoff is weak',
+    '3: Distinct reason to try supported by a specific player action and visible payoff',
+    '4: Compelling immediately understandable experience with distinctive, concrete outcomes',
+  ],
   gameplay: [
     '0: Almost passive or no meaningful input',
     '1: One trivial repeated action; no consequential decisions',
@@ -73,8 +80,8 @@ export function buildPayload(request) {
   const questions = {
     preferred: {
       type:'choice',
-      instructions: 'Which candidate is most likely to make a genuinely fun browser game for first-time players who continue for 10 to 30 minutes? Prefer sustained meaningful action and clear rules over flashy one-off ideas. Compare the entire state fairly.',
-      criteria: Object.fromEntries(request.candidates.map(c=>[c.id,c.title+': '+c.genre+'; '+c.core_loop+'; replay: '+c.replay])),
+      instructions: 'Which candidate is most likely to make a genuinely fun browser game for first-time players who continue for 10 to 30 minutes? Require both a concrete reason to want to start playing and sustained meaningful play. Judge the appeal of the player experience and readable visual scene alongside depth; neither content quantity nor a catchy title compensates for weak interaction. Compare the entire state fairly.',
+      criteria: Object.fromEntries(request.candidates.map(c=>[c.id,c.title+': '+c.genre+'; '+c.core_loop+'; highlight: '+c.highlight+'; visual: '+c.visual+'; replay: '+c.replay])),
     },
   };
   for (const c of request.candidates) {
@@ -111,7 +118,7 @@ export function interpretResponse(request, apiResponse) {
       scores[key] = Number(a.score.toFixed(3));
     }
     const weighted = Number((scores.gameplay*.45 + scores.replay*.25 + scores.visual*.15 + scores.share*.15).toFixed(3));
-    const eligible = scores.gameplay>=2.5 && scores.replay>=2;
+    const eligible = scores.gameplay>=2.5 && scores.replay>=2 && scores.appeal>=2.5 && scores.visual>=2;
     return {id:c.id,title:c.title,scores,weighted,eligible};
   }).sort((a,b)=>b.weighted-a.weighted);
   const candidate = ranking.find(c=>c.id===choice.choice);
@@ -119,14 +126,16 @@ export function interpretResponse(request, apiResponse) {
   const winner = candidate.eligible ? candidate.id : (backup?.id??null);
   return {
     schema_version:1,
+    rubric_version:'appeal-v1',
+    minimum_scores:{gameplay:2.5,replay:2,appeal:2.5,visual:2},
     status:winner ? 'ok' : 'revise',
     selected:winner,
     clef_preferred:choice.choice,
     choice_probabilities:probabilities,
     ranking,
-    note:winner===choice.choice ? 'Clef preferred option passes the minimum gameplay/replay check.' :
-      winner ? 'Clef preferred option failed the minimum gameplay/replay check; highest eligible weighted option shown for review.' :
-      'No candidate passed the minimum gameplay/replay check. Revise candidates before creating a [GAME] issue.',
+    note:winner===choice.choice ? 'Clef preferred option passes the minimum gameplay/replay/appeal/visual check.' :
+      winner ? 'Clef preferred option failed the minimum gameplay/replay/appeal/visual check; highest eligible weighted option shown for review.' :
+      'No candidate passed the minimum gameplay/replay/appeal/visual check. Revise candidates before creating a [GAME] issue.',
   };
 }
 
@@ -141,11 +150,11 @@ export function resultComment(result) {
     fence+'json',JSON.stringify(result,null,2),fence,
   ];
   if (Array.isArray(result.ranking)) {
-    lines.push('','| Candidate | Gameplay | Replay | Visual | Share | Weighted | Pass |',
-      '|---|---:|---:|---:|---:|---:|---|');
+    lines.push('','| Candidate | Appeal | Gameplay | Replay | Visual | Share | Weighted | Pass |',
+      '|---|---:|---:|---:|---:|---:|---:|---|');
     for (const c of result.ranking) {
       const safe = String(c.title).replace(/[|\x60\r\n]/g,' ').slice(0,80);
-      lines.push('| '+c.id+': '+safe+' | '+c.scores.gameplay+' | '+c.scores.replay+' | '+c.scores.visual+' | '+c.scores.share+' | '+c.weighted+' | '+(c.eligible?'yes':'no')+' |');
+      lines.push('| '+c.id+': '+safe+' | '+c.scores.appeal+' | '+c.scores.gameplay+' | '+c.scores.replay+' | '+c.scores.visual+' | '+c.scores.share+' | '+c.weighted+' | '+(c.eligible?'yes':'no')+' |');
     }
   }
   lines.push('','The final game concept must still undergo detailed design and critique. Never treat probability as proof that a game is fun.');
