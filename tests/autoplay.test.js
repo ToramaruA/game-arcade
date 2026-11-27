@@ -12,10 +12,11 @@ const BEFORE_AUTOPLAY = ['abyssal-signal', 'wind-garden', 'moonlight-heist', 'ga
 for (const slug of gameDirs()) {
   const file = path.join(ROOT, 'tests', 'autoplay', `${slug}.mjs`);
   if (BEFORE_AUTOPLAY.includes(slug) && !fs.existsSync(file)) continue;
-  test(`${slug}: 自動プレイヤーがあり、何もしないでは勝てない`, async () => {
+  test(`${slug}: 自動プレイヤーの形式が正しく、指定された放置検証を満たす`, async () => {
     assert.ok(fs.existsSync(file), `tests/autoplay/${slug}.mjs がない（tests/autoplay/README.md の形で作る）`);
     const mod = await loadPlayer(file);
     assert.deepEqual(checkPlayer(mod), [], '自動プレイヤーの形');
+    // 放置で勝てないことが仕様上必要な作品だけ、この戦法を明示的に登録する。
     for (const sg of mod.strategies.filter((s) => s.kind === 'noop')) {
       for (const st of mod.stages) {
         const r = mod.play(st, sg, 1);
