@@ -9,7 +9,7 @@ const candidates = ['A','B'].map((id,i)=>({
 const request = {schema_version:1, context:'Prefer meaningful interactive play over passive spectacle',candidates};
 test('request schema validation and bounded questions',()=>{
   assert.deepEqual(parseRequest(JSON.stringify(request)),request);
-  assert.equal(Object.keys(buildPayload(request).questions).length,9);
+  assert.equal(Object.keys(buildPayload(request).questions).length,11);
   assert.throws(()=>parseRequest(JSON.stringify({...request,candidates:[{...candidates[0],id:'Q'},candidates[1]]})),/IDs/);
   assert.throws(()=>parseRequest('not json'),/JSON/);
   assert.throws(()=>parseRequest(JSON.stringify({...request,candidates:[candidates[0]]})),/2 to 6/);
@@ -17,7 +17,7 @@ test('request schema validation and bounded questions',()=>{
 test('Clef responses are parsed and checked, with no fictitious explanation',()=>{
   const answers = {preferred:{type:'choice',choice:'A',probabilities:{A:0.8,B:0.2}}};
   for(const [id,val] of [['A',3.5],['B',1.5]]) {
-    for(const metric of ['gameplay','replay','visual','share']) answers[id+'_'+metric]={type:'score',score:val};
+    for(const metric of ['appeal','gameplay','replay','visual','share']) answers[id+'_'+metric]={type:'score',score:val};
   }
   const result=interpretResponse(request,{success:true,result:{answers}});
   assert.equal(result.selected,'A');
@@ -37,4 +37,19 @@ test('deferred idea review is visibly labeled DEFERRED, not OK',()=>{
  const body=resultComment({schema_version:1,status:'deferred',reason:'Cloudflare Workers AI daily free allocation exhausted (error code 3036).',retry_after:'2026-11-14T00:00:00.000Z'});
  assert.match(body,/## Clef review: DEFERRED/);
  assert.doesNotMatch(body,/## Clef review: OK/);
+});
+
+test('weak appeal or visuals cannot win on strong depth; all weak candidates trigger revision',()=>{
+  const answers={preferred:{type:'choice',choice:'A',probabilities:{A:0.9,B:0.1}}};
+  for (const id of ['A','B']) for (const metric of ['appeal','gameplay','replay','visual','share'])
+    answers[id+'_'+metric]={type:'score',score:3.5};
+  answers.A_appeal.score=2.49;
+  assert.equal(interpretResponse(request,{answers}).selected,'B');
+  answers.B_visual.score=1.99;
+  assert.equal(interpretResponse(request,{answers}).status,'revise');
+  answers.A_appeal.score=2.5;
+  answers.A_visual.score=2;
+  assert.equal(interpretResponse(request,{answers}).selected,'A');
+  delete answers.A_appeal;
+  assert.throws(()=>interpretResponse(request,{answers}),/score invalid/);
 });
