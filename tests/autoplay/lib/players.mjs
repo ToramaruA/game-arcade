@@ -86,7 +86,7 @@ export function fromGame(game) {
   for (const [id, n] of Object.entries(game.naive || {})) strategies.push({ id: `naive-${id}`, name: `${n.name}（よく考える）`, kind: 'naive', player: { type: 'mcts', iterations: L.expert, allow: n.allow } });
   strategies.push({ id: 'beginner', name: '初心者（核を使う）', kind: 'core', level: 'beginner', player: { type: 'mcts', iterations: L.beginner } });
   strategies.push({ id: 'expert', name: '上級者（核を使う）', kind: 'core', level: 'expert', player: { type: 'mcts', iterations: L.expert } });
-  return { stages: game.stages, strategies, play: (stage, sg, seed) => playGame(game, stage, sg.player, seed) };
+  return { stages: game.stages, strategies, standard: true, play: (stage, sg, seed) => playGame(game, stage, sg.player, seed) };
 }
 
 // 乱数のないパズル向け：全部の手を幅優先で調べ、勝つまでの最短手数を返す（解けなければ null）。
@@ -113,4 +113,72 @@ export function exactSolve(game, stage, { allow = null, limit = 2_000_000 } = {}
     frontier = next; depth += 1;
   }
   return { steps: null, explored: count };
+}
+
+// 乱数のないパズル向け：たどり着ける局面を全部調べて、つながりの図（グラフ）を作る。
+// 返り値の dist[i] は「局面 i から勝ちまでの最短手数」（勝てなければ Infinity）。
+export function exploreGraph(game, stage, { allow = null, limit = 2_000_000 } = {}) {
+  const s0 = game.start(stage, 1);
+  const idle = JSON.stringify(game.idle(s0));
+  const index = new Map([[game.key(s0), 0]]);
+  const states = [s0]; const depth = [0]; const edges = [[]]; const term = [game.result(s0)];
+  for (let i = 0; i < states.length; i++) {
+    const s = states[i]; states[i] = null;
+    if (term[i]) continue;
+    for (const a of legal(game, s, allow)) {
+      if (JSON.stringify(a) === idle) continue;
+      const t = clone(game, s); game.apply(t, a);
+      const k = game.key(t);
+      let j = index.get(k);
+      if (j === undefined) {
+        if (depth.length >= limit) return { truncated: true, count: depth.length };
+        j = depth.length; index.set(k, j); states.push(t); depth.push(depth[i] + 1); edges.push([]); term.push(game.result(t));
+      }
+      if (j !== i) edges[i].push(j);
+    }
+  }
+  const n = depth.length;
+  const rev = Array.from({ length: n }, () => []);
+  edges.forEach((es, i) => es.forEach((j) => rev[j].push(i)));
+  const dist = new Array(n).fill(Infinity);
+  let q = [];
+  for (let i = 0; i < n; i++) if (term[i] === 'win') { dist[i] = 0; q.push(i); }
+  while (q.length) {
+    const nq = [];
+    for (const j of q) for (const i of rev[j]) if (dist[i] === Infinity && !term[i]) { dist[i] = dist[j] + 1; nq.push(i); }
+    q = nq;
+  }
+  return { truncated: false, count: n, depth, edges, term, dist };
+}
+
+// パズルの難しさの目安（最短手数は「長さ」で「難しさ」ではないので、別に出す）。
+//   deadRate   … 最短手数以内でたどり着く局面のうち、もう解けない（詰んだ）局面の割合。高いほど一手のミスが重い
+//   randomRate … でたらめに動いて、最短手数の3倍以内に解ける割合。高いほど考えなくても解ける
+//   traps      … 最短の道の上で「その一手で詰む手」がある場面の数。多いほど、先を読む必要がある
+export function puzzleStats(game, stage, { walks = 300, seed = 1, limit } = {}) {
+  const g = exploreGraph(game, stage, { limit });
+  if (g.truncated) return { truncated: true, states: g.count };
+  const opt = g.dist[0];
+  if (opt === Infinity) return { truncated: false, states: g.count, steps: null };
+  let near = 0; let dead = 0;
+  for (let i = 0; i < g.count; i++) {
+    if (g.term[i] || g.depth[i] > opt) continue;
+    near += 1; if (g.dist[i] === Infinity) dead += 1;
+  }
+  const R = rng(seed * 104729 + 3);
+  let solved = 0;
+  for (let w = 0; w < walks; w++) {
+    let i = 0;
+    for (let k = 0; k < opt * 3 && g.term[i] !== 'win'; k++) {
+      const es = g.edges[i]; if (!es.length) break;
+      i = es[Math.floor(R() * es.length)];
+    }
+    if (g.term[i] === 'win') solved += 1;
+  }
+  let traps = 0; let i = 0;
+  while (g.dist[i] > 0) {
+    if (g.edges[i].some((j) => g.dist[j] === Infinity && g.term[j] !== 'win')) traps += 1;
+    i = g.edges[i].find((j) => g.dist[j] === g.dist[i] - 1);
+  }
+  return { truncated: false, states: g.count, steps: opt, deadRate: near ? dead / near : 0, randomRate: solved / walks, traps };
 }
