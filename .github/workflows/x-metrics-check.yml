@@ -1,0 +1,28 @@
+# Read-only report of X posts sent via Buffer and their metrics (manual run only).
+# Never creates, deletes, schedules or edits posts. No schedule trigger.
+name: X post metrics via Buffer (read-only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: x-metrics-check
+  cancel-in-progress: false
+
+jobs:
+  report:
+    if: github.repository == 'ToramaruA/game-arcade'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Read sent posts and metrics from Buffer
+        env:
+          BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
+        run: node scripts/x-metrics-report.mjs
