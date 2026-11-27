@@ -37,3 +37,20 @@ GitHub → Actions → **Publish new game to X via Buffer** → Run workflow。
 - https://developers.buffer.com/examples/create-text-post.html
 - https://developers.buffer.com/examples/create-image-post.html
 - https://developers.buffer.com/guides/pagination.html
+
+## 投稿別の実績を見る（読み取りのみ・手動）
+GitHub → Actions → **X post metrics via Buffer (read-only)** → Run workflow。
+`scripts/x-metrics-report.mjs` が、Bufferに連携したXチャンネル（ちょうど1つ）の投稿を読み、ログとジョブの Summary に次を出す。
+
+- 送信済み（status: sent）の件数、配信失敗（status に error/fail）の件数、全投稿の status 内訳
+- 投稿ごと：投稿ID、作品slug（本文のURLから）、本文の冒頭、送信時刻（`sentAt` がAPIにあるときだけ）、予定時刻（`dueAt`。実際の送信時刻とは区別）、`metricsUpdatedAt`、metrics の type/name/value/unit
+- 取得できた指標の種類：表示回数・反応・リンククリック（type/name に link/url と明示されたものだけ）・汎用クリック（リンククリックとは断定しない）
+
+決まりごと：
+- GraphQL の `query` だけを送る（送る前に `mutation` を拒否する）。新規投稿・削除・予約・設定変更はしない。定期実行はしない。
+- BufferのAPIは実験的なので、Postの項目はスキーマを調べて、ある項目だけを取得する。調べられないときは公式例の項目（status・dueAt・metricsUpdatedAt・metrics）で取得する。
+- 取得できない値・未更新の値は 0 にせず「取得不可」「未更新」と表示する。
+- 鍵の値・アカウント名は出さない。
+- APIで取れないときは、無料の Buffer の Insights（分析）画面で投稿ごとの表示・反応を手で確認する。
+
+参考：https://developers.buffer.com/examples/get-posts-with-metrics.html ／ https://support.buffer.com/en-us/articles/what-is-buffers-api-GtIYIQilz5
